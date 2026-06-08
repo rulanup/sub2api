@@ -12,7 +12,21 @@
         <LoadingSpinner />
       </div>
 
-      <template v-else-if="status?.enabled">
+      <!-- Error -->
+      <div v-else-if="error" class="card p-8 text-center">
+        <p class="text-red-500 dark:text-red-400">{{ error }}</p>
+        <button @click="loadStatus" class="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">
+          {{ t('checkin.retry') }}
+        </button>
+      </div>
+
+      <!-- Disabled state -->
+      <div v-else-if="!status?.enabled" class="card p-8 text-center">
+        <p class="text-gray-400 dark:text-gray-500">{{ t('checkin.disabled') }}</p>
+      </div>
+
+      <!-- Checkin Content -->
+      <template v-else>
         <!-- Checkin Card -->
         <div class="card overflow-hidden">
           <!-- Top decorative bar -->
@@ -46,13 +60,13 @@
             </template>
             <template v-else-if="status.checked_in">
               <h2 class="text-xl font-bold text-green-600 dark:text-green-400">{{ t('checkin.doneToday') }}</h2>
-              <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">+${{ status.amount.toFixed(6) }}</p>
+              <p class="mt-2 text-3xl font-bold text-gray-900 dark:text-white">+${{ (status.amount || 0).toFixed(6) }}</p>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('checkin.comeBackTomorrow') }}</p>
             </template>
             <template v-else>
               <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('checkin.notCheckedIn') }}</h2>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {{ t('checkin.range', { min: status.min_amount.toFixed(2), max: status.max_amount.toFixed(2) }) }}
+                {{ t('checkin.range', { min: (status.min_amount || 0).toFixed(2), max: (status.max_amount || 0).toFixed(2) }) }}
               </p>
             </template>
 
@@ -91,7 +105,7 @@
             </li>
             <li class="flex items-start gap-2">
               <span class="mt-0.5 text-blue-500">•</span>
-              {{ t('checkin.rule2', { min: status.min_amount.toFixed(2), max: status.max_amount.toFixed(2) }) }}
+              {{ t('checkin.rule2', { min: (status.min_amount || 0).toFixed(2), max: (status.max_amount || 0).toFixed(2) }) }}
             </li>
             <li class="flex items-start gap-2">
               <span class="mt-0.5 text-blue-500">•</span>
@@ -100,11 +114,6 @@
           </ul>
         </div>
       </template>
-
-      <!-- Disabled state -->
-      <div v-else-if="!loading" class="card p-8 text-center">
-        <p class="text-gray-400 dark:text-gray-500">{{ t('checkin.disabled') }}</p>
-      </div>
     </div>
   </AppLayout>
 </template>
@@ -123,16 +132,22 @@ const checkingIn = ref(false)
 const status = ref<CheckinStatus | null>(null)
 const showReward = ref(false)
 const rewardAmount = ref(0)
+const error = ref<string | null>(null)
 
-onMounted(async () => {
+async function loadStatus() {
+  loading.value = true
+  error.value = null
   try {
     status.value = await getCheckinStatus()
-  } catch (e) {
+  } catch (e: any) {
     console.warn('Failed to load checkin status:', e)
+    error.value = e?.message || 'Failed to load checkin status'
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(() => loadStatus())
 
 async function handleCheckin() {
   if (!status.value || status.value.checked_in || checkingIn.value) return
@@ -145,6 +160,7 @@ async function handleCheckin() {
     showReward.value = true
   } catch (e: any) {
     console.error('Checkin failed:', e)
+    error.value = e?.message || 'Check-in failed'
   } finally {
     checkingIn.value = false
   }

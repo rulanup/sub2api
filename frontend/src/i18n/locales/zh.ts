@@ -1183,6 +1183,7 @@ export default {
     perImage: '每张图片',
     noPricing: '暂无定价信息',
     noModels: '暂无可用模型',
+    testLatency: '测延迟',
     testing: '测试中...',
     latencyError: '测试失败',
   },
@@ -1233,6 +1234,7 @@ export default {
     rule2: '每次签到随机获得 ${{min}} ~ ${{max}} 额度',
     rule3: '额度自动添加到账户余额',
     reward: '签到成功！获得 ${{amount}}',
+    retry: '重试',
   },
 
   // Redeem

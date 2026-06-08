@@ -1179,6 +1179,7 @@ export default {
     perImage: 'Per Image',
     noPricing: 'No pricing info',
     noModels: 'No models available',
+    testLatency: 'Test',
     testing: 'Testing...',
     latencyError: 'Failed',
   },
@@ -1229,6 +1230,7 @@ export default {
     rule2: 'Each check-in grants ${{min}} ~ ${{max}} randomly',
     rule3: 'Balance is added to your account automatically',
     reward: 'Check-in successful! Received ${{amount}}',
+    retry: 'Retry',
   },
 
   // Redeem

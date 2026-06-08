@@ -129,9 +129,11 @@
           </div>
 
           <!-- Latency -->
-          <div class="mt-2 flex items-center gap-1.5">
-            <span
-              class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+          <div class="mt-2">
+            <button
+              @click.stop="testLatency(m.name)"
+              :disabled="latencyMap[m.name]?.testing"
+              class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors hover:opacity-80"
               :class="latencyClass(m.name)"
             >
               <template v-if="latencyMap[m.name]?.testing">
@@ -145,9 +147,9 @@
                 {{ latencyMap[m.name].latency }}ms
               </template>
               <template v-else>
-                ···
+                {{ t('modelSquare.testLatency') }}
               </template>
-            </span>
+            </button>
           </div>
         </div>
       </div>
@@ -204,28 +206,12 @@ onMounted(async () => {
     ])
     channels.value = chRes
     apiKeys.value = keysRes.items || []
-    // Auto-test latency for all models
-    if (apiKeys.value.length > 0) {
-      testAllLatencies()
-    }
   } catch (e) {
     console.error('Failed to load data:', e)
   } finally {
     loading.value = false
   }
 })
-
-async function testAllLatencies() {
-  if (apiKeys.value.length === 0) return
-  const keyId = apiKeys.value[0].id
-  const modelNames = models.value.map(m => m.name)
-  // Test 3 models in parallel
-  const concurrency = 3
-  for (let i = 0; i < modelNames.length; i += concurrency) {
-    const batch = modelNames.slice(i, i + concurrency)
-    await Promise.all(batch.map(name => testLatency(name, keyId)))
-  }
-}
 
 async function testLatency(modelName: string, keyId?: number) {
   if (!keyId && apiKeys.value.length === 0) return
