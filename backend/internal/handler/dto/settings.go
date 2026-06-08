@@ -244,6 +244,11 @@ type SystemSettings struct {
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 
+	// 每日签到
+	CheckinEnabled   bool    `json:"checkin_enabled"`
+	CheckinMinAmount float64 `json:"checkin_min_amount"`
+	CheckinMaxAmount float64 `json:"checkin_max_amount"`
+
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
@@ -319,6 +324,10 @@ type PublicSettings struct {
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`
+
+	CheckinEnabled   bool    `json:"checkin_enabled"`
+	CheckinMinAmount float64 `json:"checkin_min_amount"`
+	CheckinMaxAmount float64 `json:"checkin_max_amount"`
 
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
 }

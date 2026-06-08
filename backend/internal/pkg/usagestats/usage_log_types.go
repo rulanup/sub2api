@@ -162,6 +162,38 @@ type UserSpendingRankingResponse struct {
 	TotalTokens     int64                     `json:"total_tokens"`
 }
 
+// LeaderboardItem represents a single row in the public user leaderboard.
+// Email is masked for privacy (e.g. "u***@example.com").
+type LeaderboardItem struct {
+	Rank       int     `json:"rank"`
+	UserID     int64   `json:"user_id"`
+	Username   string  `json:"username"`
+	Email      string  `json:"email"`
+	ActualCost float64 `json:"actual_cost"`
+	Requests   int64   `json:"requests"`
+	Tokens     int64   `json:"tokens"`
+}
+
+// LeaderboardMyRank represents the current user's own ranking info.
+type LeaderboardMyRank struct {
+	Rank       *int    `json:"rank"`
+	ActualCost float64 `json:"actual_cost"`
+	Requests   int64   `json:"requests"`
+	Tokens     int64   `json:"tokens"`
+}
+
+// LeaderboardResponse is the full response for the user-facing leaderboard API.
+type LeaderboardResponse struct {
+	Ranking         []LeaderboardItem `json:"ranking"`
+	MyRank          LeaderboardMyRank `json:"my_rank"`
+	TotalActualCost float64           `json:"total_actual_cost"`
+	TotalRequests   int64             `json:"total_requests"`
+	TotalTokens     int64             `json:"total_tokens"`
+	StartDate       string            `json:"start_date"`
+	EndDate         string            `json:"end_date"`
+	UpdatedAt       string            `json:"updated_at"`
+}
+
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).
 type UserBreakdownItem struct {
 	UserID      int64   `json:"user_id"`

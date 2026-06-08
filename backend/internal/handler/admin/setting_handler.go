@@ -228,6 +228,9 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		DefaultConcurrency:                     settings.DefaultConcurrency,
 		DefaultBalance:                         settings.DefaultBalance,
 		RiskControlEnabled:                     settings.RiskControlEnabled,
+		CheckinEnabled:                         settings.CheckinEnabled,
+		CheckinMinAmount:                       settings.CheckinMinAmount,
+		CheckinMaxAmount:                       settings.CheckinMaxAmount,
 		AffiliateRebateRate:                    settings.AffiliateRebateRate,
 		AffiliateRebateFreezeHours:             settings.AffiliateRebateFreezeHours,
 		AffiliateRebateDurationDays:            settings.AffiliateRebateDurationDays,
@@ -645,6 +648,11 @@ type UpdateSettingsRequest struct {
 
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
+
+	// 每日签到
+	CheckinEnabled   *bool    `json:"checkin_enabled"`
+	CheckinMinAmount *float64 `json:"checkin_min_amount"`
+	CheckinMaxAmount *float64 `json:"checkin_max_amount"`
 
 	// OpenAI fast/flex policy (optional, only updated when provided)
 	OpenAIFastPolicySettings *dto.OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
@@ -1769,6 +1777,24 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.RiskControlEnabled
 		}(),
+		CheckinEnabled: func() bool {
+			if req.CheckinEnabled != nil {
+				return *req.CheckinEnabled
+			}
+			return previousSettings.CheckinEnabled
+		}(),
+		CheckinMinAmount: func() float64 {
+			if req.CheckinMinAmount != nil {
+				return *req.CheckinMinAmount
+			}
+			return previousSettings.CheckinMinAmount
+		}(),
+		CheckinMaxAmount: func() float64 {
+			if req.CheckinMaxAmount != nil {
+				return *req.CheckinMaxAmount
+			}
+			return previousSettings.CheckinMaxAmount
+		}(),
 	}
 
 	// req.AuthSourceXxxPlatformQuotas 为 nil 表示本次请求未包含该 source 的 quota 配置（保留 previousAuthSourceDefaults 中的值）；
@@ -2091,6 +2117,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 
 		RiskControlEnabled:         updatedSettings.RiskControlEnabled,
+		CheckinEnabled:             updatedSettings.CheckinEnabled,
+		CheckinMinAmount:           updatedSettings.CheckinMinAmount,
+		CheckinMaxAmount:           updatedSettings.CheckinMaxAmount,
 		AllowUserViewErrorRequests: updatedSettings.AllowUserViewErrorRequests,
 	}
 	if fastPolicy, err := h.settingService.GetOpenAIFastPolicySettings(c.Request.Context()); err != nil {

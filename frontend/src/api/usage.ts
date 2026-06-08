@@ -323,6 +323,56 @@ export async function getMyErrorDetail(id: number): Promise<UserErrorRequestDeta
   return data
 }
 
+// ==================== Leaderboard ====================
+
+export interface LeaderboardItem {
+  rank: number
+  user_id: number
+  username: string
+  email: string
+  actual_cost: number
+  requests: number
+  tokens: number
+}
+
+export interface LeaderboardMyRank {
+  rank: number | null
+  actual_cost: number
+  requests: number
+  tokens: number
+}
+
+export interface LeaderboardResponse {
+  ranking: LeaderboardItem[]
+  my_rank: LeaderboardMyRank
+  total_actual_cost: number
+  total_requests: number
+  total_tokens: number
+  start_date: string
+  end_date: string
+  updated_at: string
+}
+
+export async function getLeaderboard(params?: {
+  period?: 'day' | 'week' | 'month'
+  limit?: number
+}): Promise<LeaderboardResponse> {
+  const { data } = await apiClient.get<LeaderboardResponse>('/usage/leaderboard', { params })
+  return data
+}
+
+export interface ModelLatencyResult {
+  model: string
+  latency: number
+  status: 'ok' | 'error'
+  error?: string
+}
+
+export async function testModelLatency(model: string, keyId: number): Promise<ModelLatencyResult> {
+  const { data } = await apiClient.post<ModelLatencyResult>('/usage/test-model-latency', { model, key_id: keyId })
+  return data
+}
+
 export const usageAPI = {
   list,
   query,
@@ -339,6 +389,9 @@ export const usageAPI = {
   // Error requests
   listMyErrorRequests,
   getMyErrorDetail,
+  // Leaderboard
+  getLeaderboard,
+  testModelLatency,
 }
 
 export default usageAPI

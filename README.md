@@ -46,6 +46,14 @@ Sub2API is an AI API gateway platform designed to distribute and manage API quot
 - **Admin Dashboard** - Web interface for monitoring and management
 - **External System Integration** - Embed external systems (e.g. ticketing) via iframe to extend the admin dashboard
 
+### New Features (This Fork)
+
+- **Online Workbench** - Built-in chat and image generation interface, users can call models directly via API Key
+- **Model Square** - Display all available models with channels, group rates, and pricing info, with platform filtering and search
+- **Spending Leaderboard** - Users can view daily/weekly/monthly spending rankings
+- **Daily Check-in** - Users check in daily to receive random balance rewards, admin-configurable amount range and toggle
+- **Model Latency Test** - One-click latency testing for each model in Model Square
+
 ## ❤️ Sponsors
 
 > [Want to appear here?](mailto:support@pincc.ai)

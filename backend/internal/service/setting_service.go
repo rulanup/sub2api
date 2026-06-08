@@ -761,6 +761,9 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
+		SettingKeyCheckinEnabled,
+		SettingKeyCheckinMinAmount,
+		SettingKeyCheckinMaxAmount,
 		SettingKeyAllowUserViewErrorRequests,
 	}
 
@@ -875,6 +878,9 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
+		CheckinEnabled:   settings[SettingKeyCheckinEnabled] == "true",
+		CheckinMinAmount: 0.01,
+		CheckinMaxAmount: 0.10,
 		AllowUserViewErrorRequests: settings[SettingKeyAllowUserViewErrorRequests] == "true",
 	}, nil
 }
@@ -1188,8 +1194,11 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
-	RiskControlEnabled                   bool `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
+	RiskControlEnabled                   bool    `json:"risk_control_enabled"`
+	CheckinEnabled                       bool    `json:"checkin_enabled"`
+	CheckinMinAmount                     float64 `json:"checkin_min_amount"`
+	CheckinMaxAmount                     float64 `json:"checkin_max_amount"`
+	AllowUserViewErrorRequests           bool    `json:"allow_user_view_error_requests"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -1252,6 +1261,9 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
+		CheckinEnabled:                       settings.CheckinEnabled,
+		CheckinMinAmount:                     settings.CheckinMinAmount,
+		CheckinMaxAmount:                     settings.CheckinMaxAmount,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil
 }
@@ -1895,6 +1907,11 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
 
+	// 每日签到
+	updates[SettingKeyCheckinEnabled] = strconv.FormatBool(settings.CheckinEnabled)
+	updates[SettingKeyCheckinMinAmount] = strconv.FormatFloat(settings.CheckinMinAmount, 'f', -1, 64)
+	updates[SettingKeyCheckinMaxAmount] = strconv.FormatFloat(settings.CheckinMaxAmount, 'f', -1, 64)
+
 	// Claude Code version check
 	updates[SettingKeyMinClaudeCodeVersion] = settings.MinClaudeCodeVersion
 	updates[SettingKeyMaxClaudeCodeVersion] = settings.MaxClaudeCodeVersion
@@ -2379,6 +2396,35 @@ func (s *SettingService) IsInvitationCodeEnabled(ctx context.Context) bool {
 	return value == "true"
 }
 
+// IsCheckinEnabled checks if daily check-in is enabled.
+func (s *SettingService) IsCheckinEnabled(ctx context.Context) bool {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyCheckinEnabled)
+	if err != nil {
+		return false
+	}
+	return value == "true"
+}
+
+// GetCheckinAmountRange returns the min and max check-in amount.
+func (s *SettingService) GetCheckinAmountRange(ctx context.Context) (float64, float64) {
+	vals, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeyCheckinMinAmount, SettingKeyCheckinMaxAmount})
+	if err != nil {
+		return 0.01, 0.10
+	}
+	minAmt := 0.01
+	maxAmt := 0.10
+	if v, err := strconv.ParseFloat(vals[SettingKeyCheckinMinAmount], 64); err == nil && v >= 0 {
+		minAmt = v
+	}
+	if v, err := strconv.ParseFloat(vals[SettingKeyCheckinMaxAmount], 64); err == nil && v >= 0 {
+		maxAmt = v
+	}
+	if minAmt > maxAmt {
+		minAmt = maxAmt
+	}
+	return minAmt, maxAmt
+}
+
 // GetCustomMenuItemsRaw returns the raw JSON string of custom_menu_items setting.
 func (s *SettingService) GetCustomMenuItemsRaw(ctx context.Context) string {
 	value, err := s.settingRepo.GetValue(ctx, SettingKeyCustomMenuItems)
@@ -2818,6 +2864,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
+		SettingKeyCheckinEnabled:    "false",
+		SettingKeyCheckinMinAmount:  "0.01",
+		SettingKeyCheckinMaxAmount:  "0.10",
 
 		// Claude Code version check (default: empty = disabled)
 		SettingKeyMinClaudeCodeVersion: "",
@@ -3327,6 +3376,20 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"
+
+	// 每日签到（默认关闭）
+	result.CheckinEnabled = settings[SettingKeyCheckinEnabled] == "true"
+	result.CheckinMinAmount = 0.01
+	result.CheckinMaxAmount = 0.10
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinMinAmount], 64); err == nil && v >= 0 {
+		result.CheckinMinAmount = v
+	}
+	if v, err := strconv.ParseFloat(settings[SettingKeyCheckinMaxAmount], 64); err == nil && v >= 0 {
+		result.CheckinMaxAmount = v
+	}
+	if result.CheckinMinAmount > result.CheckinMaxAmount {
+		result.CheckinMinAmount = result.CheckinMaxAmount
+	}
 
 	// Claude Code version check
 	result.MinClaudeCodeVersion = settings[SettingKeyMinClaudeCodeVersion]

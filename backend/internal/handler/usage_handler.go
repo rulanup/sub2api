@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -16,6 +19,37 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// leaderboardCache caches the leaderboard response to avoid repeated DB queries.
+var (
+	leaderboardCache     map[string]*leaderboardCacheEntry
+	leaderboardCacheMu   sync.RWMutex
+	leaderboardCacheTTL  = 5 * time.Minute
+)
+
+type leaderboardCacheEntry struct {
+	data      interface{}
+	expiresAt time.Time
+}
+
+func init() {
+	leaderboardCache = make(map[string]*leaderboardCacheEntry)
+}
+
+func getLeaderboardCache(key string) (interface{}, bool) {
+	leaderboardCacheMu.RLock()
+	defer leaderboardCacheMu.RUnlock()
+	if e, ok := leaderboardCache[key]; ok && time.Now().Before(e.expiresAt) {
+		return e.data, true
+	}
+	return nil, false
+}
+
+func setLeaderboardCache(key string, data interface{}) {
+	leaderboardCacheMu.Lock()
+	defer leaderboardCacheMu.Unlock()
+	leaderboardCache[key] = &leaderboardCacheEntry{data: data, expiresAt: time.Now().Add(leaderboardCacheTTL)}
+}
 
 // UsageHandler handles usage-related requests
 type UsageHandler struct {
@@ -507,6 +541,142 @@ func (h *UsageHandler) DashboardModels(c *gin.Context) {
 		"models":     stats,
 		"start_date": startTime.Format("2006-01-02"),
 		"end_date":   endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+	})
+}
+
+// Leaderboard handles getting the public user spending leaderboard.
+// GET /api/v1/usage/leaderboard?period=day|week|month&limit=50
+func (h *UsageHandler) Leaderboard(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	period := c.DefaultQuery("period", "week")
+	limit := 50
+	if v, err := strconv.Atoi(c.DefaultQuery("limit", "50")); err == nil && v > 0 && v <= 100 {
+		limit = v
+	}
+
+	now := time.Now()
+	var startTime time.Time
+	switch period {
+	case "day":
+		startTime = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	case "month":
+		startTime = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	default: // week
+		weekday := now.Weekday()
+		if weekday == 0 {
+			weekday = 7
+		}
+		startTime = time.Date(now.Year(), now.Month(), now.Day()-int(weekday)+1, 0, 0, 0, 0, now.Location())
+	}
+	endTime := now
+
+	cacheKey := period
+	if cached, ok := getLeaderboardCache(cacheKey); ok {
+		resp := cached.(*usagestats.LeaderboardResponse)
+		// Re-resolve my_rank from DB (cheap single-row query) since it's user-specific
+		if myRank, err := h.usageService.GetLeaderboardMyRank(c.Request.Context(), startTime, endTime, subject.UserID); err == nil {
+			resp.MyRank = *myRank
+		}
+		resp.UpdatedAt = now.Format("2006/1/2 15:04:05")
+		response.Success(c, resp)
+		return
+	}
+
+	resp, err := h.usageService.GetLeaderboard(c.Request.Context(), startTime, endTime, limit, subject.UserID)
+	if err != nil {
+		response.Error(c, 500, "Failed to get leaderboard")
+		return
+	}
+
+	resp.StartDate = startTime.Format("2006-01-02")
+	resp.EndDate = endTime.Format("2006-01-02")
+	resp.UpdatedAt = now.Format("2006/1/2 15:04:05")
+
+	setLeaderboardCache(cacheKey, resp)
+	response.Success(c, resp)
+}
+
+// TestModelLatencyRequest represents the request to test model latency.
+type TestModelLatencyRequest struct {
+	Model  string `json:"model" binding:"required"`
+	KeyID  int64  `json:"key_id" binding:"required"`
+}
+
+// TestModelLatency tests the latency of a model by making a minimal request.
+// POST /api/v1/usage/test-model-latency
+func (h *UsageHandler) TestModelLatency(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	var req TestModelLatencyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	// Get the API key
+	apiKey, err := h.apiKeyService.GetByID(c.Request.Context(), req.KeyID)
+	if err != nil {
+		response.Error(c, 404, "API key not found")
+		return
+	}
+	if apiKey.UserID != subject.UserID {
+		response.Error(c, 403, "API key does not belong to you")
+		return
+	}
+
+	// Build minimal chat completion request
+	payload := fmt.Sprintf(`{"model":"%s","messages":[{"role":"user","content":"hi"}],"max_tokens":1,"stream":false}`, req.Model)
+	gatewayURL := fmt.Sprintf("http://127.0.0.1:%d/v1/chat/completions", 8080)
+
+	httpReq, err := http.NewRequestWithContext(c.Request.Context(), "POST", gatewayURL, strings.NewReader(payload))
+	if err != nil {
+		response.Error(c, 500, "Failed to create request")
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey.Key)
+
+	start := time.Now()
+	httpResp, err := http.DefaultClient.Do(httpReq)
+	latency := time.Since(start).Milliseconds()
+
+	if err != nil {
+		response.Success(c, gin.H{
+			"model":   req.Model,
+			"latency": latency,
+			"status":  "error",
+			"error":   err.Error(),
+		})
+		return
+	}
+	defer httpResp.Body.Close()
+
+	status := "ok"
+	if httpResp.StatusCode >= 400 {
+		status = "error"
+		body, _ := io.ReadAll(io.LimitReader(httpResp.Body, 512))
+		response.Success(c, gin.H{
+			"model":   req.Model,
+			"latency": latency,
+			"status":  status,
+			"error":   string(body),
+		})
+		return
+	}
+
+	response.Success(c, gin.H{
+		"model":   req.Model,
+		"latency": latency,
+		"status":  status,
 	})
 }
 

@@ -289,6 +289,24 @@ func (s *UsageService) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
+// GetLeaderboard returns the public user leaderboard with the caller's own rank.
+func (s *UsageService) GetLeaderboard(ctx context.Context, startTime, endTime time.Time, limit int, callerUserID int64) (*usagestats.LeaderboardResponse, error) {
+	resp, err := s.usageRepo.GetLeaderboard(ctx, startTime, endTime, limit, callerUserID)
+	if err != nil {
+		return nil, fmt.Errorf("get leaderboard: %w", err)
+	}
+	// Mask emails for privacy
+	for i := range resp.Ranking {
+		resp.Ranking[i].Email = maskEmail(resp.Ranking[i].Email)
+	}
+	return resp, nil
+}
+
+// GetLeaderboardMyRank returns only the current user's rank and stats.
+func (s *UsageService) GetLeaderboardMyRank(ctx context.Context, startTime, endTime time.Time, callerUserID int64) (*usagestats.LeaderboardMyRank, error) {
+	return s.usageRepo.GetLeaderboardMyRank(ctx, startTime, endTime, callerUserID)
+}
+
 // GetUserDashboardStats returns per-user dashboard summary stats.
 func (s *UsageService) GetUserDashboardStats(ctx context.Context, userID int64) (*usagestats.UserDashboardStats, error) {
 	stats, err := s.usageRepo.GetUserDashboardStats(ctx, userID)

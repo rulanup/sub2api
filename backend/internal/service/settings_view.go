@@ -226,6 +226,11 @@ type SystemSettings struct {
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool
+
+	// 每日签到
+	CheckinEnabled   bool    `json:"checkin_enabled"`
+	CheckinMinAmount float64 `json:"checkin_min_amount"`
+	CheckinMaxAmount float64 `json:"checkin_max_amount"`
 }
 
 type DefaultSubscriptionSetting struct {
@@ -296,6 +301,11 @@ type PublicSettings struct {
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`
+
+	// 每日签到
+	CheckinEnabled   bool    `json:"checkin_enabled"`
+	CheckinMinAmount float64 `json:"checkin_min_amount"`
+	CheckinMaxAmount float64 `json:"checkin_max_amount"`
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`

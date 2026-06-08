@@ -86,6 +86,8 @@ func RegisterUserRoutes(
 			usage.GET("/errors/:id", h.Usage.GetErrorDetail)
 			usage.GET("/:id", h.Usage.GetByID)
 			usage.GET("/stats", h.Usage.Stats)
+			usage.GET("/leaderboard", h.Usage.Leaderboard)
+			usage.POST("/test-model-latency", h.Usage.TestModelLatency)
 			// User dashboard endpoints
 			usage.GET("/dashboard/stats", h.Usage.DashboardStats)
 			usage.GET("/dashboard/trend", h.Usage.DashboardTrend)
@@ -105,6 +107,13 @@ func RegisterUserRoutes(
 		{
 			redeem.POST("", h.Redeem.Redeem)
 			redeem.GET("/history", h.Redeem.GetHistory)
+		}
+
+		// 每日签到
+		checkin := authenticated.Group("/checkin")
+		{
+			checkin.GET("/status", h.Checkin.GetStatus)
+			checkin.POST("", h.Checkin.Checkin)
 		}
 
 		// 用户订阅
