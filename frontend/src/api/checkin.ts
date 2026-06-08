@@ -19,13 +19,18 @@ export interface CheckinResult {
 }
 
 export async function getCheckinStatus(): Promise<CheckinStatus> {
-  const { data } = await apiClient.get<CheckinStatus>('/checkin/status')
-  return data
+  try {
+    const { data } = await apiClient.get<CheckinStatus>('/checkin/status')
+    return data as CheckinStatus
+  } catch (e: any) {
+    // If API returns error (e.g. 403 disabled), return disabled state
+    return { enabled: false, checked_in: false, amount: 0, min_amount: 0, max_amount: 0 }
+  }
 }
 
 export async function doCheckin(): Promise<CheckinResult> {
   const { data } = await apiClient.post<CheckinResult>('/checkin')
-  return data
+  return data as CheckinResult
 }
 
 export const checkinAPI = { getCheckinStatus, doCheckin }
