@@ -131,7 +131,24 @@ func (h *AvailableChannelHandler) List(c *gin.Context) {
 		return
 	}
 
-	userGroups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), subject.UserID)
+	h.listVisibleChannels(c, subject.UserID)
+}
+
+// ModelSquare 列出模型广场所需的模型/分组数据。
+// 它复用用户可见性过滤，但不受「可用渠道」功能开关控制。
+// GET /api/v1/channels/model-square
+func (h *AvailableChannelHandler) ModelSquare(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+
+	h.listVisibleChannels(c, subject.UserID)
+}
+
+func (h *AvailableChannelHandler) listVisibleChannels(c *gin.Context, userID int64) {
+	userGroups, err := h.apiKeyService.GetAvailableGroups(c.Request.Context(), userID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

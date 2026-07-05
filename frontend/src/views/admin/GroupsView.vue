@@ -349,6 +349,13 @@
                 }}</span>
               </button>
               <button
+                @click="openAddAccountsModal(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-emerald-600 dark:hover:bg-dark-700 dark:hover:text-emerald-400"
+              >
+                <Icon name="plus" size="sm" />
+                <span class="text-xs">{{ t("admin.groups.addAccounts.action") }}</span>
+              </button>
+              <button
                 @click="handleDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
@@ -515,6 +522,54 @@
             </option>
           </select>
           <p class="input-hint">{{ t("admin.groups.copyAccounts.hint") }}</p>
+        </div>
+        <div>
+          <div class="mb-1.5 flex items-center gap-1">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t("admin.groups.addAccounts.formTitle") }}
+            </label>
+          </div>
+          <div
+            v-if="createSelectedAccountIds.length > 0"
+            class="mb-2 flex flex-wrap gap-1.5"
+          >
+            <span
+              v-for="accountId in createSelectedAccountIds"
+              :key="accountId"
+              class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+            >
+              {{ createAccountCandidates.find((account) => account.id === accountId)?.name || `#${accountId}` }}
+              <button
+                type="button"
+                class="ml-0.5 text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-200"
+                @click="removeDirectAccount('create', accountId)"
+              >
+                <Icon name="x" size="xs" />
+              </button>
+            </span>
+          </div>
+          <div class="grid gap-2 sm:grid-cols-[1fr_1fr]">
+            <input
+              v-model="createAccountSearch"
+              type="text"
+              class="input"
+              :placeholder="t('admin.groups.addAccounts.searchPlaceholder')"
+              @input="handleDirectAccountSearch('create')"
+            />
+            <select class="input" :disabled="createAccountsLoading" @change="handleDirectAccountSelect('create', $event)">
+              <option value="">
+                {{ createAccountsLoading ? t("common.loading") : t("admin.groups.addAccounts.selectPlaceholder") }}
+              </option>
+              <option
+                v-for="account in createAvailableAccountCandidates"
+                :key="account.id"
+                :value="account.id"
+              >
+                {{ account.name }} #{{ account.id }}
+              </option>
+            </select>
+          </div>
+          <p class="input-hint">{{ t("admin.groups.addAccounts.formHint") }}</p>
         </div>
         <div>
           <label class="input-label">{{
@@ -1855,6 +1910,54 @@
           </p>
         </div>
         <div>
+          <div class="mb-1.5 flex items-center gap-1">
+            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ t("admin.groups.addAccounts.formTitle") }}
+            </label>
+          </div>
+          <div
+            v-if="editSelectedAccountIds.length > 0"
+            class="mb-2 flex flex-wrap gap-1.5"
+          >
+            <span
+              v-for="accountId in editSelectedAccountIds"
+              :key="accountId"
+              class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+            >
+              {{ editAccountCandidates.find((account) => account.id === accountId)?.name || `#${accountId}` }}
+              <button
+                type="button"
+                class="ml-0.5 text-emerald-500 hover:text-emerald-700 dark:hover:text-emerald-200"
+                @click="removeDirectAccount('edit', accountId)"
+              >
+                <Icon name="x" size="xs" />
+              </button>
+            </span>
+          </div>
+          <div class="grid gap-2 sm:grid-cols-[1fr_1fr]">
+            <input
+              v-model="editAccountSearch"
+              type="text"
+              class="input"
+              :placeholder="t('admin.groups.addAccounts.searchPlaceholder')"
+              @input="handleDirectAccountSearch('edit')"
+            />
+            <select class="input" :disabled="editAccountsLoading" @change="handleDirectAccountSelect('edit', $event)">
+              <option value="">
+                {{ editAccountsLoading ? t("common.loading") : t("admin.groups.addAccounts.selectPlaceholder") }}
+              </option>
+              <option
+                v-for="account in editAvailableAccountCandidates"
+                :key="account.id"
+                :value="account.id"
+              >
+                {{ account.name }} #{{ account.id }}
+              </option>
+            </select>
+          </div>
+          <p class="input-hint">{{ t("admin.groups.addAccounts.formHint") }}</p>
+        </div>
+        <div>
           <label class="input-label">{{
             t("admin.groups.form.rateMultiplier")
           }}</label>
@@ -3171,6 +3274,96 @@
       @close="showRPMOverridesModal = false"
       @success="loadGroups"
     />
+
+    <BaseDialog
+      :show="showAddAccountsModal"
+      :title="t('admin.groups.addAccounts.title', { name: addAccountsGroup?.name || '' })"
+      width="wide"
+      @close="closeAddAccountsModal"
+    >
+      <div class="space-y-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="text-sm text-gray-500 dark:text-gray-400">
+            {{ t("admin.groups.addAccounts.description") }}
+          </div>
+          <div class="relative w-full sm:w-72">
+            <Icon
+              name="search"
+              size="sm"
+              class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+            />
+            <input
+              v-model="addAccountsSearch"
+              type="text"
+              class="input pl-9"
+              :placeholder="t('admin.groups.addAccounts.searchPlaceholder')"
+              @input="handleAddAccountsSearch"
+            />
+          </div>
+        </div>
+
+        <div class="rounded-lg border border-gray-200 dark:border-dark-700">
+          <div v-if="addAccountsLoading" class="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            {{ t("common.loading") }}
+          </div>
+          <div v-else-if="addAccountsCandidates.length === 0" class="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+            {{ t("admin.groups.addAccounts.empty") }}
+          </div>
+          <div v-else class="max-h-96 divide-y divide-gray-200 overflow-y-auto dark:divide-dark-700">
+            <label
+              v-for="account in addAccountsCandidates"
+              :key="account.id"
+              class="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-dark-800"
+            >
+              <input
+                type="checkbox"
+                class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                :checked="selectedAddAccountIds.includes(account.id)"
+                @change="toggleAddAccountSelection(account.id)"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                  {{ account.name }}
+                </div>
+                <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span>#{{ account.id }}</span>
+                  <span>{{ t("admin.accounts.status." + account.status) }}</span>
+                  <span v-if="account.type">{{ account.type }}</span>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
+          <span>{{ t("admin.groups.addAccounts.selected", { count: selectedAddAccountIds.length }) }}</span>
+          <button
+            type="button"
+            class="text-primary-600 hover:text-primary-700 disabled:text-gray-400 dark:text-primary-400"
+            :disabled="addAccountsCandidates.length === 0"
+            @click="toggleAllAddAccounts"
+          >
+            {{ allAddAccountsSelected ? t("admin.groups.addAccounts.clearSelection") : t("common.selectAll") }}
+          </button>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-3 pt-4">
+          <button type="button" class="btn btn-secondary" @click="closeAddAccountsModal">
+            {{ t("common.cancel") }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-primary"
+            :disabled="addAccountsSubmitting || selectedAddAccountIds.length === 0"
+            @click="submitAddAccounts"
+          >
+            {{ addAccountsSubmitting ? t("common.saving") : t("admin.groups.addAccounts.submit") }}
+          </button>
+        </div>
+      </template>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -3180,7 +3373,7 @@ import { useI18n } from "vue-i18n";
 import { useAppStore } from "@/stores/app";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { adminAPI } from "@/api/admin";
-import type { AdminGroup, GroupPlatform, SubscriptionType } from "@/types";
+import type { Account, AdminGroup, GroupPlatform, SubscriptionType } from "@/types";
 import type { Column } from "@/components/common/types";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import TablePageLayout from "@/components/layout/TablePageLayout.vue";
@@ -3522,6 +3715,21 @@ const showRateMultipliersModal = ref(false);
 const rateMultipliersGroup = ref<AdminGroup | null>(null);
 const showRPMOverridesModal = ref(false);
 const rpmOverridesGroup = ref<AdminGroup | null>(null);
+const showAddAccountsModal = ref(false);
+const addAccountsGroup = ref<AdminGroup | null>(null);
+const addAccountsCandidates = ref<Account[]>([]);
+const addAccountsSearch = ref("");
+const selectedAddAccountIds = ref<number[]>([]);
+const addAccountsLoading = ref(false);
+const addAccountsSubmitting = ref(false);
+const createAccountCandidates = ref<Account[]>([]);
+const editAccountCandidates = ref<Account[]>([]);
+const createAccountSearch = ref("");
+const editAccountSearch = ref("");
+const createSelectedAccountIds = ref<number[]>([]);
+const editSelectedAccountIds = ref<number[]>([]);
+const createAccountsLoading = ref(false);
+const editAccountsLoading = ref(false);
 const sortableGroups = ref<AdminGroup[]>([]);
 const createMessagesDispatchDefaults = createDefaultMessagesDispatchFormState();
 const editMessagesDispatchDefaults = createDefaultMessagesDispatchFormState();
@@ -3994,6 +4202,28 @@ const deleteConfirmMessage = computed(() => {
   return t("admin.groups.deleteConfirm", { name: deletingGroup.value.name });
 });
 
+const allAddAccountsSelected = computed(
+  () =>
+    addAccountsCandidates.value.length > 0 &&
+    addAccountsCandidates.value.every((account) =>
+      selectedAddAccountIds.value.includes(account.id),
+    ),
+);
+
+const createAvailableAccountCandidates = computed(() =>
+  createAccountCandidates.value.filter(
+    (account) => !createSelectedAccountIds.value.includes(account.id),
+  ),
+);
+
+const editAvailableAccountCandidates = computed(() =>
+  editAccountCandidates.value.filter(
+    (account) =>
+      !editSelectedAccountIds.value.includes(account.id) &&
+      !(account.group_ids || []).includes(editingGroup.value?.id || 0),
+  ),
+);
+
 const loadGroups = async () => {
   if (abortController) {
     abortController.abort();
@@ -4140,6 +4370,7 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
 const openCreateModal = () => {
   showCreateModal.value = true;
   loadModelsListCandidates("create", 0, createForm.platform);
+  loadDirectAccountCandidates("create");
 };
 
 const closeCreateModal = () => {
@@ -4179,6 +4410,7 @@ const closeCreateModal = () => {
   createForm.rpm_limit = 0;
   resetModelsListState(createModelsListState);
   createModelRoutingRules.value = [];
+  resetDirectAccountPicker("create");
 };
 
 const normalizeOptionalLimit = (
@@ -4262,7 +4494,10 @@ const handleCreateGroup = async () => {
     requestData.peak_rate_multiplier = normalizeRateMultiplier(
       createForm.peak_rate_multiplier,
     );
-    await adminAPI.groups.create(requestData);
+    const createdGroup = await adminAPI.groups.create(requestData);
+    if (createSelectedAccountIds.value.length > 0) {
+      await appendAccountsToGroup(createSelectedAccountIds.value, createdGroup.id);
+    }
     appStore.showSuccess(t("admin.groups.groupCreated"));
     closeCreateModal();
     loadGroups();
@@ -4329,12 +4564,14 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.mcp_xml_inject = group.mcp_xml_inject ?? true;
   editForm.copy_accounts_from_group_ids = []; // 复制账号字段每次编辑时重置为空
   editForm.rpm_limit = group.rpm_limit ?? 0;
+  resetDirectAccountPicker("edit");
   resetModelsListState(editModelsListState, group.models_list_config);
   // 加载模型路由规则（异步加载账号名称）
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
     group.model_routing,
   );
   loadModelsListCandidates("edit", group.id, group.platform);
+  loadDirectAccountCandidates("edit");
   showEditModal.value = true;
 };
 
@@ -4353,6 +4590,7 @@ const closeEditModal = () => {
   editForm.peak_rate_multiplier = 1.0;
   resetMessagesDispatchFormState(editForm);
   resetModelsListState(editModelsListState);
+  resetDirectAccountPicker("edit");
 };
 
 const handleUpdateGroup = async () => {
@@ -4416,6 +4654,9 @@ const handleUpdateGroup = async () => {
       editForm.peak_rate_multiplier,
     );
     await adminAPI.groups.update(editingGroup.value.id, payload);
+    if (editSelectedAccountIds.value.length > 0) {
+      await appendAccountsToGroup(editSelectedAccountIds.value, editingGroup.value.id);
+    }
     appStore.showSuccess(t("admin.groups.groupUpdated"));
     closeEditModal();
     loadGroups();
@@ -4461,6 +4702,168 @@ const handleRateMultipliers = (group: AdminGroup) => {
 const handleRPMOverrides = (group: AdminGroup) => {
   rpmOverridesGroup.value = group;
   showRPMOverridesModal.value = true;
+};
+
+let addAccountsSearchTimeout: ReturnType<typeof setTimeout>;
+let createAccountSearchTimeout: ReturnType<typeof setTimeout>;
+let editAccountSearchTimeout: ReturnType<typeof setTimeout>;
+
+const getDirectAccountState = (mode: "create" | "edit") => ({
+  platform: mode === "create" ? createForm.platform : editForm.platform,
+  search: mode === "create" ? createAccountSearch : editAccountSearch,
+  candidates: mode === "create" ? createAccountCandidates : editAccountCandidates,
+  selected: mode === "create" ? createSelectedAccountIds : editSelectedAccountIds,
+  loading: mode === "create" ? createAccountsLoading : editAccountsLoading,
+});
+
+const loadDirectAccountCandidates = async (mode: "create" | "edit") => {
+  const state = getDirectAccountState(mode);
+  state.loading.value = true;
+  try {
+    const response = await adminAPI.accounts.list(1, 100, {
+      platform: state.platform,
+      search: state.search.value.trim() || undefined,
+    });
+    state.candidates.value = response.items;
+  } catch (error) {
+    appStore.showError(t("admin.groups.addAccounts.failedToLoad"));
+    console.error(`Error loading ${mode} group account candidates:`, error);
+  } finally {
+    state.loading.value = false;
+  }
+};
+
+const handleDirectAccountSearch = (mode: "create" | "edit") => {
+  if (mode === "create") {
+    clearTimeout(createAccountSearchTimeout);
+    createAccountSearchTimeout = setTimeout(() => loadDirectAccountCandidates("create"), 300);
+    return;
+  }
+  clearTimeout(editAccountSearchTimeout);
+  editAccountSearchTimeout = setTimeout(() => loadDirectAccountCandidates("edit"), 300);
+};
+
+const handleDirectAccountSelect = (mode: "create" | "edit", event: Event) => {
+  const select = event.target as HTMLSelectElement;
+  const accountID = Number(select.value);
+  select.value = "";
+  if (!accountID) return;
+
+  const state = getDirectAccountState(mode);
+  if (!state.selected.value.includes(accountID)) {
+    state.selected.value = [...state.selected.value, accountID];
+  }
+};
+
+const removeDirectAccount = (mode: "create" | "edit", accountID: number) => {
+  const state = getDirectAccountState(mode);
+  state.selected.value = state.selected.value.filter((id) => id !== accountID);
+};
+
+const resetDirectAccountPicker = (mode: "create" | "edit") => {
+  const state = getDirectAccountState(mode);
+  state.search.value = "";
+  state.candidates.value = [];
+  state.selected.value = [];
+  clearTimeout(mode === "create" ? createAccountSearchTimeout : editAccountSearchTimeout);
+};
+
+const appendAccountsToGroup = async (accountIDs: number[], groupID: number) => {
+  for (const accountID of accountIDs) {
+    const account = await adminAPI.accounts.getById(accountID);
+    const nextGroupIDs = Array.from(new Set([...(account.group_ids || []), groupID]));
+    await adminAPI.accounts.update(accountID, { group_ids: nextGroupIDs });
+  }
+};
+
+const loadAddAccountsCandidates = async () => {
+  if (!addAccountsGroup.value) return;
+
+  addAccountsLoading.value = true;
+  try {
+    const response = await adminAPI.accounts.list(1, 100, {
+      platform: addAccountsGroup.value.platform,
+      search: addAccountsSearch.value.trim() || undefined,
+    });
+    const groupID = addAccountsGroup.value.id;
+    addAccountsCandidates.value = response.items.filter(
+      (account) => !(account.group_ids || []).includes(groupID),
+    );
+    selectedAddAccountIds.value = selectedAddAccountIds.value.filter((id) =>
+      addAccountsCandidates.value.some((account) => account.id === id),
+    );
+  } catch (error) {
+    appStore.showError(t("admin.groups.addAccounts.failedToLoad"));
+    console.error("Error loading candidate accounts:", error);
+  } finally {
+    addAccountsLoading.value = false;
+  }
+};
+
+const handleAddAccountsSearch = () => {
+  clearTimeout(addAccountsSearchTimeout);
+  addAccountsSearchTimeout = setTimeout(loadAddAccountsCandidates, 300);
+};
+
+const openAddAccountsModal = (group: AdminGroup) => {
+  addAccountsGroup.value = group;
+  addAccountsSearch.value = "";
+  selectedAddAccountIds.value = [];
+  addAccountsCandidates.value = [];
+  showAddAccountsModal.value = true;
+  loadAddAccountsCandidates();
+};
+
+const closeAddAccountsModal = () => {
+  showAddAccountsModal.value = false;
+  addAccountsGroup.value = null;
+  addAccountsCandidates.value = [];
+  addAccountsSearch.value = "";
+  selectedAddAccountIds.value = [];
+  clearTimeout(addAccountsSearchTimeout);
+};
+
+const toggleAddAccountSelection = (accountID: number) => {
+  if (selectedAddAccountIds.value.includes(accountID)) {
+    selectedAddAccountIds.value = selectedAddAccountIds.value.filter(
+      (id) => id !== accountID,
+    );
+    return;
+  }
+  selectedAddAccountIds.value = [...selectedAddAccountIds.value, accountID];
+};
+
+const toggleAllAddAccounts = () => {
+  if (allAddAccountsSelected.value) {
+    selectedAddAccountIds.value = [];
+    return;
+  }
+  selectedAddAccountIds.value = addAccountsCandidates.value.map((account) => account.id);
+};
+
+const submitAddAccounts = async () => {
+  if (!addAccountsGroup.value || selectedAddAccountIds.value.length === 0) return;
+
+  addAccountsSubmitting.value = true;
+  try {
+    await appendAccountsToGroup(selectedAddAccountIds.value, addAccountsGroup.value.id);
+    appStore.showSuccess(
+      t("admin.groups.addAccounts.success", {
+        count: selectedAddAccountIds.value.length,
+      }),
+    );
+    closeAddAccountsModal();
+    loadGroups();
+  } catch (error: any) {
+    appStore.showError(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        t("admin.groups.addAccounts.failedToSave"),
+    );
+    console.error("Error adding accounts to group:", error);
+  } finally {
+    addAccountsSubmitting.value = false;
+  }
 };
 
 const handleDelete = (group: AdminGroup) => {
@@ -4529,6 +4932,8 @@ watch(
     }
     resetModelsListState(createModelsListState);
     loadModelsListCandidates("create", 0, newVal);
+    resetDirectAccountPicker("create");
+    loadDirectAccountCandidates("create");
   },
 );
 
@@ -4548,6 +4953,8 @@ watch(
     if (editingGroup.value) {
       resetModelsListState(editModelsListState, editForm.platform === editingGroup.value.platform ? editingGroup.value.models_list_config : undefined);
       loadModelsListCandidates("edit", editingGroup.value.id, newVal);
+      resetDirectAccountPicker("edit");
+      loadDirectAccountCandidates("edit");
     }
   },
 );

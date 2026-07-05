@@ -1,6 +1,6 @@
 <template>
-  <div class="card overflow-hidden">
-    <table class="w-full table-fixed border-collapse text-sm">
+  <div class="table-wrapper">
+    <table class="w-full min-w-[1100px] table-fixed border-collapse text-sm">
       <thead>
         <tr class="border-b border-gray-100 bg-gray-50/50 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-dark-700 dark:bg-dark-800/50 dark:text-gray-400">
           <th class="w-[180px] px-4 py-3 text-center">{{ columns.name }}</th>

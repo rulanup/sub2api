@@ -28,10 +28,12 @@ Please read the following carefully before using this project:
 ### New Features (This Fork)
 
 - **Online Workbench** - Built-in chat and image generation interface, users can call models directly via API Key
-- **Model Square** - Display all available models with channels, group rates, and pricing info, with platform filtering and search
+- **Model Square** - Dense catalog of user-visible models with platform icons, group-rate price previews, filters, and search; works independently from the Available Channels feature switch
+- **Available Channels Improvements** - Scrollable channel table for large channel/model catalogs
+- **Group Account Assignment** - Add same-platform accounts directly from group list, create group, and edit group flows without overwriting existing account group bindings
+- **Channel Pricing Import** - Import channel pricing models from a saved account whitelist or model mapping
 - **Spending Leaderboard** - Users can view daily/weekly/monthly spending rankings
 - **Daily Check-in** - Users check in daily to receive random balance rewards, admin-configurable amount range and toggle
-- **Model Latency Test** - One-click latency testing for each model in Model Square
 
 ## ❤️ Sponsors
 
@@ -372,6 +374,22 @@ docker compose -f docker-compose.local.yml ps
 
 # 7. View logs
 docker compose -f docker-compose.local.yml logs -f sub2api
+```
+
+To run a locally built fork image instead of the published image, create an override file:
+
+```yaml
+# docker-compose.local.override.yml
+services:
+  sub2api:
+    image: sub2api:local
+```
+
+Then build and start with both files:
+
+```bash
+docker build -t sub2api:local ..
+docker compose -f docker-compose.local.yml -f docker-compose.local.override.yml up -d
 ```
 
 #### Deployment Versions

@@ -29,10 +29,12 @@
 ### 新增功能（本 Fork）
 
 - **在线工作台** - 内置聊天和图片生成界面，用户可直接在网页上使用 API Key 调用模型
-- **模型广场** - 展示所有可用模型的渠道、分组倍率和计费信息，支持按平台筛选和搜索
+- **模型广场** - 以紧凑目录形式展示用户可见模型，包含平台图标、分组倍率价格预览、筛选和搜索；不依赖「可用渠道」功能开关
+- **可用渠道增强** - 渠道/模型数量较多时支持表格滚动展示
+- **分组账号分配** - 可在分组列表、创建分组、编辑分组时直接添加同平台账号，且不会覆盖账号已有分组绑定
+- **渠道价格导入** - 支持从账号白名单或模型映射导入渠道计费模型
 - **消费排行榜** - 用户可查看日/周/月消费排名，了解自己在全站的消费位置
 - **每日签到** - 用户每日签到领取随机额度，管理员可配置额度范围和开关
-- **模型延迟测试** - 模型广场支持一键测试各模型的响应延迟
 
 ## ❤️ 赞助商
 
@@ -376,6 +378,22 @@ docker compose -f docker-compose.local.yml ps
 
 # 7. 查看日志
 docker compose -f docker-compose.local.yml logs -f sub2api
+```
+
+如果需要运行本地构建的 fork 镜像，而不是公开发布镜像，可以创建 override 文件：
+
+```yaml
+# docker-compose.local.override.yml
+services:
+  sub2api:
+    image: sub2api:local
+```
+
+然后构建并用两个 compose 文件启动：
+
+```bash
+docker build -t sub2api:local ..
+docker compose -f docker-compose.local.yml -f docker-compose.local.override.yml up -d
 ```
 
 #### 部署版本对比

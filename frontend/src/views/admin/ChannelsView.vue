@@ -421,14 +421,48 @@
             <div>
               <div class="mb-1 flex items-center justify-between">
                 <label class="input-label text-xs mb-0">{{ t('admin.channels.form.modelPricing', 'Model Pricing') }}</label>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                  <div class="relative w-48 pricing-account-search-container">
+                    <input
+                      v-model="pricingAccountSearchKeyword[section.platform]"
+                      type="text"
+                      class="input h-8 text-xs"
+                      :placeholder="selectedPricingAccount[section.platform] ? getPricingAccountLabel(section.platform) : t('admin.channels.form.searchAccountForModels', 'Search account')"
+                      @input="onPricingAccountSearchInput(section.platform)"
+                      @focus="onPricingAccountSearchFocus(section.platform)"
+                    />
+                    <button
+                      v-if="selectedPricingAccount[section.platform]"
+                      type="button"
+                      class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
+                      @click="clearSelectedPricingAccount(section.platform)"
+                    >
+                      <Icon name="x" size="xs" />
+                    </button>
+                    <div
+                      v-if="showPricingAccountDropdown[section.platform] && (pricingAccountSearchResults[section.platform]?.length ?? 0) > 0"
+                      class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                    >
+                      <button
+                        v-for="account in pricingAccountSearchResults[section.platform]"
+                        :key="account.id"
+                        type="button"
+                        @click="selectPricingAccount(section.platform, account)"
+                        class="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 dark:hover:bg-dark-700"
+                      >
+                        <span :class="platformTextClass(account.platform)">{{ account.name }}</span>
+                        <span class="ml-2 text-[11px] text-gray-400">#{{ account.id }}</span>
+                      </button>
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    @click="syncLatestModels(sIdx)"
-                    :disabled="syncingPlatform === section.platform"
-                    class="text-xs text-gray-500 hover:text-primary-600 disabled:opacity-50"
+                    @click="importModelsFromPricingAccount(sIdx)"
+                    :disabled="!selectedPricingAccount[section.platform] || fetchingAccountModels === section.platform"
+                    class="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-primary-600 disabled:opacity-50"
                   >
-                    {{ syncingPlatform === section.platform ? t('admin.channels.form.syncingModels') : t('admin.channels.form.syncLatestModels') }}
+                    <Icon name="download" size="xs" :class="fetchingAccountModels === section.platform ? 'animate-spin' : ''" />
+                    {{ fetchingAccountModels === section.platform ? t('admin.channels.form.fetchingAccountModels', 'Fetching') : t('admin.channels.form.fetchModelsFromAccount', 'Get from account') }}
                   </button>
                   <button type="button" @click="addPricingEntry(sIdx)" class="text-xs text-primary-600 hover:text-primary-700">
                     + {{ t('common.add', 'Add') }}
@@ -861,41 +895,128 @@ function addPricingEntry(sectionIdx: number) {
   })
 }
 
-const syncingPlatform = ref<string | null>(null)
+const fetchingAccountModels = ref<string | null>(null)
 
-async function syncLatestModels(sectionIdx: number) {
-  const platform = form.platforms[sectionIdx].platform
-  if (syncingPlatform.value) return
-  syncingPlatform.value = platform
+const pricingAccountSearchKeyword = ref<Record<string, string>>({})
+const pricingAccountSearchResults = ref<Record<string, SimpleAccount[]>>({})
+const showPricingAccountDropdown = ref<Record<string, boolean>>({})
+const selectedPricingAccount = ref<Record<string, SimpleAccount | null>>({})
+
+const pricingAccountSearchRunner = useKeyedDebouncedSearch<SimpleAccount[]>({
+  delay: 300,
+  search: async (keyword, { key, signal }) => {
+    const res = await adminAPI.accounts.list(1, 20, { platform: key, search: keyword }, { signal })
+    return res.items.map(a => ({ id: a.id, name: a.name, platform: a.platform }))
+  },
+  onSuccess: (key, result) => { pricingAccountSearchResults.value[key] = result },
+  onError: (key) => { pricingAccountSearchResults.value[key] = [] },
+})
+
+function onPricingAccountSearchInput(platform: string) {
+  selectedPricingAccount.value[platform] = null
+  showPricingAccountDropdown.value[platform] = true
+  pricingAccountSearchRunner.trigger(platform, pricingAccountSearchKeyword.value[platform] || '')
+}
+
+function onPricingAccountSearchFocus(platform: string) {
+  showPricingAccountDropdown.value[platform] = true
+  if (!pricingAccountSearchResults.value[platform]?.length) {
+    pricingAccountSearchRunner.trigger(platform, pricingAccountSearchKeyword.value[platform] || '')
+  }
+}
+
+function selectPricingAccount(platform: string, account: SimpleAccount) {
+  selectedPricingAccount.value[platform] = account
+  pricingAccountSearchKeyword.value[platform] = account.name
+  showPricingAccountDropdown.value[platform] = false
+}
+
+function clearSelectedPricingAccount(platform: string) {
+  selectedPricingAccount.value[platform] = null
+  pricingAccountSearchKeyword.value[platform] = ''
+}
+
+function getPricingAccountLabel(platform: string): string {
+  const account = selectedPricingAccount.value[platform]
+  return account ? `${account.name} #${account.id}` : ''
+}
+
+function clearPricingAccountSearchState() {
+  pricingAccountSearchRunner.clearAll()
+  pricingAccountSearchKeyword.value = {}
+  pricingAccountSearchResults.value = {}
+  showPricingAccountDropdown.value = {}
+  selectedPricingAccount.value = {}
+}
+
+function handlePricingAccountClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.pricing-account-search-container')) {
+    Object.keys(showPricingAccountDropdown.value).forEach(key => {
+      showPricingAccountDropdown.value[key] = false
+    })
+  }
+}
+
+function appendModelsToPricingEntry(sectionIdx: number, models: string[]) {
+  form.platforms[sectionIdx].model_pricing.push({
+    models,
+    billing_mode: 'token',
+    input_price: null,
+    output_price: null,
+    cache_write_price: null,
+    cache_read_price: null,
+    image_output_price: null,
+    per_request_price: null,
+    intervals: []
+  })
+}
+
+function extractAccountModelWhitelist(account: { credentials?: Record<string, unknown> }): string[] {
+  const credentials = account.credentials || {}
+  const legacyWhitelist = credentials.model_whitelist
+  if (Array.isArray(legacyWhitelist)) {
+    return legacyWhitelist
+      .map(model => String(model).trim())
+      .filter(Boolean)
+  }
+
+  const mapping = credentials.model_mapping
+  if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) {
+    return []
+  }
+
+  return Object.entries(mapping as Record<string, unknown>)
+    .filter(([source, target]) => source.trim() !== '' && String(target).trim() === source)
+    .map(([source]) => source.trim())
+}
+
+async function importModelsFromPricingAccount(sectionIdx: number) {
+  const section = form.platforms[sectionIdx]
+  const account = selectedPricingAccount.value[section.platform]
+  if (!account || fetchingAccountModels.value) return
+
+  fetchingAccountModels.value = section.platform
   try {
-    const result = await adminAPI.channels.syncPricingModels(platform)
-    // Collect all model names already present in this platform's pricing entries
+    const accountDetail = await adminAPI.accounts.getById(account.id)
     const existingModels = new Set<string>()
-    for (const entry of form.platforms[sectionIdx].model_pricing) {
-      for (const m of entry.models) existingModels.add(m)
+    for (const entry of section.model_pricing) {
+      for (const model of entry.models) existingModels.add(model)
     }
-    const newModels = result.models.filter(m => !existingModels.has(m))
+    const newModels = extractAccountModelWhitelist(accountDetail)
+      .filter(model => !existingModels.has(model))
+
     if (newModels.length === 0) {
-      appStore.showSuccess(t('admin.channels.form.syncModelsAlreadyUpToDate'))
+      appStore.showSuccess(t('admin.channels.form.accountModelsAlreadyAdded', 'No model whitelist entries to add from this account'))
       return
     }
-    // Add new models as a single new pricing entry (user fills in prices)
-    form.platforms[sectionIdx].model_pricing.push({
-      models: newModels,
-      billing_mode: 'token',
-      input_price: null,
-      output_price: null,
-      cache_write_price: null,
-      cache_read_price: null,
-      image_output_price: null,
-      per_request_price: null,
-      intervals: []
-    })
-    appStore.showSuccess(t('admin.channels.form.syncModelsSuccess', { count: newModels.length }))
+
+    appendModelsToPricingEntry(sectionIdx, newModels)
+    appStore.showSuccess(t('admin.channels.form.accountModelsImported', { count: newModels.length }, `Imported ${newModels.length} models from account`))
   } catch (error) {
-    appStore.showError(extractApiErrorMessage(error, t('admin.channels.form.syncModelsError')))
+    appStore.showError(extractApiErrorMessage(error, t('admin.channels.form.fetchAccountModelsError', 'Failed to fetch account models')))
   } finally {
-    syncingPlatform.value = null
+    fetchingAccountModels.value = null
   }
 }
 
@@ -1314,6 +1435,7 @@ function resetForm() {
   activeTab.value = 'basic'
   ruleAccountSearchRunner.clearAll()
   clearAllRuleAccountSearchState()
+  clearPricingAccountSearchState()
   ruleAccountNameCache.value = {}
 }
 
@@ -1597,14 +1719,17 @@ onMounted(() => {
   loadGroups()
   loadWebSearchGlobalState()
   document.addEventListener('click', handleRuleAccountClickOutside)
+  document.addEventListener('click', handlePricingAccountClickOutside)
 })
 
 onUnmounted(() => {
   clearTimeout(searchTimeout)
   abortController?.abort()
   document.removeEventListener('click', handleRuleAccountClickOutside)
+  document.removeEventListener('click', handlePricingAccountClickOutside)
   ruleAccountSearchRunner.clearAll()
   clearAllRuleAccountSearchState()
+  clearPricingAccountSearchState()
 })
 </script>
 

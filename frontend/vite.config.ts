@@ -62,7 +62,9 @@ export default defineConfig(({ mode }) => {
   },
   build: {
     outDir: '../backend/internal/web/dist',
-    emptyOutDir: true,
+    // Keep old hashed chunks so users with an already-loaded SPA do not hit a
+    // blank page when lazy routes are opened immediately after a deployment.
+    emptyOutDir: false,
     rollupOptions: {
       output: {
         /**
