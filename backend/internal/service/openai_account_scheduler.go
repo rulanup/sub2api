@@ -1724,7 +1724,7 @@ func (s *OpenAIGatewayService) selectMultiGroupAccountWithScheduler(
 		}
 		gid := group.ID
 		groupCtx := context.WithValue(ctx, openAIMultiGroupBypassContextKey{}, true)
-		selection, decision, err := s.selectAccountWithScheduler(groupCtx, &gid, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability, requiredImageCapability, requireCompact, platform)
+		selection, decision, err := s.selectAccountWithScheduler(groupCtx, &gid, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability, requiredImageCapability, requireCompact, platform, false)
 		if err == nil && selection != nil {
 			return selection, decision, group, nil
 		}
