@@ -153,6 +153,7 @@ export default {
     workbench: 'Workbench',
     batchImage: 'Batch Images',
     modelSquare: 'Model Square',
+    tokenRanking: 'Token Ranking',
     checkin: 'Daily Check-in',
     usage: 'Usage',
     redeem: 'Redeem',

@@ -688,4 +688,30 @@ export default {
     retry: 'Retry',
   },
 
+  // Token Ranking
+  tokenRanking: {
+    title: 'Token Ranking',
+    description: 'View user token consumption rankings for the current period',
+    refresh: 'Refresh',
+    period: 'Period',
+    limit: 'Limit',
+    sortBy: 'Sort By',
+    noData: 'No data available',
+    periods: {
+      day: 'Today',
+      week: 'This Week',
+      month: 'This Month',
+      all: 'All Time',
+    },
+    columns: {
+      user: 'User',
+      requests: 'Requests',
+      inputTokens: 'Input',
+      outputTokens: 'Output',
+      cacheTokens: 'Cache',
+      totalTokens: 'Total',
+      cost: 'Cost',
+    },
+  },
+
 }

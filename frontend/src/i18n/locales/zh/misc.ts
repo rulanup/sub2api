@@ -711,4 +711,30 @@ export default {
     retry: '重试',
   },
 
+  // Token Ranking
+  tokenRanking: {
+    title: 'Token 排行',
+    description: '查看当前周期的用户 Token 消费排行',
+    refresh: '刷新',
+    period: '时间范围',
+    limit: '数量',
+    sortBy: '排序',
+    noData: '暂无数据',
+    periods: {
+      day: '今日',
+      week: '本周',
+      month: '本月',
+      all: '全部',
+    },
+    columns: {
+      user: '用户',
+      requests: '请求',
+      inputTokens: '输入',
+      outputTokens: '输出',
+      cacheTokens: '缓存',
+      totalTokens: '总计',
+      cost: '费用',
+    },
+  },
+
 }
