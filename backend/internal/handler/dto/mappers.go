@@ -79,31 +79,33 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 		return nil
 	}
 	out := &APIKey{
-		ID:            k.ID,
-		UserID:        k.UserID,
-		Key:           k.Key,
-		Name:          k.Name,
-		GroupID:       k.GroupID,
-		Status:        k.Status,
-		IPWhitelist:   k.IPWhitelist,
-		IPBlacklist:   k.IPBlacklist,
-		LastUsedAt:    k.LastUsedAt,
-		Quota:         k.Quota,
-		QuotaUsed:     k.QuotaUsed,
-		ExpiresAt:     k.ExpiresAt,
-		CreatedAt:     k.CreatedAt,
-		UpdatedAt:     k.UpdatedAt,
-		RateLimit5h:   k.RateLimit5h,
-		RateLimit1d:   k.RateLimit1d,
-		RateLimit7d:   k.RateLimit7d,
-		Usage5h:       k.EffectiveUsage5h(),
-		Usage1d:       k.EffectiveUsage1d(),
-		Usage7d:       k.EffectiveUsage7d(),
-		Window5hStart: k.Window5hStart,
-		Window1dStart: k.Window1dStart,
-		Window7dStart: k.Window7dStart,
-		User:          UserFromServiceShallow(k.User),
-		Group:         GroupFromServiceShallow(k.Group),
+		ID:                    k.ID,
+		UserID:                k.UserID,
+		Key:                   k.Key,
+		Name:                  k.Name,
+		GroupID:               k.GroupID,
+		GroupIDs:              k.GroupIDs,
+		GroupScheduleStrategy: k.GroupScheduleStrategy,
+		Status:                k.Status,
+		IPWhitelist:           k.IPWhitelist,
+		IPBlacklist:           k.IPBlacklist,
+		LastUsedAt:            k.LastUsedAt,
+		Quota:                 k.Quota,
+		QuotaUsed:             k.QuotaUsed,
+		ExpiresAt:             k.ExpiresAt,
+		CreatedAt:             k.CreatedAt,
+		UpdatedAt:             k.UpdatedAt,
+		RateLimit5h:           k.RateLimit5h,
+		RateLimit1d:           k.RateLimit1d,
+		RateLimit7d:           k.RateLimit7d,
+		Usage5h:               k.EffectiveUsage5h(),
+		Usage1d:               k.EffectiveUsage1d(),
+		Usage7d:               k.EffectiveUsage7d(),
+		Window5hStart:         k.Window5hStart,
+		Window1dStart:         k.Window1dStart,
+		Window7dStart:         k.Window7dStart,
+		User:                  UserFromServiceShallow(k.User),
+		Group:                 GroupFromServiceShallow(k.Group),
 	}
 	if k.Window5hStart != nil && !service.IsWindowExpired(k.Window5hStart, service.RateLimitWindow5h) {
 		t := k.Window5hStart.Add(service.RateLimitWindow5h)
@@ -116,6 +118,12 @@ func APIKeyFromService(k *service.APIKey) *APIKey {
 	if k.Window7dStart != nil && !service.IsWindowExpired(k.Window7dStart, service.RateLimitWindow7d) {
 		t := k.Window7dStart.Add(service.RateLimitWindow7d)
 		out.Reset7dAt = &t
+	}
+	if len(k.Groups) > 0 {
+		out.Groups = make([]*Group, 0, len(k.Groups))
+		for _, group := range k.Groups {
+			out.Groups = append(out.Groups, GroupFromServiceShallow(group))
+		}
 	}
 	return out
 }

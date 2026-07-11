@@ -279,13 +279,19 @@ func GetSubscriptionFromContext(c *gin.Context) (*service.UserSubscription, bool
 }
 
 func setGroupContext(c *gin.Context, group *service.Group) {
+	ctx := c.Request.Context()
+	if apiKey, ok := GetAPIKeyFromContext(c); ok && apiKey != nil {
+		ctx = context.WithValue(ctx, ctxkey.APIKey, apiKey)
+	}
 	if !service.IsGroupContextValid(group) {
+		c.Request = c.Request.WithContext(ctx)
 		return
 	}
-	if existing, ok := c.Request.Context().Value(ctxkey.Group).(*service.Group); ok && existing != nil && existing.ID == group.ID && service.IsGroupContextValid(existing) {
+	if existing, ok := ctx.Value(ctxkey.Group).(*service.Group); ok && existing != nil && existing.ID == group.ID && service.IsGroupContextValid(existing) {
+		c.Request = c.Request.WithContext(ctx)
 		return
 	}
-	ctx := context.WithValue(c.Request.Context(), ctxkey.Group, group)
+	ctx = context.WithValue(ctx, ctxkey.Group, group)
 	c.Request = c.Request.WithContext(ctx)
 }
 

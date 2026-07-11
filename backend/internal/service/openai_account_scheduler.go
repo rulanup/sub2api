@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -28,6 +29,8 @@ const (
 	openAIAdvancedSchedulerSettingCacheTTL  = 5 * time.Second
 	openAIAdvancedSchedulerSettingDBTimeout = 2 * time.Second
 )
+
+type openAIMultiGroupBypassContextKey struct{}
 
 const (
 	openAIQuotaHeadroomNeutralFactor      = 0.5
@@ -1294,6 +1297,112 @@ func (s *OpenAIGatewayService) SelectAccountWithSchedulerForImages(
 	return selection, decision, err
 }
 
+func apiKeyFromContext(ctx context.Context) *APIKey {
+	if ctx == nil {
+		return nil
+	}
+	apiKey, _ := ctx.Value(ctxkey.APIKey).(*APIKey)
+	return apiKey
+}
+
+func (s *OpenAIGatewayService) selectMultiGroupAccountWithScheduler(
+	ctx context.Context,
+	apiKey *APIKey,
+	previousResponseID string,
+	sessionHash string,
+	requestedModel string,
+	excludedIDs map[int64]struct{},
+	requiredTransport OpenAIUpstreamTransport,
+	requiredCapability OpenAIEndpointCapability,
+	requiredImageCapability OpenAIImagesCapability,
+	requireCompact bool,
+	platform string,
+) (*AccountSelectionResult, OpenAIAccountScheduleDecision, *Group, error) {
+	groups := s.orderedAPIKeyScheduleGroups(ctx, apiKey, platform)
+	if len(groups) == 0 {
+		return nil, OpenAIAccountScheduleDecision{}, nil, ErrNoAvailableAccounts
+	}
+	var lastErr error
+	for _, group := range groups {
+		if group == nil || !group.IsActive() || group.Platform != platform {
+			continue
+		}
+		gid := group.ID
+		groupCtx := context.WithValue(ctx, openAIMultiGroupBypassContextKey{}, true)
+		selection, decision, err := s.selectAccountWithScheduler(groupCtx, &gid, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability, requiredImageCapability, requireCompact, platform)
+		if err == nil && selection != nil {
+			return selection, decision, group, nil
+		}
+		if err != nil {
+			lastErr = err
+		}
+	}
+	if lastErr != nil {
+		return nil, OpenAIAccountScheduleDecision{}, nil, lastErr
+	}
+	return nil, OpenAIAccountScheduleDecision{}, nil, ErrNoAvailableAccounts
+}
+
+func (s *OpenAIGatewayService) orderedAPIKeyScheduleGroups(ctx context.Context, apiKey *APIKey, platform string) []*Group {
+	if apiKey == nil {
+		return nil
+	}
+	byID := make(map[int64]*Group, len(apiKey.Groups)+1)
+	if apiKey.Group != nil {
+		byID[apiKey.Group.ID] = apiKey.Group
+	}
+	for _, group := range apiKey.Groups {
+		if group != nil {
+			byID[group.ID] = group
+		}
+	}
+	groups := make([]*Group, 0, len(apiKey.GroupIDs))
+	for _, id := range apiKey.GroupIDs {
+		group := byID[id]
+		if group == nil || group.Platform != platform {
+			continue
+		}
+		groups = append(groups, group)
+	}
+	switch apiKey.GroupScheduleStrategy {
+	case APIKeyGroupScheduleLowestLatency:
+		sort.SliceStable(groups, func(i, j int) bool {
+			return s.groupLatencyScore(ctx, groups[i].ID, platform) < s.groupLatencyScore(ctx, groups[j].ID, platform)
+		})
+	default:
+		sort.SliceStable(groups, func(i, j int) bool {
+			now := time.Now()
+			return groupScheduleCost(groups[i], now) < groupScheduleCost(groups[j], now)
+		})
+	}
+	return groups
+}
+
+func groupScheduleCost(group *Group, now time.Time) float64 {
+	if group == nil {
+		return math.MaxFloat64
+	}
+	multiplier := group.RateMultiplier * group.PeakMultiplierAt(now)
+	if multiplier < 0 {
+		return math.MaxFloat64
+	}
+	return multiplier
+}
+
+func (s *OpenAIGatewayService) groupLatencyScore(ctx context.Context, groupID int64, platform string) int64 {
+	accounts, err := s.listSchedulableAccounts(ctx, &groupID, platform)
+	if err != nil || len(accounts) == 0 {
+		return math.MaxInt64
+	}
+	for i := range accounts {
+		acc := &accounts[i]
+		if acc.ProxyID == nil {
+			return 0
+		}
+	}
+	return math.MaxInt64
+}
+
 func (s *OpenAIGatewayService) selectAccountWithScheduler(
 	ctx context.Context,
 	groupID *int64,
@@ -1309,6 +1418,16 @@ func (s *OpenAIGatewayService) selectAccountWithScheduler(
 ) (*AccountSelectionResult, OpenAIAccountScheduleDecision, error) {
 	ctx = s.withOpenAIQuotaAutoPauseContext(ctx)
 	platform = normalizeOpenAICompatiblePlatform(platform)
+	if bypass, _ := ctx.Value(openAIMultiGroupBypassContextKey{}).(bool); !bypass {
+		if apiKey := apiKeyFromContext(ctx); apiKey != nil && len(apiKey.GroupIDs) > 1 {
+			selection, decision, selectedGroup, err := s.selectMultiGroupAccountWithScheduler(ctx, apiKey, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability, requiredImageCapability, requireCompact, platform)
+			if err == nil && selectedGroup != nil {
+				apiKey.GroupID = &selectedGroup.ID
+				apiKey.Group = selectedGroup
+			}
+			return selection, decision, err
+		}
+	}
 	decision := OpenAIAccountScheduleDecision{}
 	scheduler := s.getOpenAIAccountScheduler(ctx)
 	if scheduler == nil {

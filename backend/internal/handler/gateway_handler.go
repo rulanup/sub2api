@@ -1002,6 +1002,17 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	if forcedPlatform, ok := middleware2.GetForcePlatformFromContext(c); ok && strings.TrimSpace(forcedPlatform) != "" {
 		platform = forcedPlatform
 	}
+	if apiKey != nil && len(apiKey.Groups) > 1 {
+		models := h.multiGroupAvailableModels(c.Request.Context(), apiKey, platform)
+		if len(models) > 0 {
+			if platform == service.PlatformOpenAI {
+				writeOpenAIModelsList(c, models)
+				return
+			}
+			writeModelsList(c, models)
+			return
+		}
+	}
 
 	// Get available models from account configurations for the selected group platform.
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
@@ -1037,6 +1048,39 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 		"object": "list",
 		"data":   claude.DefaultModels,
 	})
+}
+
+func (h *GatewayHandler) multiGroupAvailableModels(ctx context.Context, apiKey *service.APIKey, platform string) []string {
+	if apiKey == nil || len(apiKey.Groups) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	models := make([]string, 0)
+	for _, group := range apiKey.Groups {
+		if group == nil || !group.IsActive() || group.Platform != platform {
+			continue
+		}
+		groupID := group.ID
+		available := h.gatewayService.GetAvailableModels(ctx, &groupID, group.Platform)
+		if group.CustomModelsListEnabled() {
+			available = filterModelsByCustomList(available, defaultModelIDsForPlatform(group.Platform), group.ModelsListConfig.Models)
+		}
+		if len(available) == 0 {
+			available = defaultModelIDsForPlatform(group.Platform)
+		}
+		for _, model := range available {
+			model = strings.TrimSpace(model)
+			if model == "" {
+				continue
+			}
+			if _, ok := seen[model]; ok {
+				continue
+			}
+			seen[model] = struct{}{}
+			models = append(models, model)
+		}
+	}
+	return models
 }
 
 func writeModelsList(c *gin.Context, modelIDs []string) {

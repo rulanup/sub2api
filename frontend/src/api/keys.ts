@@ -65,7 +65,8 @@ export async function create(
   ipBlacklist?: string[],
   quota?: number,
   expiresInDays?: number,
-  rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number }
+  rateLimitData?: { rate_limit_5h?: number; rate_limit_1d?: number; rate_limit_7d?: number },
+  scheduling?: { group_ids?: number[]; group_schedule_strategy?: 'cheapest' | 'lowest_latency' }
 ): Promise<ApiKey> {
   const payload: CreateApiKeyRequest = { name }
   if (groupId !== undefined) {
@@ -94,6 +95,12 @@ export async function create(
   }
   if (rateLimitData?.rate_limit_7d && rateLimitData.rate_limit_7d > 0) {
     payload.rate_limit_7d = rateLimitData.rate_limit_7d
+  }
+  if (scheduling?.group_ids && scheduling.group_ids.length > 0) {
+    payload.group_ids = scheduling.group_ids
+  }
+  if (scheduling?.group_schedule_strategy) {
+    payload.group_schedule_strategy = scheduling.group_schedule_strategy
   }
 
   const { data } = await apiClient.post<ApiKey>('/keys', payload)

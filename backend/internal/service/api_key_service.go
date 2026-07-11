@@ -152,11 +152,13 @@ type APIKeyAuthCacheInvalidator interface {
 
 // CreateAPIKeyRequest 创建API Key请求
 type CreateAPIKeyRequest struct {
-	Name        string   `json:"name"`
-	GroupID     *int64   `json:"group_id"`
-	CustomKey   *string  `json:"custom_key"`   // 可选的自定义key
-	IPWhitelist []string `json:"ip_whitelist"` // IP 白名单
-	IPBlacklist []string `json:"ip_blacklist"` // IP 黑名单
+	Name                  string   `json:"name"`
+	GroupID               *int64   `json:"group_id"`
+	GroupIDs              []int64  `json:"group_ids"`
+	GroupScheduleStrategy string   `json:"group_schedule_strategy"`
+	CustomKey             *string  `json:"custom_key"`   // 可选的自定义key
+	IPWhitelist           []string `json:"ip_whitelist"` // IP 白名单
+	IPBlacklist           []string `json:"ip_blacklist"` // IP 黑名单
 
 	// Quota fields
 	Quota         float64 `json:"quota"`           // Quota limit in USD (0 = unlimited)
@@ -170,11 +172,13 @@ type CreateAPIKeyRequest struct {
 
 // UpdateAPIKeyRequest 更新API Key请求
 type UpdateAPIKeyRequest struct {
-	Name        *string  `json:"name"`
-	GroupID     *int64   `json:"group_id"`
-	Status      *string  `json:"status"`
-	IPWhitelist []string `json:"ip_whitelist"` // IP 白名单（空数组清空）
-	IPBlacklist []string `json:"ip_blacklist"` // IP 黑名单（空数组清空）
+	Name                  *string  `json:"name"`
+	GroupID               *int64   `json:"group_id"`
+	GroupIDs              []int64  `json:"group_ids"`
+	GroupScheduleStrategy *string  `json:"group_schedule_strategy"`
+	Status                *string  `json:"status"`
+	IPWhitelist           []string `json:"ip_whitelist"` // IP 白名单（空数组清空）
+	IPBlacklist           []string `json:"ip_blacklist"` // IP 黑名单（空数组清空）
 
 	// Quota fields
 	Quota           *float64   `json:"quota"`       // Quota limit in USD (nil = no change, 0 = unlimited)
@@ -187,6 +191,36 @@ type UpdateAPIKeyRequest struct {
 	RateLimit1d         *float64 `json:"rate_limit_1d"`
 	RateLimit7d         *float64 `json:"rate_limit_7d"`
 	ResetRateLimitUsage *bool    `json:"reset_rate_limit_usage"` // Reset all usage counters to 0
+}
+
+func normalizeAPIKeyGroupScheduleStrategy(strategy string) string {
+	switch strings.ToLower(strings.TrimSpace(strategy)) {
+	case APIKeyGroupScheduleLowestLatency:
+		return APIKeyGroupScheduleLowestLatency
+	case APIKeyGroupScheduleCheapest, "":
+		return APIKeyGroupScheduleCheapest
+	default:
+		return APIKeyGroupScheduleCheapest
+	}
+}
+
+func normalizeAPIKeyGroupIDs(groupID *int64, groupIDs []int64) []int64 {
+	seen := make(map[int64]struct{}, len(groupIDs)+1)
+	out := make([]int64, 0, len(groupIDs)+1)
+	for _, id := range groupIDs {
+		if id <= 0 {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	if len(out) == 0 && groupID != nil && *groupID > 0 {
+		out = append(out, *groupID)
+	}
+	return out
 }
 
 // APIKeyService API Key服务
@@ -350,9 +384,9 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		}
 	}
 
-	// 验证分组权限（如果指定了分组）
-	if req.GroupID != nil {
-		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
+	groupIDs := normalizeAPIKeyGroupIDs(req.GroupID, req.GroupIDs)
+	for _, groupID := range groupIDs {
+		group, err := s.groupRepo.GetByID(ctx, groupID)
 		if err != nil {
 			return nil, fmt.Errorf("get group: %w", err)
 		}
@@ -400,18 +434,20 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 
 	// 创建API Key记录
 	apiKey := &APIKey{
-		UserID:      userID,
-		Key:         key,
-		Name:        html.EscapeString(req.Name),
-		GroupID:     req.GroupID,
-		Status:      StatusActive,
-		IPWhitelist: req.IPWhitelist,
-		IPBlacklist: req.IPBlacklist,
-		Quota:       req.Quota,
-		QuotaUsed:   0,
-		RateLimit5h: req.RateLimit5h,
-		RateLimit1d: req.RateLimit1d,
-		RateLimit7d: req.RateLimit7d,
+		UserID:                userID,
+		Key:                   key,
+		Name:                  html.EscapeString(req.Name),
+		GroupID:               req.GroupID,
+		GroupIDs:              groupIDs,
+		GroupScheduleStrategy: normalizeAPIKeyGroupScheduleStrategy(req.GroupScheduleStrategy),
+		Status:                StatusActive,
+		IPWhitelist:           req.IPWhitelist,
+		IPBlacklist:           req.IPBlacklist,
+		Quota:                 req.Quota,
+		QuotaUsed:             0,
+		RateLimit5h:           req.RateLimit5h,
+		RateLimit1d:           req.RateLimit1d,
+		RateLimit7d:           req.RateLimit7d,
 	}
 
 	// Set expiration time if specified
@@ -544,23 +580,26 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 		apiKey.Name = html.EscapeString(*req.Name)
 	}
 
-	if req.GroupID != nil {
-		// 验证分组权限
+	if req.GroupID != nil || len(req.GroupIDs) > 0 {
 		user, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("get user: %w", err)
 		}
-
-		group, err := s.groupRepo.GetByID(ctx, *req.GroupID)
-		if err != nil {
-			return nil, fmt.Errorf("get group: %w", err)
+		groupIDs := normalizeAPIKeyGroupIDs(req.GroupID, req.GroupIDs)
+		for _, groupID := range groupIDs {
+			group, err := s.groupRepo.GetByID(ctx, groupID)
+			if err != nil {
+				return nil, fmt.Errorf("get group: %w", err)
+			}
+			if !s.canUserBindGroup(ctx, user, group) {
+				return nil, ErrGroupNotAllowed
+			}
 		}
-
-		if !s.canUserBindGroup(ctx, user, group) {
-			return nil, ErrGroupNotAllowed
-		}
-
 		apiKey.GroupID = req.GroupID
+		apiKey.GroupIDs = groupIDs
+	}
+	if req.GroupScheduleStrategy != nil {
+		apiKey.GroupScheduleStrategy = normalizeAPIKeyGroupScheduleStrategy(*req.GroupScheduleStrategy)
 	}
 
 	if req.Status != nil {

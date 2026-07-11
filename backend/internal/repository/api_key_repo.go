@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -66,6 +67,9 @@ func (r *apiKeyRepository) Create(ctx context.Context, key *service.APIKey) erro
 		key.LastUsedAt = created.LastUsedAt
 		key.CreatedAt = created.CreatedAt
 		key.UpdatedAt = created.UpdatedAt
+		if updateErr := r.updateAPIKeyScheduling(ctx, key.ID, key.GroupIDs, key.GroupScheduleStrategy); updateErr != nil {
+			return updateErr
+		}
 	}
 	return translatePersistenceError(err, nil, service.ErrAPIKeyExists)
 }
@@ -82,7 +86,9 @@ func (r *apiKeyRepository) GetByID(ctx context.Context, id int64) (*service.APIK
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	out := apiKeyEntityToService(m)
+	_ = r.attachAPIKeyScheduling(ctx, out)
+	return out, nil
 }
 
 // GetKeyAndOwnerID 根据 API Key ID 获取其 key 与所有者（用户）ID。
@@ -120,7 +126,9 @@ func (r *apiKeyRepository) GetByKey(ctx context.Context, key string) (*service.A
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	out := apiKeyEntityToService(m)
+	_ = r.attachAPIKeyScheduling(ctx, out)
+	return out, nil
 }
 
 func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*service.APIKey, error) {
@@ -207,7 +215,9 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 		}
 		return nil, err
 	}
-	return apiKeyEntityToService(m), nil
+	out := apiKeyEntityToService(m)
+	_ = r.attachAPIKeyScheduling(ctx, out)
+	return out, nil
 }
 
 func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) error {
@@ -260,7 +270,6 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) erro
 	} else {
 		builder.ClearWindow7dStart()
 	}
-
 	// IP 限制字段
 	if len(key.IPWhitelist) > 0 {
 		builder.SetIPWhitelist(key.IPWhitelist)
@@ -280,6 +289,9 @@ func (r *apiKeyRepository) Update(ctx context.Context, key *service.APIKey) erro
 	if affected == 0 {
 		// 更新影响行数为 0，说明记录不存在或已被软删除。
 		return service.ErrAPIKeyNotFound
+	}
+	if err := r.updateAPIKeyScheduling(ctx, key.ID, key.GroupIDs, key.GroupScheduleStrategy); err != nil {
+		return err
 	}
 
 	// 使用同一时间戳回填，避免并发删除导致二次查询失败。
@@ -428,7 +440,9 @@ func (r *apiKeyRepository) ListByUserID(ctx context.Context, userID int64, param
 
 	outKeys := make([]service.APIKey, 0, len(keys))
 	for i := range keys {
-		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
+		out := apiKeyEntityToService(keys[i])
+		_ = r.attachAPIKeyScheduling(ctx, out)
+		outKeys = append(outKeys, *out)
 	}
 
 	return outKeys, paginationResultFromTotal(int64(total), params), nil
@@ -481,7 +495,9 @@ func (r *apiKeyRepository) ListByGroupID(ctx context.Context, groupID int64, par
 
 	outKeys := make([]service.APIKey, 0, len(keys))
 	for i := range keys {
-		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
+		out := apiKeyEntityToService(keys[i])
+		_ = r.attachAPIKeyScheduling(ctx, out)
+		outKeys = append(outKeys, *out)
 	}
 
 	return outKeys, paginationResultFromTotal(int64(total), params), nil
@@ -531,7 +547,9 @@ func (r *apiKeyRepository) SearchAPIKeys(ctx context.Context, userID int64, keyw
 
 	outKeys := make([]service.APIKey, 0, len(keys))
 	for i := range keys {
-		outKeys = append(outKeys, *apiKeyEntityToService(keys[i]))
+		out := apiKeyEntityToService(keys[i])
+		_ = r.attachAPIKeyScheduling(ctx, out)
+		outKeys = append(outKeys, *out)
 	}
 	return outKeys, nil
 }
@@ -695,6 +713,64 @@ func (r *apiKeyRepository) GetRateLimitData(ctx context.Context, id int64) (resu
 		return nil, err
 	}
 	return data, rows.Err()
+}
+
+func (r *apiKeyRepository) updateAPIKeyScheduling(ctx context.Context, id int64, groupIDs []int64, strategy string) error {
+	if len(groupIDs) == 0 && strings.TrimSpace(strategy) == "" {
+		return nil
+	}
+	payload, err := json.Marshal(groupIDs)
+	if err != nil {
+		return err
+	}
+	_, err = r.sql.ExecContext(ctx, `
+		UPDATE api_keys
+		SET group_ids = $1, group_schedule_strategy = $2, updated_at = NOW()
+		WHERE id = $3 AND deleted_at IS NULL`, string(payload), strategy, id)
+	return err
+}
+
+func (r *apiKeyRepository) attachAPIKeyScheduling(ctx context.Context, key *service.APIKey) error {
+	if key == nil || r.sql == nil || key.ID <= 0 {
+		return nil
+	}
+	var raw sql.NullString
+	var strategy sql.NullString
+	err := scanSingleRow(ctx, r.sql, `
+		SELECT group_ids, group_schedule_strategy
+		FROM api_keys
+		WHERE id = $1 AND deleted_at IS NULL`, []any{key.ID}, &raw, &strategy)
+	if err != nil {
+		return err
+	}
+	if raw.Valid && strings.TrimSpace(raw.String) != "" {
+		_ = json.Unmarshal([]byte(raw.String), &key.GroupIDs)
+	}
+	if len(key.GroupIDs) == 0 && key.GroupID != nil && *key.GroupID > 0 {
+		key.GroupIDs = []int64{*key.GroupID}
+	}
+	if strategy.Valid {
+		key.GroupScheduleStrategy = strings.TrimSpace(strategy.String)
+	}
+	if key.GroupScheduleStrategy == "" {
+		key.GroupScheduleStrategy = service.APIKeyGroupScheduleCheapest
+	}
+	if len(key.GroupIDs) > 0 {
+		groups, err := r.client.Group.Query().Where(group.IDIn(key.GroupIDs...)).All(ctx)
+		if err == nil {
+			byID := make(map[int64]*service.Group, len(groups))
+			for _, g := range groups {
+				byID[g.ID] = groupEntityToService(g)
+			}
+			key.Groups = make([]*service.Group, 0, len(key.GroupIDs))
+			for _, id := range key.GroupIDs {
+				if g := byID[id]; g != nil {
+					key.Groups = append(key.Groups, g)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func apiKeyEntityToService(m *dbent.APIKey) *service.APIKey {

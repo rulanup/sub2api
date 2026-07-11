@@ -137,18 +137,27 @@
                 class="-mx-2 -my-1 flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-dark-700"
                 :title="t('keys.clickToChangeGroup')"
               >
-                <GroupBadge
-                  v-if="row.group"
-                  :name="row.group.name"
-                  :platform="row.group.platform"
-                  :subscription-type="row.group.subscription_type"
-                  :rate-multiplier="row.group.rate_multiplier"
-                  :user-rate-multiplier="userGroupRates[row.group.id]"
-                  :peak-rate-enabled="row.group.peak_rate_enabled"
-                  :peak-start="row.group.peak_start"
-                  :peak-end="row.group.peak_end"
-                  :peak-rate-multiplier="row.group.peak_rate_multiplier"
-                />
+                <div v-if="displayGroupsForKey(row).length > 0" class="flex max-w-[360px] flex-wrap items-center gap-1.5">
+                  <GroupBadge
+                    v-for="group in displayGroupsForKey(row)"
+                    :key="group.id"
+                    :name="group.name"
+                    :platform="group.platform"
+                    :subscription-type="group.subscription_type"
+                    :rate-multiplier="group.rate_multiplier"
+                    :user-rate-multiplier="userGroupRates[group.id]"
+                    :peak-rate-enabled="group.peak_rate_enabled"
+                    :peak-start="group.peak_start"
+                    :peak-end="group.peak_end"
+                    :peak-rate-multiplier="group.peak_rate_multiplier"
+                  />
+                  <span
+                    v-if="(row.group_ids?.length || 0) > 1"
+                    class="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600 dark:bg-blue-900/30 dark:text-blue-300"
+                  >
+                    {{ scheduleLabel(row.group_schedule_strategy) }}
+                  </span>
+                </div>
                 <span v-else class="text-sm text-gray-400 dark:text-dark-500">{{
                   t('keys.noGroup')
                 }}</span>
@@ -481,6 +490,48 @@
               />
             </template>
           </Select>
+        </div>
+
+        <div v-if="formData.group_id !== null" class="space-y-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <label class="input-label mb-0">{{ t('keys.multiGroupLabel') }}</label>
+              <p class="input-hint">{{ t('keys.multiGroupHint') }}</p>
+            </div>
+            <Select
+              v-model="formData.group_schedule_strategy"
+              :options="groupScheduleOptions"
+              class="w-44"
+            />
+          </div>
+          <div class="max-h-48 space-y-2 overflow-y-auto pr-1">
+            <label
+              v-for="option in compatibleGroupOptions"
+              :key="option.value"
+              class="flex cursor-pointer items-start gap-3 rounded-md border border-gray-100 p-2 transition hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-700/60"
+            >
+              <input
+                type="checkbox"
+                class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                :checked="formData.group_ids.includes(option.value)"
+                :disabled="option.value === formData.group_id"
+                @change="toggleFormGroup(option.value, ($event.target as HTMLInputElement).checked)"
+              />
+              <GroupOptionItem
+                :name="option.label"
+                :platform="option.platform"
+                :subscription-type="option.subscriptionType"
+                :rate-multiplier="option.rate"
+                :user-rate-multiplier="option.userRate"
+                :peak-rate-enabled="option.peakRateEnabled"
+                :peak-start="option.peakStart"
+                :peak-end="option.peakEnd"
+                :peak-rate-multiplier="option.peakRateMultiplier"
+                :description="option.description"
+                :selected="formData.group_ids.includes(option.value)"
+              />
+            </label>
+          </div>
         </div>
 
         <!-- Custom Key Section (only for create) -->
@@ -1049,22 +1100,31 @@
             />
           </div>
         </div>
+        <div class="border-b border-gray-100 p-2 dark:border-dark-700">
+          <div class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+            {{ t('keys.scheduleStrategy') }}
+          </div>
+          <Select v-model="groupSelectorStrategy" :options="groupScheduleOptions" />
+        </div>
         <!-- Group list -->
         <div class="max-h-80 overflow-y-auto p-1.5">
-          <button
+          <label
             v-for="option in filteredGroupOptions"
             :key="option.value ?? 'null'"
-            @click="changeGroup(selectedKeyForGroup!, option.value)"
             :class="[
-              'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
+              'flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
               'border-b border-gray-100 last:border-0 dark:border-dark-700',
-              selectedKeyForGroup?.group_id === option.value ||
-              (!selectedKeyForGroup?.group_id && option.value === null)
-                ? 'bg-primary-50 dark:bg-primary-900/20'
-                : 'hover:bg-gray-100 dark:hover:bg-dark-700'
+              groupSelectorGroupIds.includes(option.value) ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-gray-100 dark:hover:bg-dark-700'
             ]"
             :title="option.description || undefined"
           >
+            <input
+              type="checkbox"
+              class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              :checked="groupSelectorGroupIds.includes(option.value)"
+              :disabled="option.value === selectedKeyForGroup?.group_id"
+              @change="toggleGroupSelectorGroup(option.value, ($event.target as HTMLInputElement).checked)"
+            />
             <GroupOptionItem
               :name="option.label"
               :platform="option.platform"
@@ -1076,16 +1136,21 @@
               :peak-end="option.peakEnd"
               :peak-rate-multiplier="option.peakRateMultiplier"
               :description="option.description"
-              :selected="
-                selectedKeyForGroup?.group_id === option.value ||
-                (!selectedKeyForGroup?.group_id && option.value === null)
-              "
+              :selected="groupSelectorGroupIds.includes(option.value)"
             />
-          </button>
+          </label>
           <!-- Empty state when search has no results -->
           <div v-if="filteredGroupOptions.length === 0" class="py-4 text-center text-sm text-gray-400 dark:text-gray-500">
             {{ t('keys.noGroupFound') }}
           </div>
+        </div>
+        <div class="flex justify-end gap-2 border-t border-gray-100 p-2 dark:border-dark-700">
+          <button type="button" class="btn btn-secondary btn-sm" @click="groupSelectorKeyId = null; dropdownPosition = null">
+            {{ t('common.cancel') }}
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" @click="saveGroupSelector">
+            {{ t('common.save') }}
+          </button>
         </div>
       </div>
     </Teleport>
@@ -1093,7 +1158,7 @@
 </template>
 
 <script setup lang="ts">
-	import { ref, reactive, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
+	import { ref, reactive, computed, onMounted, onUnmounted, watch, type ComponentPublicInstance } from 'vue'
 	import { useI18n } from 'vue-i18n'
 	import { useAppStore } from '@/stores/app'
 	import { useOnboardingStore } from '@/stores/onboarding'
@@ -1262,6 +1327,8 @@ const pendingCcsRow = ref<ApiKey | null>(null)
 const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
+const groupSelectorGroupIds = ref<number[]>([])
+const groupSelectorStrategy = ref<'cheapest' | 'lowest_latency'>('cheapest')
 const publicSettings = ref<PublicSettings | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
@@ -1286,6 +1353,8 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
 const formData = ref({
   name: '',
   group_id: null as number | null,
+  group_ids: [] as number[],
+  group_schedule_strategy: 'cheapest' as 'cheapest' | 'lowest_latency',
   status: 'active' as 'active' | 'inactive',
   use_custom_key: false,
   custom_key: '',
@@ -1324,6 +1393,11 @@ const customKeyError = computed(() => {
 const statusOptions = computed(() => [
   { value: 'active', label: t('common.active') },
   { value: 'inactive', label: t('common.inactive') }
+])
+
+const groupScheduleOptions = computed(() => [
+  { value: 'cheapest', label: t('keys.scheduleCheapest') },
+  { value: 'lowest_latency', label: t('keys.scheduleLowestLatency') }
 ])
 
 const shouldSubmitEditStatus = (key: ApiKey, status: 'active' | 'inactive') => {
@@ -1380,12 +1454,80 @@ const groupOptions = computed(() =>
   }))
 )
 
+const displayGroupsForKey = (key: ApiKey): Group[] => {
+  if (key.groups && key.groups.length > 0) {
+    return key.groups
+  }
+  const ids = key.group_ids && key.group_ids.length > 0
+    ? key.group_ids
+    : (key.group_id ? [key.group_id] : [])
+  if (ids.length === 0) return key.group ? [key.group] : []
+  const byID = new Map(groups.value.map((group) => [group.id, group]))
+  const out: Group[] = []
+  for (const id of ids) {
+    const group = byID.get(id) || (key.group?.id === id ? key.group : undefined)
+    if (group) out.push(group)
+  }
+  return out.length > 0 ? out : (key.group ? [key.group] : [])
+}
+
+const scheduleLabel = (strategy?: 'cheapest' | 'lowest_latency') => {
+  return strategy === 'lowest_latency' ? t('keys.scheduleLowestLatency') : t('keys.scheduleCheapest')
+}
+
+const selectedPrimaryGroup = computed(() => {
+  if (formData.value.group_id === null) return null
+  return groups.value.find((group) => group.id === formData.value.group_id) || null
+})
+
+const compatibleGroupOptions = computed(() => {
+  const primary = selectedPrimaryGroup.value
+  if (!primary) return []
+  return groupOptions.value.filter((option) => option.platform === primary.platform)
+})
+
+const toggleFormGroup = (groupId: number, checked: boolean) => {
+  const ids = new Set(formData.value.group_ids)
+  if (checked) {
+    ids.add(groupId)
+  } else if (groupId !== formData.value.group_id) {
+    ids.delete(groupId)
+  }
+  if (formData.value.group_id !== null) {
+    ids.add(formData.value.group_id)
+  }
+  formData.value.group_ids = Array.from(ids)
+}
+
+watch(
+  () => formData.value.group_id,
+  (groupId) => {
+    if (groupId === null) {
+      formData.value.group_ids = []
+      return
+    }
+    const primary = groups.value.find((group) => group.id === groupId)
+    const compatibleIDs = new Set(
+      groups.value
+        .filter((group) => !primary || group.platform === primary.platform)
+        .map((group) => group.id)
+    )
+    const ids = new Set(formData.value.group_ids.filter((id) => compatibleIDs.has(id)))
+    ids.add(groupId)
+    formData.value.group_ids = Array.from(ids)
+  }
+)
+
 // Group dropdown search
 const groupSearchQuery = ref('')
 const filteredGroupOptions = computed(() => {
   const query = groupSearchQuery.value.trim().toLowerCase()
-  if (!query) return groupOptions.value
-  return groupOptions.value.filter((opt) => {
+  const primaryGroup = selectedKeyForGroup.value?.group
+  const source = primaryGroup
+    ? groupOptions.value.filter((opt) => opt.platform === primaryGroup.platform)
+    : groupOptions.value
+  if (!query) return source
+  return source.filter((opt) => {
     return opt.label.toLowerCase().includes(query) ||
       (opt.description && opt.description.toLowerCase().includes(query))
   })
@@ -1520,6 +1662,8 @@ const editKey = (key: ApiKey) => {
   formData.value = {
     name: key.name,
     group_id: key.group_id,
+    group_ids: key.group_ids && key.group_ids.length > 0 ? key.group_ids : (key.group_id ? [key.group_id] : []),
+    group_schedule_strategy: key.group_schedule_strategy || 'cheapest',
     status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
     use_custom_key: false,
     custom_key: '',
@@ -1579,18 +1723,51 @@ const openGroupSelector = (key: ApiKey) => {
       }
     }
     groupSelectorKeyId.value = key.id
+    groupSelectorGroupIds.value = key.group_ids && key.group_ids.length > 0
+      ? [...key.group_ids]
+      : (key.group_id ? [key.group_id] : [])
+    if (key.group_id && !groupSelectorGroupIds.value.includes(key.group_id)) {
+      groupSelectorGroupIds.value.push(key.group_id)
+    }
+    groupSelectorStrategy.value = key.group_schedule_strategy || 'cheapest'
     groupSearchQuery.value = ''
   }
 }
 
-const changeGroup = async (key: ApiKey, newGroupId: number | null) => {
-  groupSelectorKeyId.value = null
-  dropdownPosition.value = null
-  if (key.group_id === newGroupId) return
+const toggleGroupSelectorGroup = (groupId: number, checked: boolean) => {
+  const key = selectedKeyForGroup.value
+  const ids = new Set(groupSelectorGroupIds.value)
+  if (checked) {
+    ids.add(groupId)
+  } else if (groupId !== key?.group_id) {
+    ids.delete(groupId)
+  }
+  if (key?.group_id) {
+    ids.add(key.group_id)
+  }
+  groupSelectorGroupIds.value = Array.from(ids)
+}
 
+const saveGroupSelector = async () => {
+  const key = selectedKeyForGroup.value
+  if (!key) return
+  const groupIds = Array.from(new Set([
+    key.group_id,
+    ...groupSelectorGroupIds.value
+  ].filter((id): id is number => typeof id === 'number' && id > 0)))
+  if (groupIds.length === 0) {
+    appStore.showError(t('keys.groupRequired'))
+    return
+  }
   try {
-    await keysAPI.update(key.id, { group_id: newGroupId })
+    await keysAPI.update(key.id, {
+      group_id: key.group_id,
+      group_ids: groupIds,
+      group_schedule_strategy: groupSelectorStrategy.value
+    })
     appStore.showSuccess(t('keys.groupChangedSuccess'))
+    groupSelectorKeyId.value = null
+    dropdownPosition.value = null
     loadApiKeys()
   } catch (error) {
     appStore.showError(t('keys.failedToChangeGroup'))
@@ -1668,12 +1845,19 @@ const handleSubmit = async () => {
     rate_limit_7d: formData.value.rate_limit_7d && formData.value.rate_limit_7d > 0 ? formData.value.rate_limit_7d : 0,
   } : { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 }
 
+  const selectedGroupIds = Array.from(new Set([
+    formData.value.group_id,
+    ...formData.value.group_ids
+  ].filter((id): id is number => typeof id === 'number' && id > 0)))
+
   submitting.value = true
   try {
     if (showEditModal.value && selectedKey.value) {
       const updates: UpdateApiKeyRequest = {
         name: formData.value.name,
         group_id: formData.value.group_id,
+        group_ids: selectedGroupIds,
+        group_schedule_strategy: formData.value.group_schedule_strategy,
         ip_whitelist: ipWhitelist,
         ip_blacklist: ipBlacklist,
         quota: quota,
@@ -1697,7 +1881,11 @@ const handleSubmit = async () => {
         ipBlacklist,
         quota,
         expiresInDays,
-        rateLimitData
+        rateLimitData,
+        {
+          group_ids: selectedGroupIds,
+          group_schedule_strategy: formData.value.group_schedule_strategy
+        }
       )
       appStore.showSuccess(t('keys.keyCreatedSuccess'))
       // Only advance tour if active, on submit step, and creation succeeded
@@ -1743,6 +1931,8 @@ const closeModals = () => {
   formData.value = {
     name: '',
     group_id: null,
+    group_ids: [],
+    group_schedule_strategy: 'cheapest',
     status: 'active',
     use_custom_key: false,
     custom_key: '',
