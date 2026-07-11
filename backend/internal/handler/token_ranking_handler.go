@@ -7,6 +7,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
+	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -14,10 +15,11 @@ import (
 
 type TokenRankingHandler struct {
 	dashboardService *service.DashboardService
+	usageService     *service.UsageService
 }
 
-func NewTokenRankingHandler(dashboardService *service.DashboardService) *TokenRankingHandler {
-	return &TokenRankingHandler{dashboardService: dashboardService}
+func NewTokenRankingHandler(dashboardService *service.DashboardService, usageService *service.UsageService) *TokenRankingHandler {
+	return &TokenRankingHandler{dashboardService: dashboardService, usageService: usageService}
 }
 
 type tokenRankingItem struct {
@@ -29,6 +31,23 @@ type tokenRankingItem struct {
 	CacheTokens  int64   `json:"cache_tokens"`
 	TotalTokens  int64   `json:"total_tokens"`
 	ActualCost   float64 `json:"actual_cost"`
+	CacheHitRate float64 `json:"cache_hit_rate"`
+	Percentage   float64 `json:"percentage"`
+	Rank         int     `json:"rank"`
+}
+
+type tokenRankingSummary struct {
+	TotalCost      float64 `json:"total_cost"`
+	TotalTokens    int64   `json:"total_tokens"`
+	ActiveUsers    int     `json:"active_users"`
+	AvgCostPerUser float64 `json:"avg_cost_per_user"`
+	MyRank         *int    `json:"my_rank"`
+	MyCost         float64 `json:"my_cost"`
+}
+
+type tokenRankingResponse struct {
+	Summary tokenRankingSummary `json:"summary"`
+	Items   []tokenRankingItem  `json:"items"`
 }
 
 // GetTokenRanking handles getting user token ranking for all users.
@@ -61,9 +80,28 @@ func (h *TokenRankingHandler) GetTokenRanking(c *gin.Context) {
 		return
 	}
 
-	// Mask emails for privacy, keep only necessary fields
-	ranking := make([]tokenRankingItem, 0, len(stats))
+	// Compute totals
+	var totalCost float64
+	var totalTokens int64
 	for _, s := range stats {
+		totalCost += s.ActualCost
+		totalTokens += s.TotalTokens
+	}
+
+	// Build ranking items
+	ranking := make([]tokenRankingItem, 0, len(stats))
+	for i, s := range stats {
+		cacheHitRate := 0.0
+		denom := s.InputTokens + s.CacheTokens
+		if denom > 0 {
+			cacheHitRate = float64(s.CacheTokens) / float64(denom) * 100
+		}
+
+		percentage := 0.0
+		if totalCost > 0 {
+			percentage = s.ActualCost / totalCost * 100
+		}
+
 		ranking = append(ranking, tokenRankingItem{
 			UserID:       s.UserID,
 			Username:     maskEmail(s.Email),
@@ -73,13 +111,42 @@ func (h *TokenRankingHandler) GetTokenRanking(c *gin.Context) {
 			CacheTokens:  s.CacheTokens,
 			TotalTokens:  s.TotalTokens,
 			ActualCost:   s.ActualCost,
+			CacheHitRate: cacheHitRate,
+			Percentage:   percentage,
+			Rank:         i + 1,
 		})
 	}
 
-	response.Success(c, gin.H{
-		"users":      ranking,
-		"start_date": startTime.Format("2006-01-02"),
-		"end_date":   endTime.Format("2006-01-02"),
+	// Compute summary
+	avgCost := 0.0
+	if len(stats) > 0 {
+		avgCost = totalCost / float64(len(stats))
+	}
+
+	summary := tokenRankingSummary{
+		TotalCost:      totalCost,
+		TotalTokens:    totalTokens,
+		ActiveUsers:    len(stats),
+		AvgCostPerUser: avgCost,
+		MyRank:         nil,
+		MyCost:         0,
+	}
+
+	// Try to find current user's rank
+	if subject, ok := middleware2.GetAuthSubjectFromContext(c); ok {
+		for _, item := range ranking {
+			if item.UserID == subject.UserID {
+				rank := item.Rank
+				summary.MyRank = &rank
+				summary.MyCost = item.ActualCost
+				break
+			}
+		}
+	}
+
+	response.Success(c, tokenRankingResponse{
+		Summary: summary,
+		Items:   ranking,
 	})
 }
 
@@ -118,7 +185,7 @@ func parseUserTokenRankingTimeRange(c *gin.Context) (time.Time, time.Time) {
 	var endTime time.Time
 	if endStr != "" {
 		if t, err := time.Parse("2006-01-02", endStr); err == nil {
-			endTime = t.AddDate(0, 0, 1) // include the full end day
+			endTime = t.AddDate(0, 0, 1)
 		}
 	}
 	if endTime.IsZero() || endTime.After(now) {

@@ -273,7 +273,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	checkinService := service.NewCheckinService(checkinRepo, userRepository)
 	checkinHandler := handler.NewCheckinHandler(settingService, checkinService)
 	batchImageHandler := handler.NewBatchImageHandler(batchImagePublicService, batchImageDownloadService, batchImageCleanupService)
-	tokenRankingHandler := handler.NewTokenRankingHandler(dashboardService)
+	tokenRankingHandler := handler.NewTokenRankingHandler(dashboardService, usageService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, checkinHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, handlerPaymentHandler, paymentWebhookHandler, availableChannelHandler, batchImageHandler, tokenRankingHandler, idempotencyCoordinator, idempotencyCleanupService)

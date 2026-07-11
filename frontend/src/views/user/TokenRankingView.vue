@@ -1,41 +1,62 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <!-- Header -->
+      <!-- Header with time period tabs -->
       <div class="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('tokenRanking.title') }}</h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('tokenRanking.description') }}</p>
+        <div class="flex items-center gap-2">
+          <button
+            v-for="opt in periodOptions"
+            :key="opt.value"
+            @click="period = opt.value; onPeriodChange()"
+            class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+            :class="period === opt.value
+              ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+              : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-dark-700'"
+          >
+            {{ opt.label }}
+          </button>
         </div>
-        <button @click="load" class="btn btn-secondary">
-          <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-          </svg>
-          {{ t('tokenRanking.refresh') }}
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div class="card p-4">
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('tokenRanking.summary.totalCost') }}</p>
+          <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">${{ fmtCost(summary.total_cost) }}</p>
+        </div>
+        <div class="card p-4">
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('tokenRanking.summary.totalTokens') }}</p>
+          <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">{{ fmtTokens(summary.total_tokens) }}</p>
+        </div>
+        <div class="card p-4">
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('tokenRanking.summary.activeUsers') }}</p>
+          <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">{{ summary.active_users }}</p>
+        </div>
+        <div class="card p-4">
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('tokenRanking.summary.avgCost') }}</p>
+          <p class="mt-1 text-xl font-bold text-gray-900 dark:text-white">${{ fmtCost(summary.avg_cost_per_user) }}</p>
+        </div>
+        <div class="card p-4">
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('tokenRanking.summary.myRank') }}</p>
+          <p class="mt-1 text-xl font-bold" :class="summary.my_rank ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400'">
+            {{ summary.my_rank ? `#${summary.my_rank}` : '-' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Sort buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          v-for="opt in sortOptions"
+          :key="opt.value"
+          @click="sortBy = opt.value; load()"
+          class="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+          :class="sortBy === opt.value
+            ? 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-dark-700 dark:text-gray-400 dark:hover:bg-dark-600'"
+        >
+          {{ opt.label }}
         </button>
-      </div>
-
-      <!-- Filters -->
-      <div class="card p-4">
-        <div class="flex flex-wrap items-end gap-4">
-          <div>
-            <label class="input-label">{{ t('tokenRanking.period') }}</label>
-            <Select v-model="period" :options="periodOptions" class="w-32" @change="onPeriodChange" />
-          </div>
-          <div>
-            <label class="input-label">{{ t('tokenRanking.limit') }}</label>
-            <Select v-model="limit" :options="limitOptions" class="w-28" @change="load" />
-          </div>
-          <div>
-            <label class="input-label">{{ t('tokenRanking.sortBy') }}</label>
-            <Select v-model="sortBy" :options="sortOptions" class="w-40" @change="load" />
-          </div>
-        </div>
-      </div>
-
-      <!-- Date range display -->
-      <div class="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-        <span>{{ startDate }} ~ {{ endDate }}</span>
       </div>
 
       <!-- Table -->
@@ -48,53 +69,96 @@
                 <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
                   {{ t('tokenRanking.columns.user') }}
                 </th>
-                <th
-                  v-for="col in sortableColumns"
-                  :key="col.key"
-                  class="cursor-pointer select-none whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider transition-colors hover:bg-gray-100 dark:hover:bg-dark-700"
-                  :class="sortBy === col.key ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-dark-400'"
-                  @click="setSort(col.key)"
-                >
-                  {{ t(col.label) }}
-                  <span v-if="sortBy === col.key" aria-hidden="true">↓</span>
+                <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
+                  {{ t('tokenRanking.columns.cost') }}
+                </th>
+                <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
+                  {{ t('tokenRanking.columns.percentage') }}
+                </th>
+                <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
+                  {{ t('tokenRanking.columns.cacheHitRate') }}
+                </th>
+                <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
+                  {{ t('tokenRanking.columns.requests') }}
+                </th>
+                <th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400">
+                  {{ t('tokenRanking.columns.tokens') }}
                 </th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 bg-white dark:divide-dark-700 dark:bg-dark-900">
               <tr v-if="loading">
-                <td :colspan="sortableColumns.length + 2" class="py-12 text-center">
+                <td colspan="7" class="py-12 text-center">
                   <LoadingSpinner />
                 </td>
               </tr>
               <tr v-else-if="items.length === 0">
-                <td :colspan="sortableColumns.length + 2" class="py-12 text-center text-sm text-gray-400">
+                <td colspan="7" class="py-12 text-center text-sm text-gray-400">
                   {{ t('tokenRanking.noData') }}
                 </td>
               </tr>
-              <tr
-                v-for="(item, index) in items"
-                v-else
-                :key="item.user_id"
-                class="transition-colors hover:bg-gray-50 dark:hover:bg-dark-700/40"
-              >
-                <td class="px-4 py-3 sm:px-6">
-                  <span
-                    v-if="index < 3"
-                    class="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold"
-                    :class="RANK_BADGE_CLASSES[index]"
-                  >{{ index + 1 }}</span>
-                  <span v-else class="inline-block w-6 text-center text-sm tabular-nums text-gray-400">{{ index + 1 }}</span>
-                </td>
-                <td class="max-w-[260px] truncate px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200">
-                  {{ item.username || `User #${item.user_id}` }}
-                </td>
-                <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ item.requests.toLocaleString() }}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ fmtTokens(item.input_tokens) }}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ fmtTokens(item.output_tokens) }}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ fmtTokens(item.cache_tokens) }}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-gray-100">{{ fmtTokens(item.total_tokens) }}</td>
-                <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium tabular-nums text-green-600 dark:text-green-400">${{ fmtCost(item.actual_cost) }}</td>
-              </tr>
+              <template v-else>
+                <!-- Top 3 with medal badges -->
+                <tr
+                  v-for="(item, index) in top3"
+                  :key="item.user_id"
+                  class="transition-colors hover:bg-gray-50 dark:hover:bg-dark-700/40"
+                >
+                  <td class="px-4 py-3 sm:px-6">
+                    <span
+                      class="inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold"
+                      :class="MEDAL_CLASSES[index]"
+                    >{{ MEDAL_SYMBOLS[index] }}</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <div class="flex flex-col">
+                      <span class="text-sm font-semibold text-gray-900 dark:text-white">{{ item.username }}</span>
+                    </div>
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">${{ fmtCost(item.actual_cost) }}</td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 dark:text-gray-400">
+                    <div class="flex items-center justify-end gap-2">
+                      <div class="h-1.5 w-16 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                        <div class="h-full rounded-full bg-primary-500" :style="{ width: item.percentage + '%' }"></div>
+                      </div>
+                      <span class="w-10 text-right">{{ item.percentage.toFixed(1) }}%</span>
+                    </div>
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 dark:text-gray-400">
+                    <span :class="getCacheHitClass(item.cache_hit_rate)">{{ item.cache_hit_rate.toFixed(0) }}%</span>
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ item.requests.toLocaleString() }}</td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ fmtTokens(item.total_tokens) }}</td>
+                </tr>
+
+                <!-- Rest of the list -->
+                <tr
+                  v-for="item in rest"
+                  :key="item.user_id"
+                  class="transition-colors hover:bg-gray-50 dark:hover:bg-dark-700/40"
+                >
+                  <td class="px-4 py-3 sm:px-6">
+                    <span class="inline-block w-6 text-center text-sm tabular-nums text-gray-400">{{ item.rank }}</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="text-sm text-gray-700 dark:text-gray-200">{{ item.username }}</span>
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm font-medium tabular-nums text-gray-900 dark:text-white">${{ fmtCost(item.actual_cost) }}</td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 dark:text-gray-400">
+                    <div class="flex items-center justify-end gap-2">
+                      <div class="h-1.5 w-16 overflow-hidden rounded-full bg-gray-200 dark:bg-dark-600">
+                        <div class="h-full rounded-full bg-primary-500" :style="{ width: item.percentage + '%' }"></div>
+                      </div>
+                      <span class="w-10 text-right">{{ item.percentage.toFixed(1) }}%</span>
+                    </div>
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 dark:text-gray-400">
+                    <span :class="getCacheHitClass(item.cache_hit_rate)">{{ item.cache_hit_rate.toFixed(0) }}%</span>
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ item.requests.toLocaleString() }}</td>
+                  <td class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-500 dark:text-gray-400">{{ fmtTokens(item.total_tokens) }}</td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -104,12 +168,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiClient } from '@/api/client'
 import { formatCompactNumber, formatCostFixed } from '@/utils/format'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import Select from '@/components/common/Select.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const { t } = useI18n()
@@ -123,22 +186,24 @@ interface TokenRankingItem {
   cache_tokens: number
   total_tokens: number
   actual_cost: number
+  cache_hit_rate: number
+  percentage: number
+  rank: number
 }
 
-type SortKey = 'total_tokens' | 'input_tokens' | 'output_tokens' | 'cache_tokens' | 'requests' | 'actual_cost'
+interface TokenRankingSummary {
+  total_cost: number
+  total_tokens: number
+  active_users: number
+  avg_cost_per_user: number
+  my_rank: number | null
+  my_cost: number
+}
 
-const sortableColumns: { key: SortKey; label: string }[] = [
-  { key: 'requests', label: 'tokenRanking.columns.requests' },
-  { key: 'input_tokens', label: 'tokenRanking.columns.inputTokens' },
-  { key: 'output_tokens', label: 'tokenRanking.columns.outputTokens' },
-  { key: 'cache_tokens', label: 'tokenRanking.columns.cacheTokens' },
-  { key: 'total_tokens', label: 'tokenRanking.columns.totalTokens' },
-  { key: 'actual_cost', label: 'tokenRanking.columns.cost' },
-]
-
-const RANK_BADGE_CLASSES = [
+const MEDAL_SYMBOLS = ['🥈', '🥇', '🥉']
+const MEDAL_CLASSES = [
+  'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-300',
   'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400',
-  'bg-gray-200 text-gray-600 dark:bg-gray-500/20 dark:text-gray-300',
   'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400',
 ]
 
@@ -146,70 +211,65 @@ const periodOptions = [
   { value: 'day', label: t('tokenRanking.periods.day') },
   { value: 'week', label: t('tokenRanking.periods.week') },
   { value: 'month', label: t('tokenRanking.periods.month') },
-  { value: 'all', label: t('tokenRanking.periods.all') },
 ]
 
-const limitOptions = [
-  { value: 20, label: 'Top 20' },
-  { value: 50, label: 'Top 50' },
-  { value: 100, label: 'Top 100' },
-  { value: 200, label: 'Top 200' },
-]
-
-const sortOptions = [
-  { value: 'total_tokens', label: t('tokenRanking.columns.totalTokens') },
-  { value: 'input_tokens', label: t('tokenRanking.columns.inputTokens') },
-  { value: 'output_tokens', label: t('tokenRanking.columns.outputTokens') },
-  { value: 'cache_tokens', label: t('tokenRanking.columns.cacheTokens') },
-  { value: 'requests', label: t('tokenRanking.columns.requests') },
-  { value: 'actual_cost', label: t('tokenRanking.columns.cost') },
-]
+const sortOptions = computed(() => [
+  { value: 'actual_cost', label: t('tokenRanking.sortByCost') },
+  { value: 'total_tokens', label: t('tokenRanking.sortByTokens') },
+  { value: 'requests', label: t('tokenRanking.sortByRequests') },
+])
 
 const items = ref<TokenRankingItem[]>([])
+const summary = ref<TokenRankingSummary>({
+  total_cost: 0,
+  total_tokens: 0,
+  active_users: 0,
+  avg_cost_per_user: 0,
+  my_rank: null,
+  my_cost: 0,
+})
 const loading = ref(false)
 const period = ref('week')
-const sortBy = ref<SortKey>('total_tokens')
-const limit = ref(50)
+const sortBy = ref('actual_cost')
 const startDate = ref('')
 const endDate = ref('')
 
+const top3 = computed(() => items.value.slice(0, 3))
+const rest = computed(() => items.value.slice(3))
+
 const fmtTokens = (v: number) => formatCompactNumber(v)
-const fmtCost = (v: number) => formatCostFixed(v, 4)
+const fmtCost = (v: number) => formatCostFixed(v, 2)
+
+const getCacheHitClass = (rate: number) => {
+  if (rate >= 90) return 'text-green-600 dark:text-green-400 font-medium'
+  if (rate >= 70) return 'text-gray-600 dark:text-gray-400'
+  return 'text-orange-500 dark:text-orange-400'
+}
 
 const getDateRange = () => {
   const now = new Date()
   let start: Date
-  const end = now
 
   switch (period.value) {
     case 'day':
       start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       break
-    case 'week': {
-      const day = now.getDay()
-      const diff = day === 0 ? 6 : day - 1
-      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff)
+    case 'week':
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6)
       break
-    }
     case 'month':
       start = new Date(now.getFullYear(), now.getMonth(), 1)
       break
     default:
-      start = new Date(2020, 0, 1)
+      start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6)
   }
 
   startDate.value = start.toISOString().split('T')[0]
-  endDate.value = end.toISOString().split('T')[0]
+  endDate.value = now.toISOString().split('T')[0]
 }
 
 const onPeriodChange = () => {
   getDateRange()
-  load()
-}
-
-const setSort = (key: SortKey) => {
-  if (sortBy.value === key) return
-  sortBy.value = key
   load()
 }
 
@@ -220,10 +280,11 @@ const load = async () => {
     params.set('start_date', startDate.value)
     params.set('end_date', endDate.value)
     params.set('sort_by', sortBy.value)
-    params.set('limit', String(limit.value))
+    params.set('limit', '50')
 
     const { data } = await apiClient.get(`/usage/token-ranking?${params.toString()}`)
-    items.value = data.users || []
+    items.value = data.items || []
+    summary.value = data.summary || summary.value
   } catch {
     items.value = []
   } finally {
