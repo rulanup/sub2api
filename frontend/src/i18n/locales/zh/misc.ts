@@ -688,32 +688,6 @@ export default {
     latencyError: '测试失败',
   },
 
-  // 消费排行
-  leaderboard: {
-    title: '排行榜',
-    description: '查看当前周期的用户消费排行',
-    daily: '日榜',
-    weekly: '周榜',
-    monthly: '月榜',
-    refresh: '刷新',
-    totalSpending: '榜单消费',
-    totalRequests: '总请求数',
-    totalTokens: '总 Token',
-    currentRanking: '当前榜单',
-    updatedAt: '更新于',
-    requests: '请求',
-    token: 'Token',
-    spending: '消费',
-    myRanking: '我的排名',
-    noRanking: '暂无排名',
-    tokenUnit: {
-      k: 'K',
-      m: 'M',
-      b: 'B',
-      t: 'T',
-    },
-  },
-
   // 每日签到
   checkin: {
     title: '每日签到',

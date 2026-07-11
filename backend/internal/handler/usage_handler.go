@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -19,37 +18,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-// leaderboardCache caches the leaderboard response to avoid repeated DB queries.
-var (
-	leaderboardCache     map[string]*leaderboardCacheEntry
-	leaderboardCacheMu   sync.RWMutex
-	leaderboardCacheTTL  = 5 * time.Minute
-)
-
-type leaderboardCacheEntry struct {
-	data      interface{}
-	expiresAt time.Time
-}
-
-func init() {
-	leaderboardCache = make(map[string]*leaderboardCacheEntry)
-}
-
-func getLeaderboardCache(key string) (interface{}, bool) {
-	leaderboardCacheMu.RLock()
-	defer leaderboardCacheMu.RUnlock()
-	if e, ok := leaderboardCache[key]; ok && time.Now().Before(e.expiresAt) {
-		return e.data, true
-	}
-	return nil, false
-}
-
-func setLeaderboardCache(key string, data interface{}) {
-	leaderboardCacheMu.Lock()
-	defer leaderboardCacheMu.Unlock()
-	leaderboardCache[key] = &leaderboardCacheEntry{data: data, expiresAt: time.Now().Add(leaderboardCacheTTL)}
-}
 
 type userUsageFilters struct {
 	Filters   usagestats.UsageLogFilters
@@ -535,62 +503,6 @@ func (h *UsageHandler) DashboardModels(c *gin.Context) {
 		"start_date": parsed.StartTime.Format("2006-01-02"),
 		"end_date":   parsed.EndTime.Add(-24 * time.Hour).Format("2006-01-02"),
 	})
-}
-
-// Leaderboard handles getting the public user spending leaderboard.
-// GET /api/v1/usage/leaderboard?period=day|week|month&limit=50
-func (h *UsageHandler) Leaderboard(c *gin.Context) {
-	subject, ok := middleware2.GetAuthSubjectFromContext(c)
-	if !ok {
-		response.Unauthorized(c, "User not authenticated")
-		return
-	}
-
-	period := c.DefaultQuery("period", "week")
-	limit := 50
-	if v, err := strconv.Atoi(c.DefaultQuery("limit", "50")); err == nil && v > 0 && v <= 100 {
-		limit = v
-	}
-
-	now := time.Now()
-	var startTime time.Time
-	switch period {
-	case "day":
-		startTime = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	case "month":
-		startTime = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	default: // week
-		weekday := now.Weekday()
-		if weekday == 0 {
-			weekday = 7
-		}
-		startTime = time.Date(now.Year(), now.Month(), now.Day()-int(weekday)+1, 0, 0, 0, 0, now.Location())
-	}
-	endTime := now
-
-	cacheKey := period
-	if cached, ok := getLeaderboardCache(cacheKey); ok {
-		resp := cached.(*usagestats.LeaderboardResponse)
-		if myRank, err := h.usageService.GetLeaderboardMyRank(c.Request.Context(), startTime, endTime, subject.UserID); err == nil {
-			resp.MyRank = *myRank
-		}
-		resp.UpdatedAt = now.Format("2006/1/2 15:04:05")
-		response.Success(c, resp)
-		return
-	}
-
-	resp, err := h.usageService.GetLeaderboard(c.Request.Context(), startTime, endTime, limit, subject.UserID)
-	if err != nil {
-		response.Error(c, 500, "Failed to get leaderboard")
-		return
-	}
-
-	resp.StartDate = startTime.Format("2006-01-02")
-	resp.EndDate = endTime.Format("2006-01-02")
-	resp.UpdatedAt = now.Format("2006/1/2 15:04:05")
-
-	setLeaderboardCache(cacheKey, resp)
-	response.Success(c, resp)
 }
 
 // TestModelLatencyRequest represents the request to test model latency.

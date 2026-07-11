@@ -153,7 +153,6 @@ export default {
     workbench: 'Workbench',
     batchImage: 'Batch Images',
     modelSquare: 'Model Square',
-    leaderboard: 'Leaderboard',
     checkin: 'Daily Check-in',
     usage: 'Usage',
     redeem: 'Redeem',

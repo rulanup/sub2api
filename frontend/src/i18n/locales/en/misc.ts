@@ -665,32 +665,6 @@ export default {
     latencyError: 'Failed',
   },
 
-  // Leaderboard
-  leaderboard: {
-    title: 'Leaderboard',
-    description: 'View user spending rankings for the current period',
-    daily: 'Daily',
-    weekly: 'Weekly',
-    monthly: 'Monthly',
-    refresh: 'Refresh',
-    totalSpending: 'Total Spending',
-    totalRequests: 'Total Requests',
-    totalTokens: 'Total Tokens',
-    currentRanking: 'Current Ranking',
-    updatedAt: 'Updated at',
-    requests: 'requests',
-    token: 'Tokens',
-    spending: 'Spending',
-    myRanking: 'My Ranking',
-    noRanking: 'No ranking',
-    tokenUnit: {
-      k: 'K',
-      m: 'M',
-      b: 'B',
-      t: 'T',
-    },
-  },
-
   // Checkin
   checkin: {
     title: 'Daily Check-in',

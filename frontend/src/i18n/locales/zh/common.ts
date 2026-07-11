@@ -153,7 +153,6 @@ export default {
     workbench: '工作台',
     batchImage: '批量生图',
     modelSquare: '模型广场',
-    leaderboard: '消费排行',
     checkin: '每日签到',
     usage: '使用记录',
     redeem: '兑换',

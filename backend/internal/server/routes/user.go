@@ -87,7 +87,6 @@ func RegisterUserRoutes(
 			usage.GET("/errors/:id", h.Usage.GetErrorDetail)
 			usage.GET("/:id", h.Usage.GetByID)
 			usage.GET("/stats", h.Usage.Stats)
-			usage.GET("/leaderboard", h.Usage.Leaderboard)
 			usage.POST("/test-model-latency", h.Usage.TestModelLatency)
 			// User dashboard endpoints
 			usage.GET("/dashboard/stats", h.Usage.DashboardStats)
