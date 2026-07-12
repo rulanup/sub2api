@@ -154,6 +154,7 @@ export default {
     batchImage: 'Batch Images',
     modelSquare: 'Model Square',
     tokenRanking: 'Token Ranking',
+    privateAccounts: 'Private Pool',
     checkin: 'Daily Check-in',
     usage: 'Usage',
     redeem: 'Redeem',

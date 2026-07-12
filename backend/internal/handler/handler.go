@@ -61,6 +61,7 @@ type Handlers struct {
 	AvailableChannel *AvailableChannelHandler
 	BatchImage       *BatchImageHandler
 	TokenRanking     *TokenRankingHandler
+	PrivateAccount   *PrivateAccountHandler
 }
 
 // BuildInfo contains build-time information

@@ -742,4 +742,29 @@ export default {
     },
   },
 
+  // 私人号池
+  privateAccounts: {
+    title: '私人号池',
+    description: '管理您的私人账号，独享模型访问权限',
+    addAccount: '添加账号',
+    createAccount: '创建私人账号',
+    editAccount: '编辑私人账号',
+    active: '启用',
+    disabled: '禁用',
+    noGroups: '未绑定分组',
+    lastUsed: '最后使用',
+    never: '从未使用',
+    empty: '暂无私人账号',
+    addFirst: '添加第一个账号',
+    deleteConfirm: '确定要删除 "{name}" 吗？',
+    name: '账号名称',
+    namePlaceholder: '我的 OpenAI 账号',
+    platform: '平台',
+    apiKey: 'API Key',
+    apiKeyPlaceholder: 'sk-...',
+    groups: '绑定分组',
+    notes: '备注',
+    notesPlaceholder: '可选备注...',
+  },
+
 }

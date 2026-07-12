@@ -118,6 +118,7 @@ func ProvideHandlers(
 	availableChannelHandler *AvailableChannelHandler,
 	batchImageHandler *BatchImageHandler,
 	tokenRankingHandler *TokenRankingHandler,
+	privateAccountHandler *PrivateAccountHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -141,6 +142,7 @@ func ProvideHandlers(
 		AvailableChannel: availableChannelHandler,
 		BatchImage:       batchImageHandler,
 		TokenRanking:     tokenRankingHandler,
+		PrivateAccount:   privateAccountHandler,
 	}
 }
 
@@ -165,6 +167,7 @@ var ProviderSet = wire.NewSet(
 	NewAvailableChannelHandler,
 	NewBatchImageHandler,
 	NewTokenRankingHandler,
+	NewPrivateAccountHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

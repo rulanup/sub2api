@@ -267,6 +267,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/private-accounts',
+    name: 'PrivateAccounts',
+    component: () => import('@/views/user/PrivateAccountsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Private Accounts',
+      titleKey: 'privateAccounts.title',
+      descriptionKey: 'privateAccounts.description'
+    }
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),

@@ -133,5 +133,16 @@ func RegisterUserRoutes(
 			monitors.GET("", h.ChannelMonitor.List)
 			monitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
 		}
+
+		// 私人号池
+		privateAccounts := authenticated.Group("/private-accounts")
+		{
+			privateAccounts.GET("", h.PrivateAccount.List)
+			privateAccounts.POST("", h.PrivateAccount.Create)
+			privateAccounts.PUT("/:id", h.PrivateAccount.Update)
+			privateAccounts.DELETE("/:id", h.PrivateAccount.Delete)
+			privateAccounts.GET("/models", h.PrivateAccount.GetModels)
+			privateAccounts.GET("/available-groups", h.PrivateAccount.GetAvailableGroups)
+		}
 	}
 }

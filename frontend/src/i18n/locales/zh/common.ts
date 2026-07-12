@@ -154,6 +154,7 @@ export default {
     batchImage: '批量生图',
     modelSquare: '模型广场',
     tokenRanking: 'Token 排行',
+    privateAccounts: '私人号池',
     checkin: '每日签到',
     usage: '使用记录',
     redeem: '兑换',
