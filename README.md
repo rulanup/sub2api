@@ -31,6 +31,10 @@ Please read the following carefully before using this project:
 - **Model Square** - Dense catalog of user-visible models with platform icons, group-rate price previews, filters, and search; works independently from the Available Channels feature switch
 - **Available Channels Improvements** - Scrollable channel table for large channel/model catalogs
 - **Group Account Assignment** - Add same-platform accounts directly from group list, create group, and edit group flows without overwriting existing account group bindings
+- **Private Account Pool** - Users can add and manage their own upstream accounts, including quick setup from an API URL and key with automatic model discovery
+- **Private Groups** - Users can organize private accounts into owner-only groups; private groups are isolated from public and exclusive groups and are not billed by the platform
+- **Private Models and Channels** - Model Square and Available Channels can switch between public resources and models exposed by the user's private groups
+- **Multi-Group Scheduling** - An API Key can use multiple same-platform groups and route requests by lowest cost or lowest latency, with automatic fallback when a group has no available account
 - **Channel Pricing Import** - Import channel pricing models from a saved account whitelist or model mapping
 - **Spending Leaderboard** - Users can view daily/weekly/monthly spending rankings
 - **Daily Check-in** - Users check in daily to receive random balance rewards, admin-configurable amount range and toggle
