@@ -20,6 +20,20 @@
           </div>
 
           <div class="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-3 lg:w-auto">
+            <div class="flex rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
+              <button
+                v-for="item in scopes"
+                :key="item.value"
+                type="button"
+                class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                :class="scope === item.value
+                  ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-600 dark:text-primary-300'
+                  : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+                @click="setScope(item.value)"
+              >
+                {{ item.label }}
+              </button>
+            </div>
             <button
               @click="loadChannels"
               :disabled="loading"
@@ -67,6 +81,11 @@ const channels = ref<UserAvailableChannel[]>([])
 const userGroupRates = ref<Record<number, number>>({})
 const loading = ref(false)
 const searchQuery = ref('')
+const scope = ref<'public' | 'private'>('public')
+const scopes = computed(() => [
+  { value: 'public' as const, label: t('availableChannels.publicScope') },
+  { value: 'private' as const, label: t('availableChannels.privateScope') },
+])
 
 const columnLabels = computed(() => ({
   name: t('availableChannels.columns.name'),
@@ -108,8 +127,8 @@ async function loadChannels() {
     // 渠道列表和用户专属倍率并发拉取。专属倍率失败不阻塞渠道展示——
     // 失败时只是无法渲染专属倍率角标，降级为仅显示默认倍率。
     const [list, rates] = await Promise.all([
-      userChannelsAPI.getAvailable(),
-      userGroupsAPI.getUserGroupRates().catch((err: unknown) => {
+      userChannelsAPI.getAvailable({ scope: scope.value }),
+      scope.value === 'private' ? Promise.resolve({}) : userGroupsAPI.getUserGroupRates().catch((err: unknown) => {
         console.error('Failed to load user group rates:', err)
         return {} as Record<number, number>
       }),
@@ -121,6 +140,13 @@ async function loadChannels() {
   } finally {
     loading.value = false
   }
+}
+
+async function setScope(value: 'public' | 'private') {
+  if (scope.value === value) return
+  scope.value = value
+  searchQuery.value = ''
+  await loadChannels()
 }
 
 onMounted(loadChannels)

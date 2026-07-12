@@ -92,7 +92,7 @@
                 </button>
               </div>
             </div>
-            <button
+            <button v-if="!userMode"
               @click="openSortModal"
               class="btn btn-secondary"
               :title="t('admin.groups.sortOrder')"
@@ -360,7 +360,7 @@
                 <Icon name="edit" size="sm" />
                 <span class="text-xs">{{ t("common.edit") }}</span>
               </button>
-              <button
+              <button v-if="!userMode"
                 @click="handleRateMultipliers(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-purple-600 dark:hover:bg-dark-700 dark:hover:text-purple-400"
               >
@@ -369,7 +369,7 @@
                   t("admin.groups.rateMultipliers")
                 }}</span>
               </button>
-              <button
+              <button v-if="!userMode"
                 @click="handleRPMOverrides(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-orange-600 dark:hover:bg-dark-700 dark:hover:text-orange-400"
               >
@@ -3683,6 +3683,8 @@ import { useI18n } from "vue-i18n";
 import { useAppStore } from "@/stores/app";
 import { useOnboardingStore } from "@/stores/onboarding";
 import { adminAPI } from "@/api/admin";
+import { userPrivateGroupsAPI } from "@/api/user/groups";
+import { userAccountsAPI } from "@/api/user/accounts";
 import type { Account, AdminGroup, GroupPlatform, SubscriptionType } from "@/types";
 import type { Column } from "@/components/common/types";
 import AppLayout from "@/components/layout/AppLayout.vue";
@@ -3731,6 +3733,9 @@ import {
 } from "./groupsImagePricing";
 
 const { t } = useI18n();
+const props = withDefaults(defineProps<{ userMode?: boolean }>(), { userMode: false });
+const userMode = computed(() => props.userMode);
+const accountsAPI = computed(() => userMode.value ? userAccountsAPI : adminAPI.accounts);
 const appStore = useAppStore();
 const onboardingStore = useOnboardingStore();
 
@@ -4196,7 +4201,7 @@ const clearAllAccountSearchState = () => {
 const accountSearchRunner = useKeyedDebouncedSearch<SimpleAccount[]>({
   delay: 300,
   search: async (keyword, { signal }) => {
-    const res = await adminAPI.accounts.list(
+    const res = await accountsAPI.value.list(
       1,
       20,
       {
@@ -4337,6 +4342,7 @@ const loadModelsListCandidates = async (
   groupID: number,
   platform: GroupPlatform,
 ) => {
+  if (userMode.value) return;
   const request = { mode, groupID, platform };
   const requestID = modelsListCandidatesTracker.next(request);
   const state = mode === "create" ? createModelsListState : editModelsListState;
@@ -4402,7 +4408,7 @@ const convertApiFormatToRoutingRules = async (
     const accounts: SimpleAccount[] = [];
     for (const id of accountIds) {
       try {
-        const account = await adminAPI.accounts.getById(id);
+        const account = await accountsAPI.value.getById(id);
         accounts.push({ id: account.id, name: account.name });
       } catch {
         // 如果账号不存在，仍然显示 ID
@@ -4657,7 +4663,7 @@ const loadGroups = async () => {
   const { signal } = currentController;
   loading.value = true;
   try {
-    const response = await adminAPI.groups.list(
+    const response = await (userMode.value ? userPrivateGroupsAPI : adminAPI.groups).list(
       pagination.page,
       pagination.page_size,
       {
@@ -4676,12 +4682,12 @@ const loadGroups = async () => {
     groups.value = response.items;
     pagination.total = response.total;
     pagination.pages = response.pages;
-    if (hasVisibleUsageSummaryConsumer.value) {
+    if (!userMode.value && hasVisibleUsageSummaryConsumer.value) {
       loadUsageSummary();
     } else {
       usageLoading.value = false;
     }
-    if (hasVisibleCapacityColumn.value) {
+    if (!userMode.value && hasVisibleCapacityColumn.value) {
       loadCapacitySummary();
     }
   } catch (error: any) {
@@ -4813,7 +4819,7 @@ const handleSort = (key: string, order: 'asc' | 'desc') => {
 
 const openCreateModal = () => {
   showCreateModal.value = true;
-  loadModelsListCandidates("create", 0, createForm.platform);
+  if (!userMode.value) loadModelsListCandidates("create", 0, createForm.platform);
   loadDirectAccountCandidates("create");
 };
 
@@ -4964,7 +4970,7 @@ const handleCreateGroup = async () => {
     requestData.peak_rate_multiplier = normalizeRateMultiplier(
       createForm.peak_rate_multiplier,
     );
-    const createdGroup = await adminAPI.groups.create(requestData);
+    const createdGroup = await (userMode.value ? userPrivateGroupsAPI : adminAPI.groups).create(requestData);
     if (createSelectedAccountIds.value.length > 0) {
       await appendAccountsToGroup(createSelectedAccountIds.value, createdGroup.id);
     }
@@ -5050,7 +5056,7 @@ const handleEdit = async (group: AdminGroup) => {
   editModelRoutingRules.value = await convertApiFormatToRoutingRules(
     group.model_routing,
   );
-  loadModelsListCandidates("edit", group.id, group.platform);
+  if (!userMode.value) loadModelsListCandidates("edit", group.id, group.platform);
   loadDirectAccountCandidates("edit");
   showEditModal.value = true;
 };
@@ -5158,7 +5164,7 @@ const handleUpdateGroup = async () => {
     payload.peak_rate_multiplier = normalizeRateMultiplier(
       editForm.peak_rate_multiplier,
     );
-    await adminAPI.groups.update(editingGroup.value.id, payload);
+    await (userMode.value ? userPrivateGroupsAPI : adminAPI.groups).update(editingGroup.value.id, payload);
     if (editSelectedAccountIds.value.length > 0) {
       await appendAccountsToGroup(editSelectedAccountIds.value, editingGroup.value.id);
     }
@@ -5225,7 +5231,7 @@ const loadDirectAccountCandidates = async (mode: "create" | "edit") => {
   const state = getDirectAccountState(mode);
   state.loading.value = true;
   try {
-    const response = await adminAPI.accounts.list(1, 100, {
+    const response = await accountsAPI.value.list(1, 100, {
       platform: state.platform,
       search: state.search.value.trim() || undefined,
     });
@@ -5275,9 +5281,9 @@ const resetDirectAccountPicker = (mode: "create" | "edit") => {
 
 const appendAccountsToGroup = async (accountIDs: number[], groupID: number) => {
   for (const accountID of accountIDs) {
-    const account = await adminAPI.accounts.getById(accountID);
+    const account = await accountsAPI.value.getById(accountID);
     const nextGroupIDs = Array.from(new Set([...(account.group_ids || []), groupID]));
-    await adminAPI.accounts.update(accountID, { group_ids: nextGroupIDs });
+    await accountsAPI.value.update(accountID, { group_ids: nextGroupIDs });
   }
 };
 
@@ -5286,7 +5292,7 @@ const loadAddAccountsCandidates = async () => {
 
   addAccountsLoading.value = true;
   try {
-    const response = await adminAPI.accounts.list(1, 100, {
+    const response = await accountsAPI.value.list(1, 100, {
       platform: addAccountsGroup.value.platform,
       search: addAccountsSearch.value.trim() || undefined,
     });
@@ -5380,7 +5386,7 @@ const confirmDelete = async () => {
   if (!deletingGroup.value) return;
 
   try {
-    await adminAPI.groups.delete(deletingGroup.value.id);
+    await (userMode.value ? userPrivateGroupsAPI : adminAPI.groups).delete(deletingGroup.value.id);
     appStore.showSuccess(t("admin.groups.groupDeleted"));
     showDeleteDialog.value = false;
     deletingGroup.value = null;
@@ -5567,7 +5573,7 @@ const saveSortOrder = async () => {
 
 onMounted(() => {
   loadGroups();
-  loadModelsListCandidates("create", 0, createForm.platform);
+  if (!userMode.value) loadModelsListCandidates("create", 0, createForm.platform);
   document.addEventListener("click", handleClickOutside);
 });
 

@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	mathrand "math/rand"
 	"sort"
 	"strings"
@@ -19,6 +20,44 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
 )
+
+type gatewayMultiGroupBypassContextKey struct{}
+
+func orderedGatewayScheduleGroups(apiKey *APIKey) []*Group {
+	if apiKey == nil {
+		return nil
+	}
+	byID := make(map[int64]*Group, len(apiKey.Groups)+1)
+	if apiKey.Group != nil {
+		byID[apiKey.Group.ID] = apiKey.Group
+	}
+	for _, group := range apiKey.Groups {
+		if group != nil {
+			byID[group.ID] = group
+		}
+	}
+	groups := make([]*Group, 0, len(apiKey.GroupIDs))
+	for _, id := range apiKey.GroupIDs {
+		if group := byID[id]; group != nil && group.IsActive() {
+			groups = append(groups, group)
+		}
+	}
+	if apiKey.GroupScheduleStrategy != APIKeyGroupScheduleLowestLatency {
+		sort.SliceStable(groups, func(i, j int) bool {
+			now := time.Now()
+			left := groups[i].RateMultiplier * groups[i].PeakMultiplierAt(now)
+			right := groups[j].RateMultiplier * groups[j].PeakMultiplierAt(now)
+			if left < 0 {
+				left = math.MaxFloat64
+			}
+			if right < 0 {
+				right = math.MaxFloat64
+			}
+			return left < right
+		})
+	}
+	return groups
+}
 
 // SelectAccount 选择账号（粘性会话+优先级）
 func (s *GatewayService) SelectAccount(ctx context.Context, groupID *int64, sessionHash string) (*Account, error) {
@@ -82,6 +121,29 @@ func (s *GatewayService) SelectAccountForModelWithExclusions(ctx context.Context
 // metadataUserID: 用于客户端亲和调度，从中提取客户端 ID
 // sub2apiUserID: 系统用户 ID，用于二维亲和调度
 func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, metadataUserID string, sub2apiUserID int64) (*AccountSelectionResult, error) {
+	if bypass, _ := ctx.Value(gatewayMultiGroupBypassContextKey{}).(bool); !bypass {
+		if apiKey := apiKeyFromContext(ctx); apiKey != nil && len(apiKey.GroupIDs) > 1 {
+			var lastErr error
+			for _, group := range orderedGatewayScheduleGroups(apiKey) {
+				gid := group.ID
+				groupCtx := context.WithValue(ctx, gatewayMultiGroupBypassContextKey{}, true)
+				groupCtx = context.WithValue(groupCtx, ctxkey.Group, group)
+				selection, err := s.SelectAccountWithLoadAwareness(groupCtx, &gid, sessionHash, requestedModel, excludedIDs, metadataUserID, sub2apiUserID)
+				if err == nil && selection != nil {
+					apiKey.GroupID = &group.ID
+					apiKey.Group = group
+					return selection, nil
+				}
+				if err != nil {
+					lastErr = err
+				}
+			}
+			if lastErr != nil {
+				return nil, lastErr
+			}
+			return nil, ErrNoAvailableAccounts
+		}
+	}
 	// 调试日志：记录调度入口参数
 	excludedIDsList := make([]int64, 0, len(excludedIDs))
 	for id := range excludedIDs {

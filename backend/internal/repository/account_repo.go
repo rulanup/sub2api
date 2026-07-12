@@ -96,6 +96,9 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 		SetErrorMessage(account.ErrorMessage).
 		SetSchedulable(account.Schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
+	if account.UserID != nil {
+		builder.SetUserID(*account.UserID)
+	}
 
 	if account.RateMultiplier != nil {
 		builder.SetRateMultiplier(*account.RateMultiplier)
@@ -2059,6 +2062,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 	rateMultiplier := m.RateMultiplier
 
 	return &service.Account{
+		UserID:                  m.UserID,
 		ID:                      m.ID,
 		Name:                    m.Name,
 		Notes:                   m.Notes,

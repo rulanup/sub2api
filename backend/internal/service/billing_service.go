@@ -871,6 +871,9 @@ type CostInput struct {
 // CalculateCostUnified 统一计费入口，支持三种计费模式。
 // 使用 ModelPricingResolver 解析定价，然后根据 BillingMode 分发计算。
 func (s *BillingService) CalculateCostUnified(input CostInput) (*CostBreakdown, error) {
+	if input.RateMultiplier <= 0 {
+		return &CostBreakdown{BillingMode: string(BillingModeToken)}, nil
+	}
 	if input.Resolver == nil {
 		// 无 Resolver，回退到旧路径
 		return s.calculateCostInternal(input.Model, input.Tokens, input.RateMultiplier, input.ServiceTier, nil)
@@ -1084,6 +1087,9 @@ func (s *BillingService) CalculateCostWithServiceTier(model string, tokens Usage
 }
 
 func (s *BillingService) calculateCostInternal(model string, tokens UsageTokens, rateMultiplier float64, serviceTier string, channelPricing *ChannelModelPricing) (*CostBreakdown, error) {
+	if rateMultiplier <= 0 {
+		return &CostBreakdown{BillingMode: string(BillingModeToken)}, nil
+	}
 	var pricing *ModelPricing
 	var err error
 	if channelPricing != nil {
@@ -1329,6 +1335,9 @@ const (
 // groupConfig: 分组配置的价格（可能为 nil，表示使用默认值）
 // rateMultiplier: 费率倍数
 func (s *BillingService) CalculateImageCost(model string, imageSize string, imageCount int, groupConfig *ImagePriceConfig, rateMultiplier float64) *CostBreakdown {
+	if rateMultiplier <= 0 {
+		return &CostBreakdown{BillingMode: string(BillingModeImage)}
+	}
 	if imageCount <= 0 {
 		return &CostBreakdown{}
 	}
@@ -1361,6 +1370,9 @@ func (s *BillingService) CalculateImageCost(model string, imageSize string, imag
 // groupConfig: 分组配置的每秒价格（可能为 nil，表示使用默认值）
 // rateMultiplier: 费率倍数
 func (s *BillingService) CalculateVideoCost(model string, resolution string, videoCount int, durationSeconds int, groupConfig *VideoPriceConfig, rateMultiplier float64) *CostBreakdown {
+	if rateMultiplier <= 0 {
+		return &CostBreakdown{BillingMode: string(BillingModeVideo)}
+	}
 	if videoCount <= 0 {
 		return &CostBreakdown{}
 	}

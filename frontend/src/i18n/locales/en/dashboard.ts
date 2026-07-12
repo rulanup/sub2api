@@ -100,6 +100,12 @@ export default {
     nameLabel: 'Name',
     namePlaceholder: 'My API Key',
     groupLabel: 'Group',
+    groupScopes: {
+      public: 'Public',
+      subscription: 'Subscription',
+      exclusive: 'Exclusive',
+      private: 'Private',
+    },
     selectGroup: 'Select a group',
     statusLabel: 'Status',
     selectStatus: 'Select status',
@@ -121,6 +127,8 @@ export default {
     groupRequired: 'Please select a group',
     multiGroupLabel: 'Multi-group Scheduling',
     multiGroupHint: 'Select multiple groups for load balancing or failover',
+    enableMultiGroup: 'Enable Multi-group Calls',
+    enableMultiGroupHint: 'When disabled, only the primary group is used. Enable to select additional groups on the same platform.',
     scheduleStrategy: 'Schedule Strategy',
     scheduleCheapest: 'Cheapest',
     scheduleLowestLatency: 'Lowest Latency',
@@ -464,6 +472,8 @@ export default {
 
   // Available Channels (user-facing)
   availableChannels: {
+    publicScope: 'Public Channels',
+    privateScope: 'Private Channels',
     title: 'Available Channels',
     description: 'Channels you can access, along with their supported models and pricing',
     searchPlaceholder: 'Search channels or models...',

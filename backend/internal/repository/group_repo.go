@@ -79,7 +79,9 @@ func (r *groupRepository) Create(ctx context.Context, groupIn *service.Group) er
 		SetPeakRateEnabled(groupIn.PeakRateEnabled).
 		SetPeakStart(groupIn.PeakStart).
 		SetPeakEnd(groupIn.PeakEnd).
-		SetPeakRateMultiplier(groupIn.PeakRateMultiplier)
+		SetPeakRateMultiplier(groupIn.PeakRateMultiplier).
+		SetIsPrivate(groupIn.IsPrivate).
+		SetNillableOwnerUserID(groupIn.OwnerUserID)
 
 	// 设置模型路由配置
 	if groupIn.ModelRouting != nil {

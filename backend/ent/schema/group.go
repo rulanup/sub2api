@@ -63,6 +63,11 @@ func (Group) Fields() []ent.Field {
 			Comment("高峰时段叠加倍率，仅在 peak_rate_enabled 且处于 [peak_start, peak_end) 时乘入文本倍率"),
 		field.Bool("is_exclusive").
 			Default(false),
+		field.Bool("is_private").
+			Default(false),
+		field.Int64("owner_user_id").
+			Optional().
+			Nillable(),
 		field.String("status").
 			MaxLen(20).
 			Default(domain.StatusActive),
@@ -239,5 +244,6 @@ func (Group) Indexes() []ent.Index {
 		index.Fields("is_exclusive"),
 		index.Fields("deleted_at"),
 		index.Fields("sort_order"),
+		index.Fields("is_private", "owner_user_id"),
 	}
 }

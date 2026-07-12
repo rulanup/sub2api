@@ -471,6 +471,18 @@
 
         <div>
           <label class="input-label">{{ t('keys.groupLabel') }}</label>
+          <div class="mb-3 grid grid-cols-4 rounded-lg bg-gray-100 p-1 dark:bg-dark-700">
+            <button
+              v-for="item in groupScopes"
+              :key="item.value"
+              type="button"
+              class="rounded-md px-2 py-2 text-xs font-medium transition-colors sm:text-sm"
+              :class="groupScope === item.value
+                ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-600 dark:text-primary-300'
+                : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+              @click="setGroupScope(item.value)"
+            >{{ item.label }} <span class="text-[10px] opacity-70">{{ groupScopeCount(item.value) }}</span></button>
+          </div>
           <Select
             v-model="formData.group_id"
             :options="groupOptions"
@@ -515,15 +527,17 @@
         <div v-if="formData.group_id !== null" class="space-y-3 rounded-lg border border-gray-200 p-3 dark:border-dark-600">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <label class="input-label mb-0">{{ t('keys.multiGroupLabel') }}</label>
-              <p class="input-hint">{{ t('keys.multiGroupHint') }}</p>
+              <label class="input-label mb-0">{{ t('keys.enableMultiGroup') }}</label>
+              <p class="input-hint">{{ t('keys.enableMultiGroupHint') }}</p>
             </div>
+            <button type="button" class="relative inline-flex h-6 w-11 rounded-full transition-colors" :class="formData.enable_multi_group ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'" @click="setFormMultiGroupEnabled(!formData.enable_multi_group)"><span class="inline-block h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition-transform" :class="formData.enable_multi_group ? 'translate-x-5' : 'translate-x-0.5'" /></button>
+          </div>
+          <div v-if="formData.enable_multi_group" class="space-y-3">
             <Select
               v-model="formData.group_schedule_strategy"
               :options="groupScheduleOptions"
               class="w-44"
             />
-          </div>
           <div class="max-h-48 space-y-2 overflow-y-auto pr-1">
             <label
               v-for="option in compatibleGroupOptions"
@@ -551,6 +565,7 @@
                 :selected="formData.group_ids.includes(option.value)"
               />
             </label>
+          </div>
           </div>
         </div>
 
@@ -1121,10 +1136,11 @@
           </div>
         </div>
         <div class="border-b border-gray-100 p-2 dark:border-dark-700">
-          <div class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-            {{ t('keys.scheduleStrategy') }}
+          <div class="flex items-center justify-between gap-3">
+            <div><div class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('keys.enableMultiGroup') }}</div><div class="text-[11px] text-gray-500">{{ t('keys.enableMultiGroupHint') }}</div></div>
+            <button type="button" class="relative inline-flex h-5 w-9 rounded-full transition-colors" :class="groupSelectorMultiGroupEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'" @click="setSelectorMultiGroupEnabled(!groupSelectorMultiGroupEnabled)"><span class="inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform" :class="groupSelectorMultiGroupEnabled ? 'translate-x-4' : 'translate-x-0.5'" /></button>
           </div>
-          <Select v-model="groupSelectorStrategy" :options="groupScheduleOptions" />
+          <Select v-if="groupSelectorMultiGroupEnabled" v-model="groupSelectorStrategy" :options="groupScheduleOptions" class="mt-2" />
         </div>
         <!-- Group list -->
         <div class="max-h-80 overflow-y-auto p-1.5">
@@ -1134,15 +1150,16 @@
             :class="[
               'flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
               'border-b border-gray-100 last:border-0 dark:border-dark-700',
-              groupSelectorGroupIds.includes(option.value) ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-gray-100 dark:hover:bg-dark-700'
+              (groupSelectorMultiGroupEnabled ? groupSelectorGroupIds.includes(option.value) : groupSelectorPrimaryGroupId === option.value) ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-gray-100 dark:hover:bg-dark-700'
             ]"
             :title="option.description || undefined"
           >
             <input
-              type="checkbox"
+              :type="groupSelectorMultiGroupEnabled ? 'checkbox' : 'radio'"
+              name="api-key-group-selector"
               class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              :checked="groupSelectorGroupIds.includes(option.value)"
-              :disabled="option.value === selectedKeyForGroup?.group_id"
+              :checked="groupSelectorMultiGroupEnabled ? groupSelectorGroupIds.includes(option.value) : groupSelectorPrimaryGroupId === option.value"
+              :disabled="groupSelectorMultiGroupEnabled && option.value === groupSelectorPrimaryGroupId"
               @change="toggleGroupSelectorGroup(option.value, ($event.target as HTMLInputElement).checked)"
             />
             <GroupOptionItem
@@ -1156,7 +1173,7 @@
               :peak-end="option.peakEnd"
               :peak-rate-multiplier="option.peakRateMultiplier"
               :description="option.description"
-              :selected="groupSelectorGroupIds.includes(option.value)"
+              :selected="groupSelectorMultiGroupEnabled ? groupSelectorGroupIds.includes(option.value) : groupSelectorPrimaryGroupId === option.value"
             />
           </label>
           <!-- Empty state when search has no results -->
@@ -1230,7 +1247,10 @@ interface GroupOption {
   peakRateMultiplier: number
   subscriptionType: SubscriptionType
   platform: GroupPlatform
+  scope: GroupScope
 }
+
+type GroupScope = 'public' | 'subscription' | 'exclusive' | 'private'
 
 const appStore = useAppStore()
 const onboardingStore = useOnboardingStore()
@@ -1366,7 +1386,9 @@ const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<number | null>(null)
 const groupSelectorKeyId = ref<number | null>(null)
 const groupSelectorGroupIds = ref<number[]>([])
+const groupSelectorPrimaryGroupId = ref<number | null>(null)
 const groupSelectorStrategy = ref<'cheapest' | 'lowest_latency'>('cheapest')
+const groupSelectorMultiGroupEnabled = ref(false)
 const publicSettings = ref<PublicSettings | null>(null)
 const dropdownRef = ref<HTMLElement | null>(null)
 const columnDropdownRef = ref<HTMLElement | null>(null)
@@ -1392,6 +1414,7 @@ const formData = ref({
   name: '',
   group_id: null as number | null,
   group_ids: [] as number[],
+  enable_multi_group: false,
   group_schedule_strategy: 'cheapest' as 'cheapest' | 'lowest_latency',
   status: 'active' as 'active' | 'inactive',
   use_custom_key: false,
@@ -1476,7 +1499,20 @@ const onStatusFilterChange = (value: string | number | boolean | null) => {
 }
 
 // Convert groups to Select options format with rate multiplier and subscription type
-const groupOptions = computed(() =>
+const groupScope = ref<GroupScope>('public')
+const groupScopes = computed(() => [
+  { value: 'public' as const, label: t('keys.groupScopes.public') },
+  { value: 'subscription' as const, label: t('keys.groupScopes.subscription') },
+  { value: 'exclusive' as const, label: t('keys.groupScopes.exclusive') },
+  { value: 'private' as const, label: t('keys.groupScopes.private') },
+])
+const classifyGroupScope = (group: Group): GroupScope => {
+  if (group.is_private) return 'private'
+  if (group.subscription_type === 'subscription') return 'subscription'
+  if (group.is_exclusive) return 'exclusive'
+  return 'public'
+}
+const allGroupOptions = computed(() =>
   groups.value.map((group) => ({
     value: group.id,
     label: group.name,
@@ -1488,9 +1524,20 @@ const groupOptions = computed(() =>
     peakEnd: group.peak_end,
     peakRateMultiplier: group.peak_rate_multiplier,
     subscriptionType: group.subscription_type,
-    platform: group.platform
+    platform: group.platform,
+    scope: classifyGroupScope(group),
   }))
 )
+const groupOptions = computed(() => allGroupOptions.value.filter(option => option.scope === groupScope.value))
+const groupScopeCount = (scope: GroupScope) => allGroupOptions.value.filter(option => option.scope === scope).length
+const setGroupScope = (scope: GroupScope) => {
+  if (groupScope.value === scope) return
+  groupScope.value = scope
+  if (!groupOptions.value.some(option => option.value === formData.value.group_id)) {
+    formData.value.group_id = null
+    formData.value.group_ids = []
+  }
+}
 
 const displayGroupsForKey = (key: ApiKey): Group[] => {
   if (key.groups && key.groups.length > 0) {
@@ -1521,8 +1568,15 @@ const selectedPrimaryGroup = computed(() => {
 const compatibleGroupOptions = computed(() => {
   const primary = selectedPrimaryGroup.value
   if (!primary) return []
-  return groupOptions.value.filter((option) => option.platform === primary.platform)
+  return allGroupOptions.value.filter((option) => option.platform === primary.platform)
 })
+
+const setFormMultiGroupEnabled = (enabled: boolean) => {
+  formData.value.enable_multi_group = enabled
+  if (!enabled) {
+    formData.value.group_ids = formData.value.group_id === null ? [] : [formData.value.group_id]
+  }
+}
 
 const toggleFormGroup = (groupId: number, checked: boolean) => {
   const ids = new Set(formData.value.group_ids)
@@ -1560,10 +1614,10 @@ watch(
 const groupSearchQuery = ref('')
 const filteredGroupOptions = computed(() => {
   const query = groupSearchQuery.value.trim().toLowerCase()
-  const primaryGroup = selectedKeyForGroup.value?.group
-  const source = primaryGroup
-    ? groupOptions.value.filter((opt) => opt.platform === primaryGroup.platform)
-    : groupOptions.value
+  const primaryGroup = groups.value.find((group) => group.id === groupSelectorPrimaryGroupId.value)
+  const source = groupSelectorMultiGroupEnabled.value && primaryGroup
+    ? allGroupOptions.value.filter((opt) => opt.platform === primaryGroup.platform)
+    : allGroupOptions.value
   if (!query) return source
   return source.filter((opt) => {
     return opt.label.toLowerCase().includes(query) ||
@@ -1701,6 +1755,7 @@ const editKey = (key: ApiKey) => {
     name: key.name,
     group_id: key.group_id,
     group_ids: key.group_ids && key.group_ids.length > 0 ? key.group_ids : (key.group_id ? [key.group_id] : []),
+    enable_multi_group: (key.group_ids?.length || 0) > 1,
     group_schedule_strategy: key.group_schedule_strategy || 'cheapest',
     status: key.status === 'quota_exhausted' || key.status === 'expired' ? 'inactive' : key.status,
     use_custom_key: false,
@@ -1718,6 +1773,8 @@ const editKey = (key: ApiKey) => {
     expiration_preset: 'custom',
     expiration_date: key.expires_at ? formatDateTimeLocal(key.expires_at) : ''
   }
+  const primaryGroup = groups.value.find(group => group.id === key.group_id)
+  if (primaryGroup) groupScope.value = classifyGroupScope(primaryGroup)
   showEditModal.value = true
 }
 
@@ -1761,6 +1818,7 @@ const openGroupSelector = (key: ApiKey) => {
       }
     }
     groupSelectorKeyId.value = key.id
+    groupSelectorPrimaryGroupId.value = key.group_id ?? null
     groupSelectorGroupIds.value = key.group_ids && key.group_ids.length > 0
       ? [...key.group_ids]
       : (key.group_id ? [key.group_id] : [])
@@ -1768,20 +1826,35 @@ const openGroupSelector = (key: ApiKey) => {
       groupSelectorGroupIds.value.push(key.group_id)
     }
     groupSelectorStrategy.value = key.group_schedule_strategy || 'cheapest'
+    groupSelectorMultiGroupEnabled.value = groupSelectorGroupIds.value.length > 1
     groupSearchQuery.value = ''
   }
 }
 
+const setSelectorMultiGroupEnabled = (enabled: boolean) => {
+  groupSelectorMultiGroupEnabled.value = enabled
+  if (!enabled) {
+    const primaryID = groupSelectorPrimaryGroupId.value
+    groupSelectorGroupIds.value = primaryID ? [primaryID] : []
+  }
+}
+
 const toggleGroupSelectorGroup = (groupId: number, checked: boolean) => {
-  const key = selectedKeyForGroup.value
+  if (!groupSelectorMultiGroupEnabled.value) {
+    if (checked) {
+      groupSelectorPrimaryGroupId.value = groupId
+      groupSelectorGroupIds.value = [groupId]
+    }
+    return
+  }
   const ids = new Set(groupSelectorGroupIds.value)
   if (checked) {
     ids.add(groupId)
-  } else if (groupId !== key?.group_id) {
+  } else if (groupId !== groupSelectorPrimaryGroupId.value) {
     ids.delete(groupId)
   }
-  if (key?.group_id) {
-    ids.add(key.group_id)
+  if (groupSelectorPrimaryGroupId.value) {
+    ids.add(groupSelectorPrimaryGroupId.value)
   }
   groupSelectorGroupIds.value = Array.from(ids)
 }
@@ -1789,17 +1862,17 @@ const toggleGroupSelectorGroup = (groupId: number, checked: boolean) => {
 const saveGroupSelector = async () => {
   const key = selectedKeyForGroup.value
   if (!key) return
-  const groupIds = Array.from(new Set([
-    key.group_id,
-    ...groupSelectorGroupIds.value
-  ].filter((id): id is number => typeof id === 'number' && id > 0)))
+  const primaryGroupId = groupSelectorPrimaryGroupId.value
+  const groupIds = groupSelectorMultiGroupEnabled.value
+    ? Array.from(new Set([primaryGroupId, ...groupSelectorGroupIds.value].filter((id): id is number => typeof id === 'number' && id > 0)))
+    : (primaryGroupId ? [primaryGroupId] : [])
   if (groupIds.length === 0) {
     appStore.showError(t('keys.groupRequired'))
     return
   }
   try {
     await keysAPI.update(key.id, {
-      group_id: key.group_id,
+      group_id: primaryGroupId,
       group_ids: groupIds,
       group_schedule_strategy: groupSelectorStrategy.value
     })
@@ -1883,10 +1956,9 @@ const handleSubmit = async () => {
     rate_limit_7d: formData.value.rate_limit_7d && formData.value.rate_limit_7d > 0 ? formData.value.rate_limit_7d : 0,
   } : { rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0 }
 
-  const selectedGroupIds = Array.from(new Set([
-    formData.value.group_id,
-    ...formData.value.group_ids
-  ].filter((id): id is number => typeof id === 'number' && id > 0)))
+  const selectedGroupIds = formData.value.enable_multi_group
+    ? Array.from(new Set([formData.value.group_id, ...formData.value.group_ids].filter((id): id is number => typeof id === 'number' && id > 0)))
+    : [formData.value.group_id]
 
   submitting.value = true
   try {
@@ -1970,6 +2042,7 @@ const closeModals = () => {
     name: '',
     group_id: null,
     group_ids: [],
+    enable_multi_group: false,
     group_schedule_strategy: 'cheapest',
     status: 'active',
     use_custom_key: false,

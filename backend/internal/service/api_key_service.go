@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"html"
 	"sort"
@@ -213,6 +214,10 @@ func normalizeAPIKeyGroupScheduleStrategy(strategy string) string {
 func normalizeAPIKeyGroupIDs(groupID *int64, groupIDs []int64) []int64 {
 	seen := make(map[int64]struct{}, len(groupIDs)+1)
 	out := make([]int64, 0, len(groupIDs)+1)
+	if groupID != nil && *groupID > 0 {
+		seen[*groupID] = struct{}{}
+		out = append(out, *groupID)
+	}
 	for _, id := range groupIDs {
 		if id <= 0 {
 			continue
@@ -222,9 +227,6 @@ func normalizeAPIKeyGroupIDs(groupID *int64, groupIDs []int64) []int64 {
 		}
 		seen[id] = struct{}{}
 		out = append(out, id)
-	}
-	if len(out) == 0 && groupID != nil && *groupID > 0 {
-		out = append(out, *groupID)
 	}
 	return out
 }
@@ -364,6 +366,9 @@ func (s *APIKeyService) incrementAPIKeyErrorCount(ctx context.Context, userID in
 // 对于订阅类型分组：检查用户是否有有效订阅
 // 对于标准类型分组：使用原有的 AllowedGroups 和 IsExclusive 逻辑
 func (s *APIKeyService) canUserBindGroup(ctx context.Context, user *User, group *Group) bool {
+	if group.IsPrivate {
+		return group.OwnerUserID != nil && *group.OwnerUserID == user.ID
+	}
 	// 订阅类型分组：需要有效订阅
 	if group.IsSubscriptionType() {
 		_, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, user.ID, group.ID)
@@ -396,6 +401,7 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 	}
 
 	groupIDs := normalizeAPIKeyGroupIDs(req.GroupID, req.GroupIDs)
+	groupPlatform := ""
 	for _, groupID := range groupIDs {
 		group, err := s.groupRepo.GetByID(ctx, groupID)
 		if err != nil {
@@ -405,6 +411,11 @@ func (s *APIKeyService) Create(ctx context.Context, userID int64, req CreateAPIK
 		// 检查用户是否可以绑定该分组
 		if !s.canUserBindGroup(ctx, user, group) {
 			return nil, ErrGroupNotAllowed
+		}
+		if groupPlatform == "" {
+			groupPlatform = group.Platform
+		} else if group.Platform != groupPlatform {
+			return nil, errors.New("all API key groups must use the same platform")
 		}
 	}
 
@@ -704,6 +715,7 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 			return nil, fmt.Errorf("get user: %w", err)
 		}
 		groupIDs := normalizeAPIKeyGroupIDs(req.GroupID, req.GroupIDs)
+		groupPlatform := ""
 		for _, groupID := range groupIDs {
 			group, err := s.groupRepo.GetByID(ctx, groupID)
 			if err != nil {
@@ -711,6 +723,11 @@ func (s *APIKeyService) Update(ctx context.Context, id int64, userID int64, req 
 			}
 			if !s.canUserBindGroup(ctx, user, group) {
 				return nil, ErrGroupNotAllowed
+			}
+			if groupPlatform == "" {
+				groupPlatform = group.Platform
+			} else if group.Platform != groupPlatform {
+				return nil, errors.New("all API key groups must use the same platform")
 			}
 		}
 		apiKey.GroupID = req.GroupID
@@ -938,6 +955,9 @@ func (s *APIKeyService) GetAvailableGroups(ctx context.Context, userID int64) ([
 
 // canUserBindGroupInternal 内部方法，检查用户是否可以绑定分组（使用预加载的订阅数据）
 func (s *APIKeyService) canUserBindGroupInternal(user *User, group *Group, subscribedGroupIDs map[int64]bool) bool {
+	if group.IsPrivate {
+		return group.OwnerUserID != nil && *group.OwnerUserID == user.ID
+	}
 	// 订阅类型分组：需要有效订阅
 	if group.IsSubscriptionType() {
 		return subscribedGroupIDs[group.ID]

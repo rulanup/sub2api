@@ -7,6 +7,9 @@
           <p class="mt-1 text-xs tracking-wide text-gray-500 dark:text-gray-400">浏览全部可用模型 · 实时价格与可用分组</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 text-xs">
+          <div class="flex rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
+            <button v-for="item in scopes" :key="item.value" class="rounded-md px-3 py-1.5 font-medium transition-colors" :class="scope === item.value ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-600 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'" @click="setScope(item.value)">{{ item.label }}</button>
+          </div>
           <a class="rounded-md border border-gray-200 px-3 py-1.5 text-gray-600 hover:bg-gray-50 dark:border-dark-600 dark:text-gray-300 dark:hover:bg-dark-800" href="#">QQ群</a>
           <router-link class="rounded-md border border-gray-200 px-3 py-1.5 text-gray-600 hover:bg-gray-50 dark:border-dark-600 dark:text-gray-300 dark:hover:bg-dark-800" to="/monitor">服务检测</router-link>
           <a class="rounded-md border border-gray-200 px-3 py-1.5 text-gray-600 hover:bg-gray-50 dark:border-dark-600 dark:text-gray-300 dark:hover:bg-dark-800" href="#">教程</a>
@@ -189,6 +192,8 @@ const PriceBox = defineComponent({
 })
 
 const loading = ref(true)
+const scope = ref<'public' | 'private'>('public')
+const scopes = [{ value: 'public' as const, label: '公共模型' }, { value: 'private' as const, label: '私人模型' }]
 const search = ref('')
 const channels = ref<UserAvailableChannel[]>([])
 const activePlatforms = ref<string[]>([])
@@ -196,15 +201,26 @@ const activeGroups = ref<string[]>([])
 const activeBillingModes = ref<string[]>([])
 const selectedGroupKey = ref<Record<string, string>>({})
 
-onMounted(async () => {
+const loadModels = async () => {
+  loading.value = true
   try {
-    channels.value = await getModelSquare()
+    channels.value = await getModelSquare({ scope: scope.value })
   } catch (error) {
     console.error('Failed to load model square data:', error)
   } finally {
     loading.value = false
   }
-})
+}
+
+const setScope = async (value: 'public' | 'private') => {
+  if (scope.value === value) return
+  scope.value = value
+  clearFilters()
+  selectedGroupKey.value = {}
+  await loadModels()
+}
+
+onMounted(loadModels)
 
 const models = computed<ModelEntry[]>(() => {
   const map = new Map<string, ModelEntry>()

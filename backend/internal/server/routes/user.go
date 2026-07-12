@@ -137,6 +137,8 @@ func RegisterUserRoutes(
 		// 私人号池（用户自己的账号管理，复用管理后台功能）
 		userAccounts := authenticated.Group("/user/accounts")
 		{
+			userAccounts.POST("/models/preview", h.UserAccount.PreviewModels)
+			userAccounts.POST("/quick-add", h.UserAccount.QuickAdd)
 			userAccounts.GET("", h.UserAccount.List)
 			userAccounts.POST("", h.UserAccount.Create)
 			userAccounts.GET("/:id", h.UserAccount.GetByID)
@@ -149,6 +151,14 @@ func RegisterUserRoutes(
 			userAccounts.POST("/:id/clear-rate-limit", h.UserAccount.ClearRateLimit)
 			userAccounts.POST("/:id/recover", h.UserAccount.RecoverState)
 			userAccounts.POST("/:id/refresh", h.UserAccount.Refresh)
+		}
+
+		userGroups := authenticated.Group("/user/groups")
+		{
+			userGroups.GET("", h.UserGroup.List)
+			userGroups.POST("", h.UserGroup.Create)
+			userGroups.PUT("/:id", h.UserGroup.Update)
+			userGroups.DELETE("/:id", h.UserGroup.Delete)
 		}
 	}
 }

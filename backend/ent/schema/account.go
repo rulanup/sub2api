@@ -94,6 +94,10 @@ func (Account) Fields() []ent.Field {
 		field.Int64("proxy_fallback_origin_id").
 			Optional().Nillable().
 			Comment("Original proxy id replaced by expiry-fallback; for manual revert. NULL = not in fallback."),
+		field.Int64("user_id").
+			Optional().
+			Nillable().
+			Comment("Owner user ID for private account pool accounts; NULL means system account."),
 
 		// concurrency: 账户最大并发请求数
 		// 用于限制同一时间对该账户发起的请求数量
@@ -249,5 +253,6 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("priority", "status"),
 		index.Fields("deleted_at"), // 软删除查询优化
 		index.Fields("parent_account_id"),
+		index.Fields("user_id"),
 	}
 }

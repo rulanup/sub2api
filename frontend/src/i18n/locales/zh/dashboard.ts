@@ -100,6 +100,12 @@ export default {
     nameLabel: '名称',
     namePlaceholder: '我的 API 密钥',
     groupLabel: '分组',
+    groupScopes: {
+      public: '公共',
+      subscription: '订阅',
+      exclusive: '专属',
+      private: '私人',
+    },
     selectGroup: '选择分组',
     statusLabel: '状态',
     selectStatus: '选择状态',
@@ -121,6 +127,8 @@ export default {
     groupRequired: '请选择分组',
     multiGroupLabel: '多分组调度',
     multiGroupHint: '选择多个分组进行负载均衡或故障转移',
+    enableMultiGroup: '启用多分组调用',
+    enableMultiGroupHint: '关闭时仅使用主分组；开启后可选择同平台的额外分组',
     scheduleStrategy: '调度策略',
     scheduleCheapest: '最低成本',
     scheduleLowestLatency: '最低延迟',
@@ -469,6 +477,8 @@ export default {
 
   // Available Channels (user-facing)
   availableChannels: {
+    publicScope: '公开渠道',
+    privateScope: '私人渠道',
     title: '可用渠道',
     description: '查看您可访问的渠道与其支持的模型、定价',
     searchPlaceholder: '搜索渠道或模型...',

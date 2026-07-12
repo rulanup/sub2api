@@ -62,6 +62,7 @@ type Handlers struct {
 	BatchImage       *BatchImageHandler
 	TokenRanking     *TokenRankingHandler
 	UserAccount      *UserAccountHandler
+	UserGroup        *UserGroupHandler
 }
 
 // BuildInfo contains build-time information

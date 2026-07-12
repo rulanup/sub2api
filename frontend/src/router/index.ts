@@ -279,6 +279,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/user-groups',
+    name: 'UserGroups',
+    component: () => import('@/views/user/UserGroupsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Private Groups',
+      titleKey: 'userAccounts.manageGroups',
+      descriptionKey: 'userAccounts.description'
+    }
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),

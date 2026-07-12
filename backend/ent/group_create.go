@@ -175,6 +175,34 @@ func (_c *GroupCreate) SetNillableIsExclusive(v *bool) *GroupCreate {
 	return _c
 }
 
+// SetIsPrivate sets the "is_private" field.
+func (_c *GroupCreate) SetIsPrivate(v bool) *GroupCreate {
+	_c.mutation.SetIsPrivate(v)
+	return _c
+}
+
+// SetNillableIsPrivate sets the "is_private" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableIsPrivate(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetIsPrivate(*v)
+	}
+	return _c
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (_c *GroupCreate) SetOwnerUserID(v int64) *GroupCreate {
+	_c.mutation.SetOwnerUserID(v)
+	return _c
+}
+
+// SetNillableOwnerUserID sets the "owner_user_id" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableOwnerUserID(v *int64) *GroupCreate {
+	if v != nil {
+		_c.SetOwnerUserID(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *GroupCreate) SetStatus(v string) *GroupCreate {
 	_c.mutation.SetStatus(v)
@@ -828,6 +856,10 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultIsExclusive
 		_c.mutation.SetIsExclusive(v)
 	}
+	if _, ok := _c.mutation.IsPrivate(); !ok {
+		v := group.DefaultIsPrivate
+		_c.mutation.SetIsPrivate(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := group.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -970,6 +1002,9 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsExclusive(); !ok {
 		return &ValidationError{Name: "is_exclusive", err: errors.New(`ent: missing required field "Group.is_exclusive"`)}
+	}
+	if _, ok := _c.mutation.IsPrivate(); !ok {
+		return &ValidationError{Name: "is_private", err: errors.New(`ent: missing required field "Group.is_private"`)}
 	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Group.status"`)}
@@ -1133,6 +1168,14 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.IsExclusive(); ok {
 		_spec.SetField(group.FieldIsExclusive, field.TypeBool, value)
 		_node.IsExclusive = value
+	}
+	if value, ok := _c.mutation.IsPrivate(); ok {
+		_spec.SetField(group.FieldIsPrivate, field.TypeBool, value)
+		_node.IsPrivate = value
+	}
+	if value, ok := _c.mutation.OwnerUserID(); ok {
+		_spec.SetField(group.FieldOwnerUserID, field.TypeInt64, value)
+		_node.OwnerUserID = &value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(group.FieldStatus, field.TypeString, value)
@@ -1575,6 +1618,42 @@ func (u *GroupUpsert) SetIsExclusive(v bool) *GroupUpsert {
 // UpdateIsExclusive sets the "is_exclusive" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateIsExclusive() *GroupUpsert {
 	u.SetExcluded(group.FieldIsExclusive)
+	return u
+}
+
+// SetIsPrivate sets the "is_private" field.
+func (u *GroupUpsert) SetIsPrivate(v bool) *GroupUpsert {
+	u.Set(group.FieldIsPrivate, v)
+	return u
+}
+
+// UpdateIsPrivate sets the "is_private" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateIsPrivate() *GroupUpsert {
+	u.SetExcluded(group.FieldIsPrivate)
+	return u
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *GroupUpsert) SetOwnerUserID(v int64) *GroupUpsert {
+	u.Set(group.FieldOwnerUserID, v)
+	return u
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateOwnerUserID() *GroupUpsert {
+	u.SetExcluded(group.FieldOwnerUserID)
+	return u
+}
+
+// AddOwnerUserID adds v to the "owner_user_id" field.
+func (u *GroupUpsert) AddOwnerUserID(v int64) *GroupUpsert {
+	u.Add(group.FieldOwnerUserID, v)
+	return u
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *GroupUpsert) ClearOwnerUserID() *GroupUpsert {
+	u.SetNull(group.FieldOwnerUserID)
 	return u
 }
 
@@ -2400,6 +2479,48 @@ func (u *GroupUpsertOne) SetIsExclusive(v bool) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateIsExclusive() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateIsExclusive()
+	})
+}
+
+// SetIsPrivate sets the "is_private" field.
+func (u *GroupUpsertOne) SetIsPrivate(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetIsPrivate(v)
+	})
+}
+
+// UpdateIsPrivate sets the "is_private" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateIsPrivate() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateIsPrivate()
+	})
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *GroupUpsertOne) SetOwnerUserID(v int64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// AddOwnerUserID adds v to the "owner_user_id" field.
+func (u *GroupUpsertOne) AddOwnerUserID(v int64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateOwnerUserID() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *GroupUpsertOne) ClearOwnerUserID() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearOwnerUserID()
 	})
 }
 
@@ -3493,6 +3614,48 @@ func (u *GroupUpsertBulk) SetIsExclusive(v bool) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateIsExclusive() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateIsExclusive()
+	})
+}
+
+// SetIsPrivate sets the "is_private" field.
+func (u *GroupUpsertBulk) SetIsPrivate(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetIsPrivate(v)
+	})
+}
+
+// UpdateIsPrivate sets the "is_private" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateIsPrivate() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateIsPrivate()
+	})
+}
+
+// SetOwnerUserID sets the "owner_user_id" field.
+func (u *GroupUpsertBulk) SetOwnerUserID(v int64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetOwnerUserID(v)
+	})
+}
+
+// AddOwnerUserID adds v to the "owner_user_id" field.
+func (u *GroupUpsertBulk) AddOwnerUserID(v int64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddOwnerUserID(v)
+	})
+}
+
+// UpdateOwnerUserID sets the "owner_user_id" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateOwnerUserID() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateOwnerUserID()
+	})
+}
+
+// ClearOwnerUserID clears the value of the "owner_user_id" field.
+func (u *GroupUpsertBulk) ClearOwnerUserID() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearOwnerUserID()
 	})
 }
 

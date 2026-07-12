@@ -17,6 +17,9 @@
             @create="showCreate = true"
           >
             <template #after>
+              <button v-if="userMode" class="btn btn-primary" @click="openQuickAdd">
+                <Icon name="bolt" size="sm" class="mr-1.5" />{{ t('userAccounts.quickAdd.title') }}
+              </button>
               <!-- Auto Refresh Dropdown -->
               <div class="relative" ref="autoRefreshDropdownRef">
                 <button
@@ -63,7 +66,7 @@
               </div>
 
               <!-- More Tools Dropdown -->
-              <div class="relative" ref="accountToolsDropdownRef">
+              <div v-if="!userMode" class="relative" ref="accountToolsDropdownRef">
                 <button
                   @click="
                     showAccountToolsDropdown = !showAccountToolsDropdown;
@@ -173,6 +176,7 @@
       </template>
       <template #table>
         <AccountBulkActionsBar
+          v-if="!userMode"
           :selected-ids="selIds"
           @delete="handleBulkDelete"
           @reset-status="handleBulkResetStatus"
@@ -380,7 +384,7 @@
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
                 <span class="text-xs">{{ t('common.delete') }}</span>
               </button>
-              <button @click="openMenu(row, $event)" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white">
+              <button v-if="!userMode" @click="openMenu(row, $event)" class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>
                 <span class="text-xs">{{ t('common.more') }}</span>
               </button>
@@ -391,8 +395,8 @@
       </template>
       <template #pagination><Pagination v-if="pagination.total > 0" :page="pagination.page" :total="pagination.total" :page-size="pagination.page_size" @update:page="handlePageChange" @update:pageSize="handlePageSizeChange" /></template>
     </TablePageLayout>
-    <CreateAccountModal :show="showCreate" :proxies="proxies" :groups="groups" @close="showCreate = false" @created="reload" />
-    <EditAccountModal :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" @close="showEdit = false" @updated="handleAccountUpdated" />
+    <CreateAccountModal :show="showCreate" :proxies="proxies" :groups="groups" :accounts-api="accountsAPI" @close="showCreate = false" @created="reload" />
+    <EditAccountModal :show="showEdit" :account="edAcc" :proxies="proxies" :groups="groups" :accounts-api="accountsAPI" @close="showEdit = false" @updated="handleAccountUpdated" />
     <ReAuthAccountModal :show="showReAuth" :account="reAuthAcc" @close="closeReAuthModal" @reauthorized="handleAccountUpdated" />
     <AccountTestModal :show="showTest" :account="testingAcc" @close="closeTestModal" />
     <AccountStatsModal :show="showStats" :account="statsAcc" @close="closeStatsModal" />
@@ -422,6 +426,26 @@
     </ConfirmDialog>
     <ErrorPassthroughRulesModal :show="showErrorPassthrough" @close="showErrorPassthrough = false" />
     <TLSFingerprintProfilesModal :show="showTLSFingerprintProfiles" @close="showTLSFingerprintProfiles = false" />
+    <BaseDialog v-if="userMode" :show="showQuickAdd" :title="t('userAccounts.quickAdd.title')" width="wide" @close="closeQuickAdd">
+      <form class="space-y-5" @submit.prevent="submitQuickAdd">
+        <div>
+          <label class="input-label">{{ t('userAccounts.quickAdd.platform') }}</label>
+          <select v-model="quickAddForm.platform" class="input" @change="handleQuickAddPlatformChange">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="gemini">Gemini</option>
+          </select>
+        </div>
+        <div><label class="input-label">{{ t('userAccounts.quickAdd.url') }}</label><input v-model="quickAddForm.base_url" class="input font-mono" required /></div>
+        <div><label class="input-label">API Key</label><input v-model="quickAddForm.api_key" type="password" class="input font-mono" required autocomplete="new-password" /></div>
+        <div class="flex justify-end"><button type="button" class="btn btn-secondary" :disabled="quickAddLoading" @click="fetchQuickAddModels"><Icon name="refresh" size="sm" class="mr-1.5" :class="quickAddLoading ? 'animate-spin' : ''" />{{ t('userAccounts.quickAdd.fetchModels') }}</button></div>
+        <div v-if="quickAddModels.length" class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-dark-600 dark:bg-dark-900">
+          <div class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('userAccounts.quickAdd.modelsFound', { count: quickAddModels.length }) }}</div>
+          <div class="max-h-48 overflow-y-auto"><div class="flex flex-wrap gap-1.5"><span v-for="model in quickAddModels" :key="model" class="rounded-md bg-primary-100 px-2 py-1 font-mono text-xs text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">{{ model }}</span></div></div>
+        </div>
+        <div class="flex justify-end gap-3"><button type="button" class="btn btn-secondary" @click="closeQuickAdd">{{ t('common.cancel') }}</button><button type="submit" class="btn btn-primary" :disabled="quickAddSubmitting || quickAddModels.length === 0">{{ quickAddSubmitting ? t('common.saving') : t('userAccounts.quickAdd.create') }}</button></div>
+      </form>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -432,6 +456,8 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
+import { userAccountsAPI } from '@/api/user/accounts'
+import { userPrivateGroupsAPI } from '@/api/user/groups'
 import { useTableLoader } from '@/composables/useTableLoader'
 import { useSwipeSelect, type SwipeSelectVirtualContext } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
@@ -441,6 +467,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import { CreateAccountModal, EditAccountModal, BulkEditAccountModal, SyncFromCrsModal, TempUnschedStatusModal } from '@/components/account'
 import AccountTableActions from '@/components/admin/account/AccountTableActions.vue'
 import AccountTableFilters from '@/components/admin/account/AccountTableFilters.vue'
@@ -467,6 +494,9 @@ import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
 import type { Account, AccountPlatform, AccountSchedulerGroupScore, AccountType, Proxy as AccountProxy, AdminGroup, WindowStats, ClaudeModel } from '@/types'
 
 const { t } = useI18n()
+const props = withDefaults(defineProps<{ userMode?: boolean }>(), { userMode: false })
+const userMode = computed(() => props.userMode)
+const accountsAPI = computed(() => userMode.value ? userAccountsAPI : adminAPI.accounts)
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
@@ -514,6 +544,11 @@ const selTypes = computed<AccountType[]>(() => {
   return [...types]
 })
 const showCreate = ref(false)
+const showQuickAdd = ref(false)
+const quickAddLoading = ref(false)
+const quickAddSubmitting = ref(false)
+const quickAddModels = ref<string[]>([])
+const quickAddForm = reactive({ platform: 'openai', base_url: 'https://api.openai.com', api_key: '' })
 const showEdit = ref(false)
 const showSync = ref(false)
 const showImportData = ref(false)
@@ -618,6 +653,11 @@ const buildDefaultTodayStats = (): WindowStats => ({
 })
 
 const refreshTodayStatsBatch = async () => {
+  if (userMode.value) {
+    todayStatsLoading.value = false
+    todayStatsError.value = null
+    return
+  }
   // Why this checks both columns:
   // - today_stats column shows dedicated today's metrics.
   // - usage column also embeds today's stats for Key/Bedrock rows.
@@ -700,6 +740,10 @@ const formatSchedulerScoreGroup = (score: AccountSchedulerGroupScore): string =>
 }
 
 const loadSavedColumns = () => {
+  if (userMode.value) {
+    ;['select', 'today_stats', 'usage', 'proxy', 'priority', 'scheduler_score', 'rate_multiplier', 'schedulable'].forEach(key => hiddenColumns.add(key))
+    return
+  }
   try {
     const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY)
     if (saved) {
@@ -831,7 +875,7 @@ const {
   handlePageChange: baseHandlePageChange,
   handlePageSizeChange: baseHandlePageSizeChange
 } = useTableLoader<Account, any>({
-  fetchFn: adminAPI.accounts.list,
+  fetchFn: (...args: Parameters<typeof adminAPI.accounts.list>) => accountsAPI.value.list(...args),
   initialParams: {
     platform: '',
     type: '',
@@ -1259,7 +1303,7 @@ const allColumns = computed(() => {
     { key: 'notes', label: t('admin.accounts.columns.notes'), sortable: false },
     { key: 'actions', label: t('admin.accounts.columns.actions'), sortable: false }
   )
-  return c
+  return userMode.value ? c.filter(col => col.key !== 'select') : c
 })
 
 // Columns that can be toggled (exclude select, name, and actions)
@@ -1270,7 +1314,7 @@ const toggleableColumns = computed(() =>
 // Filtered columns based on visibility
 const cols = computed(() =>
   allColumns.value.filter(col =>
-    col.key === 'select' || col.key === 'name' || col.key === 'actions' || !hiddenColumns.has(col.key)
+    col.key === 'name' || col.key === 'actions' || (!hiddenColumns.has(col.key) && (!userMode.value || col.key !== 'select'))
   )
 )
 
@@ -1775,7 +1819,7 @@ const confirmCreateSparkShadow = async () => {
   }
 }
 const handleDelete = (a: Account) => { deletingAcc.value = a; showDeleteDialog.value = true }
-const confirmDelete = async () => { if(!deletingAcc.value) return; try { await adminAPI.accounts.delete(deletingAcc.value.id); showDeleteDialog.value = false; deletingAcc.value = null; reload() } catch (error) { console.error('Failed to delete account:', error) } }
+const confirmDelete = async () => { if(!deletingAcc.value) return; try { await accountsAPI.value.delete(deletingAcc.value.id); showDeleteDialog.value = false; deletingAcc.value = null; reload() } catch (error) { console.error('Failed to delete account:', error) } }
 const handleToggleSchedulable = async (a: Account) => {
   const nextSchedulable = !a.schedulable
   togglingSchedulable.value = a.id
@@ -1842,9 +1886,14 @@ const handleClickOutside = (event: MouseEvent) => {
 onMounted(async () => {
   load()
   try {
-    const [p, g] = await Promise.all([adminAPI.proxies.getAll(), adminAPI.groups.getAll()])
-    proxies.value = p
-    groups.value = g
+    if (userMode.value) {
+      proxies.value = []
+      groups.value = await userPrivateGroupsAPI.listAll()
+    } else {
+      const [p, g] = await Promise.all([adminAPI.proxies.getAll(), adminAPI.groups.getAll()])
+      proxies.value = p
+      groups.value = g
+    }
   } catch (error) {
     console.error('Failed to load proxies/groups:', error)
   }
@@ -1858,6 +1907,52 @@ onMounted(async () => {
     pauseAutoRefresh()
   }
 })
+
+const quickAddDefaultURL = (platform: string) => ({
+  openai: 'https://api.openai.com',
+  anthropic: 'https://api.anthropic.com',
+  gemini: 'https://generativelanguage.googleapis.com',
+}[platform] || '')
+const openQuickAdd = () => {
+  Object.assign(quickAddForm, { platform: 'openai', base_url: quickAddDefaultURL('openai'), api_key: '' })
+  quickAddModels.value = []
+  showQuickAdd.value = true
+}
+const closeQuickAdd = () => {
+  showQuickAdd.value = false
+  quickAddModels.value = []
+  quickAddForm.api_key = ''
+}
+const handleQuickAddPlatformChange = () => {
+  quickAddForm.base_url = quickAddDefaultURL(quickAddForm.platform)
+  quickAddModels.value = []
+}
+const fetchQuickAddModels = async () => {
+  quickAddLoading.value = true
+  try {
+    quickAddModels.value = await userAccountsAPI.previewModels(quickAddForm)
+    appStore.showSuccess(t('userAccounts.quickAdd.modelsFound', { count: quickAddModels.value.length }))
+  } catch (error) {
+    appStore.showError(t('userAccounts.quickAdd.fetchFailed'))
+    console.error('Failed to preview private account models:', error)
+  } finally {
+    quickAddLoading.value = false
+  }
+}
+const submitQuickAdd = async () => {
+  quickAddSubmitting.value = true
+  try {
+    await userAccountsAPI.quickAdd(quickAddForm)
+    appStore.showSuccess(t('userAccounts.quickAdd.created'))
+    closeQuickAdd()
+    await reload()
+  } catch (error) {
+    appStore.showError(t('userAccounts.quickAdd.createFailed'))
+    console.error('Failed to quick add private account:', error)
+  } finally {
+    quickAddSubmitting.value = false
+  }
+}
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll, true)

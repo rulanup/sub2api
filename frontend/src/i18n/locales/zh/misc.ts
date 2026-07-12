@@ -758,6 +758,19 @@ export default {
     bindGroups: '绑定分组',
     notes: '备注',
     notesPlaceholder: '可选备注...',
+    manageGroups: '管理私人分组',
+    noGroups: '暂无私人分组',
+    quickAdd: {
+      title: '快速添加',
+      platform: '提供渠道',
+      url: '上游 URL',
+      fetchModels: '获取模型',
+      modelsFound: '已获取 {count} 个模型',
+      fetchFailed: '获取模型失败，请检查 URL 和 API Key',
+      create: '创建私人渠道',
+      created: '私人分组和账号创建成功',
+      createFailed: '快速添加失败，未创建任何资源',
+    },
   },
 
 }

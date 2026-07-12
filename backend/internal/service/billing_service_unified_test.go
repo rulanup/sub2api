@@ -185,7 +185,7 @@ func TestCalculateCostUnified_RateMultiplierZeroProducesZero(t *testing.T) {
 		Resolver:       resolver,
 	})
 	require.NoError(t, err)
-	require.Greater(t, cost.TotalCost, 0.0)
+	require.InDelta(t, 0.0, cost.TotalCost, 1e-10)
 	require.InDelta(t, 0.0, cost.ActualCost, 1e-10)
 }
 
@@ -205,7 +205,7 @@ func TestCalculateCostUnified_NegativeRateMultiplierClampedToZero(t *testing.T) 
 		Resolver:       resolver,
 	})
 	require.NoError(t, err)
-	require.Greater(t, cost.TotalCost, 0.0)
+	require.InDelta(t, 0.0, cost.TotalCost, 1e-10)
 	require.InDelta(t, 0.0, cost.ActualCost, 1e-10)
 }
 

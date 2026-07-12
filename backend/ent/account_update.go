@@ -178,6 +178,33 @@ func (_u *AccountUpdate) ClearProxyFallbackOriginID() *AccountUpdate {
 	return _u
 }
 
+// SetUserID sets the "user_id" field.
+func (_u *AccountUpdate) SetUserID(v int64) *AccountUpdate {
+	_u.mutation.ResetUserID()
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableUserID(v *int64) *AccountUpdate {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
+	return _u
+}
+
+// AddUserID adds value to the "user_id" field.
+func (_u *AccountUpdate) AddUserID(v int64) *AccountUpdate {
+	_u.mutation.AddUserID(v)
+	return _u
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (_u *AccountUpdate) ClearUserID() *AccountUpdate {
+	_u.mutation.ClearUserID()
+	return _u
+}
+
 // SetConcurrency sets the "concurrency" field.
 func (_u *AccountUpdate) SetConcurrency(v int) *AccountUpdate {
 	_u.mutation.ResetConcurrency()
@@ -841,6 +868,15 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.ProxyFallbackOriginIDCleared() {
 		_spec.ClearField(account.FieldProxyFallbackOriginID, field.TypeInt64)
 	}
+	if value, ok := _u.mutation.UserID(); ok {
+		_spec.SetField(account.FieldUserID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedUserID(); ok {
+		_spec.AddField(account.FieldUserID, field.TypeInt64, value)
+	}
+	if _u.mutation.UserIDCleared() {
+		_spec.ClearField(account.FieldUserID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.Concurrency(); ok {
 		_spec.SetField(account.FieldConcurrency, field.TypeInt, value)
 	}
@@ -1315,6 +1351,33 @@ func (_u *AccountUpdateOne) AddProxyFallbackOriginID(v int64) *AccountUpdateOne 
 // ClearProxyFallbackOriginID clears the value of the "proxy_fallback_origin_id" field.
 func (_u *AccountUpdateOne) ClearProxyFallbackOriginID() *AccountUpdateOne {
 	_u.mutation.ClearProxyFallbackOriginID()
+	return _u
+}
+
+// SetUserID sets the "user_id" field.
+func (_u *AccountUpdateOne) SetUserID(v int64) *AccountUpdateOne {
+	_u.mutation.ResetUserID()
+	_u.mutation.SetUserID(v)
+	return _u
+}
+
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableUserID(v *int64) *AccountUpdateOne {
+	if v != nil {
+		_u.SetUserID(*v)
+	}
+	return _u
+}
+
+// AddUserID adds value to the "user_id" field.
+func (_u *AccountUpdateOne) AddUserID(v int64) *AccountUpdateOne {
+	_u.mutation.AddUserID(v)
+	return _u
+}
+
+// ClearUserID clears the value of the "user_id" field.
+func (_u *AccountUpdateOne) ClearUserID() *AccountUpdateOne {
+	_u.mutation.ClearUserID()
 	return _u
 }
 
@@ -2010,6 +2073,15 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if _u.mutation.ProxyFallbackOriginIDCleared() {
 		_spec.ClearField(account.FieldProxyFallbackOriginID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.UserID(); ok {
+		_spec.SetField(account.FieldUserID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedUserID(); ok {
+		_spec.AddField(account.FieldUserID, field.TypeInt64, value)
+	}
+	if _u.mutation.UserIDCleared() {
+		_spec.ClearField(account.FieldUserID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Concurrency(); ok {
 		_spec.SetField(account.FieldConcurrency, field.TypeInt, value)

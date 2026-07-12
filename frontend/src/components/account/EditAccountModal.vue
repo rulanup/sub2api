@@ -2573,9 +2573,11 @@ interface Props {
   account: Account | null
   proxies: Proxy[]
   groups: AdminGroup[]
+  accountsApi?: Pick<typeof adminAPI.accounts, 'update' | 'checkMixedChannelRisk'>
 }
 
 const props = defineProps<Props>()
+const accountsAPI = computed(() => props.accountsApi ?? adminAPI.accounts)
 const emit = defineEmits<{
   close: []
   updated: [account: Account]
@@ -3846,7 +3848,7 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
   }
 
   try {
-    const result = await adminAPI.accounts.checkMixedChannelRisk({
+    const result = await accountsAPI.value.checkMixedChannelRisk({
       platform: props.account.platform,
       group_ids: form.group_ids,
       account_id: props.account.id
@@ -3881,7 +3883,7 @@ const handleClose = () => {
 const submitUpdateAccount = async (accountID: number, updatePayload: Record<string, unknown>) => {
   submitting.value = true
   try {
-    const updatedAccount = await adminAPI.accounts.update(accountID, withAntigravityConfirmFlag(updatePayload))
+    const updatedAccount = await accountsAPI.value.update(accountID, withAntigravityConfirmFlag(updatePayload))
     appStore.showSuccess(t('admin.accounts.accountUpdated'))
     emit('updated', updatedAccount)
     handleClose()

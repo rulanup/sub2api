@@ -2,7 +2,11 @@ package handler
 
 import (
 	"sort"
+	"strings"
 
+	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/account"
+	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -24,6 +28,7 @@ type AvailableChannelHandler struct {
 	channelService *service.ChannelService
 	apiKeyService  *service.APIKeyService
 	settingService *service.SettingService
+	client         *dbent.Client
 }
 
 // NewAvailableChannelHandler 创建用户侧可用渠道 handler。
@@ -31,11 +36,13 @@ func NewAvailableChannelHandler(
 	channelService *service.ChannelService,
 	apiKeyService *service.APIKeyService,
 	settingService *service.SettingService,
+	client *dbent.Client,
 ) *AvailableChannelHandler {
 	return &AvailableChannelHandler{
 		channelService: channelService,
 		apiKeyService:  apiKeyService,
 		settingService: settingService,
+		client:         client,
 	}
 }
 
@@ -131,6 +138,10 @@ func (h *AvailableChannelHandler) List(c *gin.Context) {
 		return
 	}
 
+	if c.Query("scope") == "private" {
+		h.listPrivateModels(c, subject.UserID)
+		return
+	}
 	h.listVisibleChannels(c, subject.UserID)
 }
 
@@ -144,6 +155,10 @@ func (h *AvailableChannelHandler) ModelSquare(c *gin.Context) {
 		return
 	}
 
+	if c.Query("scope") == "private" {
+		h.listPrivateModels(c, subject.UserID)
+		return
+	}
 	h.listVisibleChannels(c, subject.UserID)
 }
 
@@ -155,6 +170,9 @@ func (h *AvailableChannelHandler) listVisibleChannels(c *gin.Context, userID int
 	}
 	allowedGroupIDs := make(map[int64]struct{}, len(userGroups))
 	for i := range userGroups {
+		if userGroups[i].IsPrivate {
+			continue
+		}
 		allowedGroupIDs[userGroups[i].ID] = struct{}{}
 	}
 
@@ -184,6 +202,86 @@ func (h *AvailableChannelHandler) listVisibleChannels(c *gin.Context, userID int
 		})
 	}
 
+	response.Success(c, out)
+}
+
+func (h *AvailableChannelHandler) listPrivateModels(c *gin.Context, userID int64) {
+	groups, err := h.client.Group.Query().
+		Where(group.IsPrivateEQ(true), group.OwnerUserIDEQ(userID), group.StatusEQ(service.StatusActive)).
+		WithAccounts(func(q *dbent.AccountQuery) {
+			q.Where(account.UserIDEQ(userID), account.StatusEQ(service.StatusActive))
+		}).
+		All(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	groupsByPlatform := make(map[string][]userAvailableGroup)
+	modelsByPlatform := make(map[string]map[string]string)
+	for _, privateGroup := range groups {
+		modelNames := modelsByPlatform[privateGroup.Platform]
+		if modelNames == nil {
+			modelNames = make(map[string]string)
+			modelsByPlatform[privateGroup.Platform] = modelNames
+		}
+		groupHasModels := false
+		for _, privateAccount := range privateGroup.Edges.Accounts {
+			if privateAccount.Platform != privateGroup.Platform {
+				continue
+			}
+			mapping, ok := privateAccount.Credentials["model_mapping"].(map[string]any)
+			if !ok {
+				continue
+			}
+			for name := range mapping {
+				name = strings.TrimSpace(name)
+				if name == "" || strings.Contains(name, "*") {
+					continue
+				}
+				modelNames[strings.ToLower(name)] = name
+				groupHasModels = true
+			}
+		}
+		if groupHasModels {
+			groupsByPlatform[privateGroup.Platform] = append(groupsByPlatform[privateGroup.Platform], userAvailableGroup{
+				ID: privateGroup.ID, Name: privateGroup.Name, Platform: privateGroup.Platform,
+				SubscriptionType: privateGroup.SubscriptionType, RateMultiplier: 0, IsExclusive: false,
+			})
+		}
+	}
+
+	platforms := make([]string, 0, len(groupsByPlatform))
+	for platform := range groupsByPlatform {
+		platforms = append(platforms, platform)
+	}
+	sort.Strings(platforms)
+	sections := make([]userChannelPlatformSection, 0, len(platforms))
+	for _, platform := range platforms {
+		privateGroups := groupsByPlatform[platform]
+		sort.Slice(privateGroups, func(i, j int) bool { return privateGroups[i].Name < privateGroups[j].Name })
+		modelNames := modelsByPlatform[platform]
+		names := make([]string, 0, len(modelNames))
+		for key := range modelNames {
+			names = append(names, key)
+		}
+		sort.Strings(names)
+		models := make([]userSupportedModel, 0, len(names))
+		for _, key := range names {
+			models = append(models, userSupportedModel{Name: modelNames[key], Platform: platform})
+		}
+		sections = append(sections, userChannelPlatformSection{
+			Platform: platform, Groups: privateGroups, SupportedModels: models,
+		})
+	}
+
+	out := make([]userAvailableChannel, 0, 1)
+	if len(sections) > 0 {
+		out = append(out, userAvailableChannel{
+			Name:        "私人渠道",
+			Description: "由您的私人号池账号提供，仅您本人可用，所有调用费用为 0。",
+			Platforms:   sections,
+		})
+	}
 	response.Success(c, out)
 }
 

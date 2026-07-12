@@ -96,6 +96,7 @@ type Group struct {
 	Platform       string  `json:"platform"`
 	RateMultiplier float64 `json:"rate_multiplier"`
 	IsExclusive    bool    `json:"is_exclusive"`
+	IsPrivate      bool    `json:"is_private"`
 	Status         string  `json:"status"`
 
 	SubscriptionType string   `json:"subscription_type"`

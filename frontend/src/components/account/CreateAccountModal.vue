@@ -3498,9 +3498,11 @@ interface Props {
   show: boolean
   proxies: Proxy[]
   groups: AdminGroup[]
+  accountsApi?: Pick<typeof adminAPI.accounts, 'create' | 'checkMixedChannelRisk'>
 }
 
 const props = defineProps<Props>()
+const accountsAPI = computed(() => props.accountsApi ?? adminAPI.accounts)
 const emit = defineEmits<{
   close: []
   created: []
@@ -4408,7 +4410,7 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
   }
 
   try {
-    const result = await adminAPI.accounts.checkMixedChannelRisk({
+    const result = await accountsAPI.value.checkMixedChannelRisk({
       platform: form.platform,
       group_ids: form.group_ids
     })
@@ -4432,7 +4434,7 @@ const ensureAntigravityMixedChannelConfirmed = async (onConfirm: () => Promise<v
 const submitCreateAccount = async (payload: CreateAccountRequest) => {
   submitting.value = true
   try {
-    await adminAPI.accounts.create(withAntigravityConfirmFlag(payload))
+    await accountsAPI.value.create(withAntigravityConfirmFlag(payload))
     appStore.showSuccess(t('admin.accounts.accountCreated'))
     emit('created')
     handleClose()
@@ -5129,7 +5131,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
           return
         }
 
-        await adminAPI.accounts.create({
+        await accountsAPI.value.create({
           name: accountName,
           notes: form.notes,
           platform: 'grok',
@@ -5223,7 +5225,7 @@ const handleOpenAIExchange = async (authCode: string) => {
     }
 
     if (shouldCreateOpenAI) {
-      await adminAPI.accounts.create({
+      await accountsAPI.value.create({
         name: form.name,
         notes: form.notes,
         platform: 'openai',
@@ -5476,7 +5478,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         const accountName = refreshTokens.length > 1 ? `${baseName} #${i + 1}` : baseName
 
         if (shouldCreateOpenAI) {
-          await adminAPI.accounts.create({
+          await accountsAPI.value.create({
             name: accountName,
             notes: form.notes,
             platform: 'openai',
@@ -5591,7 +5593,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
           expires_at: form.expires_at,
           auto_pause_on_expired: autoPauseOnExpired.value
         })
-        await adminAPI.accounts.create(createPayload)
+        await accountsAPI.value.create(createPayload)
         successCount++
       } catch (error: any) {
         failedCount++
@@ -5954,7 +5956,7 @@ const handleCookieAuth = async (sessionKey: string) => {
           credentials.temp_unschedulable_rules = tempUnschedPayload
         }
 
-        await adminAPI.accounts.create({
+        await accountsAPI.value.create({
           name: accountName,
           notes: form.notes,
           platform: form.platform,

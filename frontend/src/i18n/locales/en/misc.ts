@@ -735,6 +735,19 @@ export default {
     bindGroups: 'Bind Groups',
     notes: 'Notes',
     notesPlaceholder: 'Optional notes...',
+    manageGroups: 'Manage Private Groups',
+    noGroups: 'No private groups yet',
+    quickAdd: {
+      title: 'Quick Add',
+      platform: 'Provider',
+      url: 'Upstream URL',
+      fetchModels: 'Fetch Models',
+      modelsFound: '{count} models found',
+      fetchFailed: 'Failed to fetch models. Check the URL and API key.',
+      create: 'Create Private Channel',
+      created: 'Private group and account created',
+      createFailed: 'Quick add failed. No resources were created.',
+    },
   },
 
 }

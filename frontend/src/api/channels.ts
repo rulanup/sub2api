@@ -68,16 +68,18 @@ export interface UserAvailableChannel {
 }
 
 /** 列出当前用户可见的「可用渠道」（与 /groups/available 保持一致，返回平数组）。 */
-export async function getAvailable(options?: { signal?: AbortSignal }): Promise<UserAvailableChannel[]> {
+export async function getAvailable(options?: { signal?: AbortSignal; scope?: 'public' | 'private' }): Promise<UserAvailableChannel[]> {
   const { data } = await apiClient.get<UserAvailableChannel[]>('/channels/available', {
-    signal: options?.signal
+    signal: options?.signal,
+    params: { scope: options?.scope || 'public' }
   })
   return data
 }
 
-export async function getModelSquare(options?: { signal?: AbortSignal }): Promise<UserAvailableChannel[]> {
+export async function getModelSquare(options?: { signal?: AbortSignal; scope?: 'public' | 'private' }): Promise<UserAvailableChannel[]> {
   const { data } = await apiClient.get<UserAvailableChannel[]>('/channels/model-square', {
-    signal: options?.signal
+    signal: options?.signal,
+    params: { scope: options?.scope || 'public' }
   })
   return data
 }

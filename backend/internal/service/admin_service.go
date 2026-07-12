@@ -298,6 +298,7 @@ type UpdateGroupInput struct {
 }
 
 type CreateAccountInput struct {
+	UserID             *int64
 	Name               string
 	Notes              *string
 	Platform           string
@@ -329,6 +330,7 @@ type ShadowOptions struct {
 }
 
 type UpdateAccountInput struct {
+	OwnerUserID           *int64
 	Name                  string
 	Notes                 *string
 	Type                  string // Account type: oauth, setup-token, apikey

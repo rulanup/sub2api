@@ -476,7 +476,8 @@ func (h *AccountHandler) checkAccountOwnership(c *gin.Context, accountID int64) 
 	}
 	userID, ok := privateUserID.(int64)
 	if !ok || userID == 0 {
-		return true
+		response.Error(c, 403, "Access denied")
+		return false
 	}
 	// Check if account belongs to user
 	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
@@ -834,7 +835,14 @@ func (h *AccountHandler) Create(c *gin.Context) {
 	var createdAccount *service.Account
 
 	result, err := executeAdminIdempotent(c, "admin.accounts.create", req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		var ownerUserID *int64
+		if value, exists := c.Get("private_user_id"); exists {
+			if userID, ok := value.(int64); ok && userID > 0 {
+				ownerUserID = &userID
+			}
+		}
 		account, execErr := h.adminService.CreateAccount(ctx, &service.CreateAccountInput{
+			UserID:                ownerUserID,
 			Name:                  req.Name,
 			Notes:                 req.Notes,
 			Platform:              req.Platform,
@@ -850,6 +858,7 @@ func (h *AccountHandler) Create(c *gin.Context) {
 			ExpiresAt:             req.ExpiresAt,
 			AutoPauseOnExpired:    req.AutoPauseOnExpired,
 			SkipMixedChannelCheck: skipCheck,
+			SkipDefaultGroupBind:  ownerUserID != nil,
 		})
 		if execErr != nil {
 			return nil, execErr

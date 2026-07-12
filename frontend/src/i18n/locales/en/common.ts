@@ -155,6 +155,7 @@ export default {
     modelSquare: 'Model Square',
     tokenRanking: 'Token Ranking',
     privateAccounts: 'Private Pool',
+    privateGroups: 'Private Groups',
     checkin: 'Daily Check-in',
     usage: 'Usage',
     redeem: 'Redeem',
