@@ -8,17 +8,17 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
-type privateAccountRepository struct {
+type userAccountRepository struct {
 	sql *sql.DB
 }
 
-func NewPrivateAccountRepository(client interface{}, sqlDB *sql.DB) service.PrivateAccountRepository {
-	return &privateAccountRepository{
-		sql: sqlDB,
+func NewUserAccountRepository(client interface{}, db *sql.DB) service.UserAccountRepository {
+	return &userAccountRepository{
+		sql: db,
 	}
 }
 
-func (r *privateAccountRepository) Create(ctx context.Context, account *service.PrivateAccount) error {
+func (r *userAccountRepository) Create(ctx context.Context, account *service.UserAccount) error {
 	query := `
 		INSERT INTO accounts (user_id, name, platform, type, credentials, extra, status, notes, concurrency, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
@@ -30,7 +30,7 @@ func (r *privateAccountRepository) Create(ctx context.Context, account *service.
 	).Scan(&account.ID, &account.CreatedAt, &account.UpdatedAt)
 }
 
-func (r *privateAccountRepository) Update(ctx context.Context, account *service.PrivateAccount) error {
+func (r *userAccountRepository) Update(ctx context.Context, account *service.UserAccount) error {
 	query := `
 		UPDATE accounts SET name = $1, credentials = $2, status = $3, notes = $4, updated_at = NOW()
 		WHERE id = $5 AND user_id = $6
@@ -42,7 +42,7 @@ func (r *privateAccountRepository) Update(ctx context.Context, account *service.
 	).Scan(&account.UpdatedAt)
 }
 
-func (r *privateAccountRepository) Delete(ctx context.Context, id, userID int64) error {
+func (r *userAccountRepository) Delete(ctx context.Context, id, userID int64) error {
 	query := `DELETE FROM accounts WHERE id = $1 AND user_id = $2`
 	result, err := r.sql.ExecContext(ctx, query, id, userID)
 	if err != nil {
@@ -53,17 +53,17 @@ func (r *privateAccountRepository) Delete(ctx context.Context, id, userID int64)
 		return err
 	}
 	if rows == 0 {
-		return service.ErrPrivateAccountNotFound
+		return service.ErrUserAccountNotFound
 	}
 	return nil
 }
 
-func (r *privateAccountRepository) GetByID(ctx context.Context, id, userID int64) (*service.PrivateAccount, error) {
+func (r *userAccountRepository) GetByID(ctx context.Context, id, userID int64) (*service.UserAccount, error) {
 	query := `
 		SELECT id, user_id, name, platform, type, credentials, extra, status, notes, concurrency, created_at, updated_at, last_used_at
 		FROM accounts WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 	`
-	account := &service.PrivateAccount{}
+	account := &service.UserAccount{}
 	var lastUsedAt sql.NullTime
 	err := r.sql.QueryRowContext(ctx, query, id, userID).Scan(
 		&account.ID, &account.UserID, &account.Name, &account.Platform, &account.Type,
@@ -71,7 +71,7 @@ func (r *privateAccountRepository) GetByID(ctx context.Context, id, userID int64
 		&account.Concurrency, &account.CreatedAt, &account.UpdatedAt, &lastUsedAt,
 	)
 	if err == sql.ErrNoRows {
-		return nil, service.ErrPrivateAccountNotFound
+		return nil, service.ErrUserAccountNotFound
 	}
 	if err != nil {
 		return nil, err
@@ -89,21 +89,37 @@ func (r *privateAccountRepository) GetByID(ctx context.Context, id, userID int64
 	return account, nil
 }
 
-func (r *privateAccountRepository) ListByUserID(ctx context.Context, userID int64) ([]*service.PrivateAccount, error) {
+func (r *userAccountRepository) ListByUserID(ctx context.Context, userID int64, platform, status string) ([]*service.UserAccount, error) {
 	query := `
 		SELECT id, user_id, name, platform, type, credentials, extra, status, notes, concurrency, created_at, updated_at, last_used_at
 		FROM accounts WHERE user_id = $1 AND deleted_at IS NULL
-		ORDER BY created_at DESC
 	`
-	rows, err := r.sql.QueryContext(ctx, query, userID)
+	args := []interface{}{userID}
+	argIdx := 2
+
+	if platform != "" {
+		query += fmt.Sprintf(" AND platform = $%d", argIdx)
+		args = append(args, platform)
+		argIdx++
+	}
+
+	if status != "" {
+		query += fmt.Sprintf(" AND status = $%d", argIdx)
+		args = append(args, status)
+		argIdx++
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	rows, err := r.sql.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var accounts []*service.PrivateAccount
+	var accounts []*service.UserAccount
 	for rows.Next() {
-		account := &service.PrivateAccount{}
+		account := &service.UserAccount{}
 		var lastUsedAt sql.NullTime
 		err := rows.Scan(
 			&account.ID, &account.UserID, &account.Name, &account.Platform, &account.Type,
@@ -129,7 +145,7 @@ func (r *privateAccountRepository) ListByUserID(ctx context.Context, userID int6
 	return accounts, nil
 }
 
-func (r *privateAccountRepository) GetAccountGroups(ctx context.Context, accountID int64) ([]int64, error) {
+func (r *userAccountRepository) GetAccountGroups(ctx context.Context, accountID int64) ([]int64, error) {
 	query := `SELECT group_id FROM account_groups WHERE account_id = $1`
 	rows, err := r.sql.QueryContext(ctx, query, accountID)
 	if err != nil {
@@ -148,7 +164,7 @@ func (r *privateAccountRepository) GetAccountGroups(ctx context.Context, account
 	return groupIDs, nil
 }
 
-func (r *privateAccountRepository) SetAccountGroups(ctx context.Context, accountID int64, groupIDs []int64) error {
+func (r *userAccountRepository) SetAccountGroups(ctx context.Context, accountID int64, groupIDs []int64) error {
 	// Delete existing
 	_, err := r.sql.ExecContext(ctx, `DELETE FROM account_groups WHERE account_id = $1`, accountID)
 	if err != nil {

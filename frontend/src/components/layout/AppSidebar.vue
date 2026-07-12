@@ -769,7 +769,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/workbench', label: t('nav.workbench'), icon: WorkbenchIcon, hideInSimpleMode: true },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
-    { path: '/private-accounts', label: t('nav.privateAccounts'), icon: PrivatePoolIcon, hideInSimpleMode: true },
+    { path: '/user-accounts', label: t('nav.privateAccounts'), icon: PrivatePoolIcon, hideInSimpleMode: true },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },
     { path: '/model-square', label: t('nav.modelSquare'), icon: ModelSquareIcon, hideInSimpleMode: true },
     { path: '/token-ranking', label: t('nav.tokenRanking'), icon: ChartIcon, hideInSimpleMode: true },

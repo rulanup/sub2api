@@ -719,8 +719,8 @@ export default {
     },
   },
 
-  // Private Accounts
-  privateAccounts: {
+  // User Accounts (Private Pool)
+  userAccounts: {
     title: 'Private Account Pool',
     description: 'Manage your private accounts for exclusive model access',
     addAccount: 'Add Account',
@@ -728,20 +728,24 @@ export default {
     editAccount: 'Edit Private Account',
     active: 'Active',
     disabled: 'Disabled',
-    noGroups: 'No groups assigned',
-    lastUsed: 'Last used',
-    never: 'Never',
     empty: 'No private accounts yet',
-    addFirst: 'Add Your First Account',
     deleteConfirm: 'Are you sure you want to delete "{name}"?',
-    name: 'Account Name',
     namePlaceholder: 'My OpenAI Account',
-    platform: 'Platform',
-    apiKey: 'API Key',
-    apiKeyPlaceholder: 'sk-...',
-    groups: 'Bind Groups',
+    bindGroups: 'Bind Groups',
     notes: 'Notes',
     notesPlaceholder: 'Optional notes...',
+    allPlatforms: 'All Platforms',
+    allStatus: 'All Status',
+    platform: 'Platform',
+    status: 'Status',
+    columns: {
+      name: 'Name',
+      platform: 'Platform',
+      status: 'Status',
+      groups: 'Groups',
+      lastUsed: 'Last Used',
+      actions: 'Actions',
+    },
   },
 
 }

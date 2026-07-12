@@ -267,15 +267,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/private-accounts',
-    name: 'PrivateAccounts',
-    component: () => import('@/views/user/PrivateAccountsView.vue'),
+    path: '/user-accounts',
+    name: 'UserAccounts',
+    component: () => import('@/views/user/UserAccountsView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Private Accounts',
-      titleKey: 'privateAccounts.title',
-      descriptionKey: 'privateAccounts.description'
+      title: 'Private Account Pool',
+      titleKey: 'userAccounts.title',
+      descriptionKey: 'userAccounts.description'
     }
   },
   {

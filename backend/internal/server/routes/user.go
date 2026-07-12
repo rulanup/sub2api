@@ -134,15 +134,14 @@ func RegisterUserRoutes(
 			monitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
 		}
 
-		// 私人号池
-		privateAccounts := authenticated.Group("/private-accounts")
+		// 私人号池（用户自己的账号管理）
+		userAccounts := authenticated.Group("/user/accounts")
 		{
-			privateAccounts.GET("", h.PrivateAccount.List)
-			privateAccounts.POST("", h.PrivateAccount.Create)
-			privateAccounts.PUT("/:id", h.PrivateAccount.Update)
-			privateAccounts.DELETE("/:id", h.PrivateAccount.Delete)
-			privateAccounts.GET("/models", h.PrivateAccount.GetModels)
-			privateAccounts.GET("/available-groups", h.PrivateAccount.GetAvailableGroups)
+			userAccounts.GET("", h.UserAccount.List)
+			userAccounts.POST("", h.UserAccount.Create)
+			userAccounts.PUT("/:id", h.UserAccount.Update)
+			userAccounts.DELETE("/:id", h.UserAccount.Delete)
+			userAccounts.GET("/available-groups", h.UserAccount.GetAvailableGroups)
 		}
 	}
 }
