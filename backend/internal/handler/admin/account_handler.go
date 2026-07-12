@@ -468,6 +468,29 @@ func (h *AccountHandler) listAccountSchedulerScoreFilterPool(
 	return accounts
 }
 
+// checkAccountOwnership checks if the account belongs to the user when private_user_id is set
+func (h *AccountHandler) checkAccountOwnership(c *gin.Context, accountID int64) bool {
+	privateUserID, exists := c.Get("private_user_id")
+	if !exists {
+		return true // No ownership check needed for admin
+	}
+	userID, ok := privateUserID.(int64)
+	if !ok || userID == 0 {
+		return true
+	}
+	// Check if account belongs to user
+	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
+	if err != nil {
+		response.Error(c, 404, "Account not found")
+		return false
+	}
+	if account.UserID == nil || *account.UserID != userID {
+		response.Error(c, 403, "Access denied")
+		return false
+	}
+	return true
+}
+
 // List handles listing all accounts with pagination
 // GET /api/v1/admin/accounts
 func (h *AccountHandler) List(c *gin.Context) {
@@ -506,7 +529,14 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 	}
 
-	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, sortBy, sortOrder)
+	var userID int64
+	if userIDStr := c.Query("user_id"); userIDStr != "" {
+		if parsedUserID, parseErr := strconv.ParseInt(userIDStr, 10, 64); parseErr == nil && parsedUserID > 0 {
+			userID = parsedUserID
+		}
+	}
+
+	accounts, total, err := h.adminService.ListAccounts(c.Request.Context(), page, pageSize, platform, accountType, status, search, groupID, privacyMode, sortBy, sortOrder, userID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -723,6 +753,11 @@ func (h *AccountHandler) GetByID(c *gin.Context) {
 		return
 	}
 
+	// Check ownership for private accounts
+	if !h.checkAccountOwnership(c, accountID) {
+		return
+	}
+
 	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -863,6 +898,11 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		return
 	}
 
+	// Check ownership for private accounts
+	if !h.checkAccountOwnership(c, accountID) {
+		return
+	}
+
 	var req UpdateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
@@ -953,6 +993,11 @@ func (h *AccountHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	// Check ownership for private accounts
+	if !h.checkAccountOwnership(c, accountID) {
+		return
+	}
+
 	err = h.adminService.DeleteAccount(c.Request.Context(), accountID)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -992,6 +1037,11 @@ func (h *AccountHandler) Test(c *gin.Context) {
 		return
 	}
 
+	// Check ownership for private accounts
+	if !h.checkAccountOwnership(c, accountID) {
+		return
+	}
+
 	var req TestAccountRequest
 	// Allow empty body, model_id is optional
 	_ = c.ShouldBindJSON(&req)
@@ -1015,6 +1065,11 @@ func (h *AccountHandler) RecoverState(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+
+	// Check ownership for private accounts
+	if !h.checkAccountOwnership(c, accountID) {
 		return
 	}
 
@@ -1230,6 +1285,11 @@ func (h *AccountHandler) Refresh(c *gin.Context) {
 		return
 	}
 
+	// Check ownership for private accounts
+	if !h.checkAccountOwnership(c, accountID) {
+		return
+	}
+
 	// Get account
 	account, err := h.adminService.GetAccount(c.Request.Context(), accountID)
 	if err != nil {
@@ -1385,6 +1445,11 @@ func (h *AccountHandler) ClearError(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+
+	// Check ownership for private accounts
+	if !h.checkAccountOwnership(c, accountID) {
 		return
 	}
 
@@ -2033,6 +2098,11 @@ func (h *AccountHandler) GetUsage(c *gin.Context) {
 		return
 	}
 
+	// Check ownership for private accounts
+	if !h.checkAccountOwnership(c, accountID) {
+		return
+	}
+
 	source := c.DefaultQuery("source", "active")
 	force := c.Query("force") == "true"
 
@@ -2056,6 +2126,11 @@ func (h *AccountHandler) ClearRateLimit(c *gin.Context) {
 	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+
+	// Check ownership for private accounts
+	if !h.checkAccountOwnership(c, accountID) {
 		return
 	}
 
@@ -2632,7 +2707,7 @@ func (h *AccountHandler) BatchRefreshTier(c *gin.Context) {
 	accounts := make([]*service.Account, 0)
 
 	if len(req.AccountIDs) == 0 {
-		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0, "", "name", "asc")
+		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0, "", "name", "asc", 0)
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return

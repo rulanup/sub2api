@@ -19,6 +19,7 @@ import (
 
 type Account struct {
 	ID                      int64
+	UserID                  *int64 // nil for system accounts, non-nil for private accounts
 	Name                    string
 	Notes                   *string
 	Platform                string

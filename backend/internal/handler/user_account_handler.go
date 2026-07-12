@@ -1,41 +1,24 @@
 package handler
 
 import (
-	"encoding/json"
-	"strconv"
+	"fmt"
 
+	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
-	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UserAccountHandler struct {
-	userAccountService *service.UserAccountService
+	adminAccountHandler *admin.AccountHandler
 }
 
-func NewUserAccountHandler(userAccountService *service.UserAccountService) *UserAccountHandler {
-	return &UserAccountHandler{userAccountService: userAccountService}
+func NewUserAccountHandler(adminAccountHandler *admin.AccountHandler) *UserAccountHandler {
+	return &UserAccountHandler{adminAccountHandler: adminAccountHandler}
 }
 
-type createUserAccountRequest struct {
-	Name        string          `json:"name" binding:"required"`
-	Platform    string          `json:"platform" binding:"required"`
-	Credentials json.RawMessage `json:"credentials" binding:"required"`
-	GroupIDs    []int64         `json:"group_ids"`
-	Notes       string          `json:"notes"`
-}
-
-type updateUserAccountRequest struct {
-	Name        *string          `json:"name"`
-	Credentials *json.RawMessage `json:"credentials"`
-	GroupIDs    []int64          `json:"group_ids"`
-	Notes       *string          `json:"notes"`
-	Status      *string          `json:"status"`
-}
-
-// List returns all accounts for the current user
+// List proxies to admin account list with user_id filter
 // GET /api/v1/user/accounts
 func (h *UserAccountHandler) List(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
@@ -43,20 +26,12 @@ func (h *UserAccountHandler) List(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-
-	platform := c.Query("platform")
-	status := c.DefaultQuery("status", "")
-
-	accounts, err := h.userAccountService.ListByUserID(c.Request.Context(), subject.UserID, platform, status)
-	if err != nil {
-		response.Error(c, 500, "Failed to list accounts")
-		return
-	}
-
-	response.Success(c, accounts)
+	// Inject user_id filter
+	c.Request.URL.RawQuery += "&user_id=" + intToStr(subject.UserID)
+	h.adminAccountHandler.List(c)
 }
 
-// Create adds a new account for the current user
+// Create proxies to admin account create with user_id
 // POST /api/v1/user/accounts
 func (h *UserAccountHandler) Create(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
@@ -64,29 +39,24 @@ func (h *UserAccountHandler) Create(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-
-	var req createUserAccountRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-
-	account, err := h.userAccountService.Create(c.Request.Context(), subject.UserID, &service.CreateUserAccountInput{
-		Name:        req.Name,
-		Platform:    req.Platform,
-		Credentials: req.Credentials,
-		GroupIDs:    req.GroupIDs,
-		Notes:       req.Notes,
-	})
-	if err != nil {
-		response.Error(c, 500, "Failed to create account: "+err.Error())
-		return
-	}
-
-	response.Success(c, account)
+	// Inject user_id
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.Create(c)
 }
 
-// Update updates an account
+// GetByID proxies to admin account GetByID with ownership check
+// GET /api/v1/user/accounts/:id
+func (h *UserAccountHandler) GetByID(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.GetByID(c)
+}
+
+// Update proxies to admin account update with ownership check
 // PUT /api/v1/user/accounts/:id
 func (h *UserAccountHandler) Update(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
@@ -94,39 +64,11 @@ func (h *UserAccountHandler) Update(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
-		return
-	}
-
-	var req updateUserAccountRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-
-	account, err := h.userAccountService.Update(c.Request.Context(), subject.UserID, id, &service.UpdateUserAccountInput{
-		Name:        req.Name,
-		Credentials: req.Credentials,
-		GroupIDs:    req.GroupIDs,
-		Notes:       req.Notes,
-		Status:      req.Status,
-	})
-	if err != nil {
-		if err == service.ErrUserAccountNotFound {
-			response.Error(c, 404, "Account not found")
-			return
-		}
-		response.Error(c, 500, "Failed to update account: "+err.Error())
-		return
-	}
-
-	response.Success(c, account)
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.Update(c)
 }
 
-// Delete deletes an account
+// Delete proxies to admin account delete with ownership check
 // DELETE /api/v1/user/accounts/:id
 func (h *UserAccountHandler) Delete(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
@@ -134,40 +76,94 @@ func (h *UserAccountHandler) Delete(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.BadRequest(c, "Invalid account ID")
-		return
-	}
-
-	err = h.userAccountService.Delete(c.Request.Context(), subject.UserID, id)
-	if err != nil {
-		if err == service.ErrUserAccountNotFound {
-			response.Error(c, 404, "Account not found")
-			return
-		}
-		response.Error(c, 500, "Failed to delete account")
-		return
-	}
-
-	response.Success(c, gin.H{"message": "Account deleted"})
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.Delete(c)
 }
 
-// GetAvailableGroups returns groups that the user can bind
-// GET /api/v1/user/accounts/available-groups
-func (h *UserAccountHandler) GetAvailableGroups(c *gin.Context) {
+// Test proxies to admin account test with ownership check
+// POST /api/v1/user/accounts/:id/test
+func (h *UserAccountHandler) Test(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.Test(c)
+}
 
-	groups, err := h.userAccountService.GetAvailableGroups(c.Request.Context(), subject.UserID)
-	if err != nil {
-		response.Error(c, 500, "Failed to get groups")
+// GetStats proxies to admin account stats with ownership check
+// GET /api/v1/user/accounts/:id/stats
+func (h *UserAccountHandler) GetStats(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
 		return
 	}
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.GetStats(c)
+}
 
-	response.Success(c, groups)
+// GetUsage proxies to admin account usage with ownership check
+// GET /api/v1/user/accounts/:id/usage
+func (h *UserAccountHandler) GetUsage(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.GetUsage(c)
+}
+
+// ClearError proxies to admin account clear error with ownership check
+// POST /api/v1/user/accounts/:id/clear-error
+func (h *UserAccountHandler) ClearError(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.ClearError(c)
+}
+
+// ClearRateLimit proxies to admin account clear rate limit with ownership check
+// POST /api/v1/user/accounts/:id/clear-rate-limit
+func (h *UserAccountHandler) ClearRateLimit(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.ClearRateLimit(c)
+}
+
+// RecoverState proxies to admin account recover state with ownership check
+// POST /api/v1/user/accounts/:id/recover
+func (h *UserAccountHandler) RecoverState(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.RecoverState(c)
+}
+
+// Refresh proxies to admin account refresh with ownership check
+// POST /api/v1/user/accounts/:id/refresh
+func (h *UserAccountHandler) Refresh(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	c.Set("private_user_id", subject.UserID)
+	h.adminAccountHandler.Refresh(c)
+}
+
+func intToStr(n int64) string {
+	return fmt.Sprintf("%d", n)
 }
