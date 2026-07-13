@@ -63,6 +63,8 @@ type APIKeyAuthGroupSnapshot struct {
 	Name                            string   `json:"name"`
 	Platform                        string   `json:"platform"`
 	IsExclusive                     bool     `json:"is_exclusive"`
+	IsPrivate                       bool     `json:"is_private"`
+	OwnerUserID                     *int64   `json:"owner_user_id,omitempty"`
 	Status                          string   `json:"status"`
 	SubscriptionType                string   `json:"subscription_type"`
 	RateMultiplier                  float64  `json:"rate_multiplier"`
@@ -81,6 +83,7 @@ type APIKeyAuthGroupSnapshot struct {
 	VideoPrice480P                  *float64 `json:"video_price_480p,omitempty"`
 	VideoPrice720P                  *float64 `json:"video_price_720p,omitempty"`
 	VideoPrice1080P                 *float64 `json:"video_price_1080p,omitempty"`
+	WebSearchPricePerCall           *float64 `json:"web_search_price_per_call,omitempty"`
 	ClaudeCodeOnly                  bool     `json:"claude_code_only"`
 	FallbackGroupID                 *int64   `json:"fallback_group_id,omitempty"`
 	FallbackGroupIDOnInvalidRequest *int64   `json:"fallback_group_id_on_invalid_request,omitempty"`

@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 14 // v14: include API key multi-group scheduling fields
+const apiKeyAuthSnapshotVersion = 16 // v16: include multi-group scheduling, private group ownership, and web search pricing
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -274,6 +274,8 @@ func apiKeyAuthGroupSnapshotFromGroup(group *Group) *APIKeyAuthGroupSnapshot {
 		Name:                            group.Name,
 		Platform:                        group.Platform,
 		IsExclusive:                     group.IsExclusive,
+		IsPrivate:                       group.IsPrivate,
+		OwnerUserID:                     group.OwnerUserID,
 		Status:                          group.Status,
 		SubscriptionType:                group.SubscriptionType,
 		RateMultiplier:                  group.RateMultiplier,
@@ -281,11 +283,18 @@ func apiKeyAuthGroupSnapshotFromGroup(group *Group) *APIKeyAuthGroupSnapshot {
 		WeeklyLimitUSD:                  group.WeeklyLimitUSD,
 		MonthlyLimitUSD:                 group.MonthlyLimitUSD,
 		AllowImageGeneration:            group.AllowImageGeneration,
+		AllowBatchImageGeneration:       group.AllowBatchImageGeneration,
 		ImageRateIndependent:            group.ImageRateIndependent,
 		ImageRateMultiplier:             group.ImageRateMultiplier,
 		ImagePrice1K:                    group.ImagePrice1K,
 		ImagePrice2K:                    group.ImagePrice2K,
 		ImagePrice4K:                    group.ImagePrice4K,
+		VideoRateIndependent:            group.VideoRateIndependent,
+		VideoRateMultiplier:             group.VideoRateMultiplier,
+		VideoPrice480P:                  group.VideoPrice480P,
+		VideoPrice720P:                  group.VideoPrice720P,
+		VideoPrice1080P:                 group.VideoPrice1080P,
+		WebSearchPricePerCall:           group.WebSearchPricePerCall,
 		ClaudeCodeOnly:                  group.ClaudeCodeOnly,
 		FallbackGroupID:                 group.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: group.FallbackGroupIDOnInvalidRequest,
@@ -366,6 +375,8 @@ func groupFromAPIKeyAuthSnapshot(snapshot *APIKeyAuthGroupSnapshot) *Group {
 		Name:                            snapshot.Name,
 		Platform:                        snapshot.Platform,
 		IsExclusive:                     snapshot.IsExclusive,
+		IsPrivate:                       snapshot.IsPrivate,
+		OwnerUserID:                     snapshot.OwnerUserID,
 		Status:                          snapshot.Status,
 		Hydrated:                        true,
 		SubscriptionType:                snapshot.SubscriptionType,
@@ -374,11 +385,18 @@ func groupFromAPIKeyAuthSnapshot(snapshot *APIKeyAuthGroupSnapshot) *Group {
 		WeeklyLimitUSD:                  snapshot.WeeklyLimitUSD,
 		MonthlyLimitUSD:                 snapshot.MonthlyLimitUSD,
 		AllowImageGeneration:            snapshot.AllowImageGeneration,
+		AllowBatchImageGeneration:       snapshot.AllowBatchImageGeneration,
 		ImageRateIndependent:            snapshot.ImageRateIndependent,
 		ImageRateMultiplier:             snapshot.ImageRateMultiplier,
 		ImagePrice1K:                    snapshot.ImagePrice1K,
 		ImagePrice2K:                    snapshot.ImagePrice2K,
 		ImagePrice4K:                    snapshot.ImagePrice4K,
+		VideoRateIndependent:            snapshot.VideoRateIndependent,
+		VideoRateMultiplier:             snapshot.VideoRateMultiplier,
+		VideoPrice480P:                  snapshot.VideoPrice480P,
+		VideoPrice720P:                  snapshot.VideoPrice720P,
+		VideoPrice1080P:                 snapshot.VideoPrice1080P,
+		WebSearchPricePerCall:           snapshot.WebSearchPricePerCall,
 		ClaudeCodeOnly:                  snapshot.ClaudeCodeOnly,
 		FallbackGroupID:                 snapshot.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: snapshot.FallbackGroupIDOnInvalidRequest,
