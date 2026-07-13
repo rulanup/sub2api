@@ -1,44 +1,36 @@
 <template>
   <AppLayout>
-    <div class="flex h-[calc(100vh-7rem)] flex-col gap-4">
-      <!-- Header -->
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('workbench.title') }}</h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('workbench.description') }}</p>
-        </div>
-        <router-link
-          to="/keys"
-          class="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-dark-800 dark:text-gray-300 dark:ring-dark-600 dark:hover:bg-dark-700"
-        >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-          </svg>
-          {{ t('workbench.manageKeys') }}
-        </router-link>
-      </div>
-
-      <!-- Tabs -->
-      <div class="flex items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
-        <button
-          v-for="tab in tabs"
-          :key="tab.value"
-          @click="activeTab = tab.value"
-          :class="[
-            'flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors',
-            activeTab === tab.value
+    <div class="-m-4 flex h-[calc(100dvh-3.5rem)] flex-col md:-m-6 md:h-[calc(100dvh-4rem)] lg:-m-8 lg:h-[calc(100dvh-4.5rem)]">
+      <div class="flex items-center justify-between gap-3 border-b border-gray-200/70 bg-white/70 px-3 py-2 backdrop-blur dark:border-dark-700 dark:bg-dark-900/70 sm:px-4">
+        <div class="inline-flex rounded-full bg-gray-100 p-1 dark:bg-dark-800">
+          <button
+            v-for="tab in tabs"
+            :key="tab.value"
+            type="button"
+            class="rounded-full px-4 py-1.5 text-sm font-medium transition-all"
+            :class="activeTab === tab.value
               ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
-              : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
-          ]"
-        >
-          {{ tab.label }}
-        </button>
+              : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+            @click="activeTab = tab.value"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="hidden text-xs text-gray-400 sm:inline">
+            <template v-if="loadingKeys">{{ t('workbench.loadingKeys') }}</template>
+            <template v-else-if="apiKeys.length === 0">{{ t('workbench.noKeysHint') }}</template>
+            <template v-else>{{ t('workbench.keysReady', { count: apiKeys.length }) }}</template>
+          </span>
+          <router-link to="/keys" class="rounded-full px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-800">
+            {{ t('workbench.manageKeys') }}
+          </router-link>
+        </div>
       </div>
 
-      <!-- Content -->
-      <div class="min-h-0 flex-1">
+      <div class="min-h-0 flex-1 bg-white dark:bg-dark-950">
         <ChatPanel v-if="activeTab === 'chat'" :api-keys="apiKeys" :loading-keys="loadingKeys" />
-        <ImagePanel v-else-if="activeTab === 'image'" :api-keys="apiKeys" :loading-keys="loadingKeys" />
+        <ImagePanel v-else :api-keys="apiKeys" :loading-keys="loadingKeys" />
       </div>
     </div>
   </AppLayout>
