@@ -261,6 +261,7 @@ func newOpenAISilentRefusalFailoverError(c *gin.Context, account *Account, upstr
 	}
 	return &UpstreamFailoverError{
 		StatusCode:      http.StatusBadGateway,
+		Platform:        platform,
 		ResponseBody:    openAISilentRefusalErrorBody(),
 		ResponseHeaders: headers,
 	}

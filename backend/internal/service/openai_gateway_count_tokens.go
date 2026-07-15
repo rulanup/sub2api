@@ -137,7 +137,11 @@ func (s *OpenAIGatewayService) ForwardCountTokensAsAnthropic(
 		case 500, 502, 503, 504, 529:
 			errMsg = "Upstream service temporarily unavailable"
 		}
-		writeAnthropicCountTokensError(c, resp.StatusCode, "upstream_error", errMsg)
+		clientStatus, errType, clientMsg, _ := applyErrorPassthroughRule(
+			c, account.Platform, resp.StatusCode, respBody,
+			resp.StatusCode, "upstream_error", errMsg,
+		)
+		writeAnthropicCountTokensError(c, clientStatus, errType, clientMsg)
 		if upstreamMsg == "" {
 			return fmt.Errorf("input_tokens upstream error: %d", resp.StatusCode)
 		}

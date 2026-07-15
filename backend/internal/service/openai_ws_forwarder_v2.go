@@ -516,6 +516,8 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 					UpstreamOutTok: usage.OutputTokens,
 				})
 			}
+			semanticStatus := openAIStreamFailedEventSemanticStatus(message, extractOpenAISSEErrorMessage(message))
+			setOpsUpstreamError(c, semanticStatus, extractOpenAISSEErrorMessage(message), truncateString(string(message), 2048))
 		}
 
 		if eventType == "error" {
@@ -573,13 +575,18 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 			setOpsUpstreamError(c, statusCode, errMsg, "")
 			if reqStream && !clientDisconnected {
 				flushBufferedStreamEvents("error_event")
-				emitStreamMessage(message, true)
+				clientMessage := applyErrorPassthroughRuleToOpenAIWSEvent(c, account.Platform, message)
+				emitStreamMessage(clientMessage, true)
 			}
 			if !reqStream {
-				c.JSON(statusCode, gin.H{
+				clientStatus, _, clientErrMsg, _ := applyErrorPassthroughRule(
+					c, account.Platform, statusCode, message,
+					statusCode, "upstream_error", errMsg,
+				)
+				c.JSON(clientStatus, gin.H{
 					"error": gin.H{
 						"type":    "upstream_error",
-						"message": errMsg,
+						"message": clientErrMsg,
 					},
 				})
 			}
@@ -608,7 +615,11 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 				}
 			} else {
 				flushBufferedStreamEvents(eventType)
-				emitStreamMessage(message, isTerminalEvent)
+				clientMessage := message
+				if eventType == "response.failed" {
+					clientMessage = applyErrorPassthroughRuleToOpenAIWSEvent(c, account.Platform, message)
+				}
+				emitStreamMessage(clientMessage, isTerminalEvent)
 			}
 		} else {
 			if responseField.Exists() && responseField.Type == gjson.JSON {
@@ -643,12 +654,17 @@ func (s *OpenAIGatewayService) forwardOpenAIWSV2(
 			finalResponse = s.replaceModelInResponseBody(finalResponse, mappedModel, originalModel)
 		}
 		finalResponse = s.correctToolCallsInResponseBody(finalResponse)
+		clientStatus := http.StatusOK
+		if lastEventType == "response.failed" {
+			status := openAIStreamFailedEventSemanticStatus(finalResponse, extractOpenAISSEErrorMessage(finalResponse))
+			clientStatus, finalResponse, _ = applyErrorPassthroughRuleToJSONPath(c, account.Platform, status, finalResponse, "error.message")
+		}
 		populateOpenAIUsageFromResponseJSON(finalResponse, usage)
 		if responseID == "" {
 			responseID = strings.TrimSpace(gjson.GetBytes(finalResponse, "id").String())
 		}
 
-		c.Data(http.StatusOK, "application/json", finalResponse)
+		c.Data(clientStatus, "application/json", finalResponse)
 	} else {
 		flushStreamWriter(true)
 	}

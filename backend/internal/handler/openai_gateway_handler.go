@@ -443,6 +443,9 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 			} else {
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
+					if failoverErr.Platform == "" {
+						failoverErr.Platform = account.Platform
+					}
 					if service.OpenAICompactKeepaliveAdjustedWrittenSize(c) != writerSizeBeforeForward {
 						h.handleFailoverExhausted(c, failoverErr, true)
 						return
@@ -935,6 +938,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 			} else {
 				var failoverErr *service.UpstreamFailoverError
 				if errors.As(err, &failoverErr) {
+					if failoverErr.Platform == "" {
+						failoverErr.Platform = account.Platform
+					}
 					if c.Writer.Size() != writerSizeBeforeForward {
 						h.handleAnthropicFailoverExhausted(c, failoverErr, true)
 						return
@@ -1093,7 +1099,30 @@ func (h *OpenAIGatewayHandler) anthropicStreamingAwareError(c *gin.Context, stat
 
 // handleAnthropicFailoverExhausted maps upstream failover errors to Anthropic format.
 func (h *OpenAIGatewayHandler) handleAnthropicFailoverExhausted(c *gin.Context, failoverErr *service.UpstreamFailoverError, streamStarted bool) {
-	status, errType, errMsg := h.mapUpstreamError(failoverErr.StatusCode)
+	statusCode := failoverErr.StatusCode
+	platform := failoverErr.Platform
+	if platform == "" {
+		platform = service.PlatformOpenAI
+	}
+	upstreamMsg := service.ExtractUpstreamErrorMessage(failoverErr.ResponseBody)
+	service.SetOpsUpstreamError(c, statusCode, upstreamMsg, "")
+	status, errType, errMsg := h.mapUpstreamError(statusCode)
+	if h.errorPassthroughService != nil && len(failoverErr.ResponseBody) > 0 {
+		if rule := h.errorPassthroughService.MatchRule(platform, statusCode, failoverErr.ResponseBody); rule != nil {
+			if !rule.PassthroughCode && rule.ResponseCode != nil {
+				status = *rule.ResponseCode
+			}
+			if !rule.PassthroughBody && rule.CustomMessage != nil {
+				errMsg = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+			} else if upstreamMsg != "" {
+				errMsg = upstreamMsg
+			}
+			errType = "upstream_error"
+			if rule.SkipMonitoring {
+				c.Set(service.OpsSkipPassthroughKey, true)
+			}
+		}
+	}
 	h.anthropicStreamingAwareError(c, status, errType, errMsg, streamStarted)
 }
 
@@ -1246,6 +1275,9 @@ func (h *OpenAIGatewayHandler) acquireResponsesAccountSlot(
 // ResponsesWebSocket handles OpenAI Responses API WebSocket ingress endpoint
 // GET /openai/v1/responses (Upgrade: websocket)
 func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
+	if h.errorPassthroughService != nil {
+		service.BindErrorPassthroughService(c, h.errorPassthroughService)
+	}
 	if !isOpenAIWSUpgradeRequest(c.Request) {
 		h.errorResponse(c, http.StatusUpgradeRequired, "invalid_request_error", "WebSocket upgrade required (Upgrade: websocket)")
 		return
@@ -1386,8 +1418,9 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	// （session_id / conversation_id）；无标识则放行，连接内仍有本地 flag 兜底。
 	cyberBlockKey := service.CyberSessionBlockKey(apiKey.ID, c, nil)
 	if cyberBlockKey != "" && h.gatewayService.IsCyberSessionBlocked(c.Request.Context(), cyberBlockKey) {
-		writeCyberSessionBlockedWSError(c.Request.Context(), wsConn)
-		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "session blocked by cyber-security policy")
+		clientStatus, clientMessage := h.customizeCyberSessionBlockedError(c)
+		writeCyberSessionBlockedWSError(c.Request.Context(), wsConn, clientMessage)
+		closeOpenAIClientWS(wsConn, openAIWSCloseStatusForHTTP(clientStatus, coderws.StatusPolicyViolation), clientMessage)
 		h.enqueueCyberSessionBlockedOpsEntry(c, apiKey, reqModel, cyberBlockKey)
 		return
 	}
@@ -1464,6 +1497,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 	switchCount := 0
 	failedAccountIDs := make(map[int64]struct{})
 	var lastFailoverErr *service.UpstreamFailoverError
+	lastFailoverPlatform := requestPlatform
 
 	for {
 		reqLog.Debug("openai.websocket_account_selecting", zap.Int("excluded_account_count", len(failedAccountIDs)))
@@ -1486,7 +1520,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				zap.Int("excluded_account_count", len(failedAccountIDs)),
 			)
 			if lastFailoverErr != nil {
-				closeOpenAIWSFailoverExhausted(wsConn, lastFailoverErr)
+				h.closeOpenAIWSFailoverExhausted(c, wsConn, lastFailoverPlatform, lastFailoverErr)
 			} else {
 				closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "no available account")
 			}
@@ -1494,7 +1528,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		}
 		if selection == nil || selection.Account == nil {
 			if lastFailoverErr != nil {
-				closeOpenAIWSFailoverExhausted(wsConn, lastFailoverErr)
+				h.closeOpenAIWSFailoverExhausted(c, wsConn, lastFailoverPlatform, lastFailoverErr)
 			} else {
 				closeOpenAIClientWS(wsConn, coderws.StatusTryAgainLater, "no available account")
 			}
@@ -1696,13 +1730,14 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				releaseAccountSlot()
 				failedAccountIDs[account.ID] = struct{}{}
 				lastFailoverErr = failoverErr
+				lastFailoverPlatform = account.Platform
 				if switchCount >= maxAccountSwitches {
-					closeOpenAIWSFailoverExhausted(wsConn, failoverErr)
+					h.closeOpenAIWSFailoverExhausted(c, wsConn, account.Platform, failoverErr)
 					return
 				}
 				switchCount++
 				if h.gatewayService.ShouldStopOpenAIOAuth429Failover(account, failoverErr.StatusCode, switchCount) {
-					closeOpenAIWSFailoverExhausted(wsConn, failoverErr)
+					h.closeOpenAIWSFailoverExhausted(c, wsConn, account.Platform, failoverErr)
 					return
 				}
 				h.gatewayService.RecordOpenAIAccountSwitch()
@@ -1948,6 +1983,12 @@ func (h *OpenAIGatewayHandler) handleConcurrencyError(c *gin.Context, err error,
 func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *service.UpstreamFailoverError, streamStarted bool) {
 	statusCode := failoverErr.StatusCode
 	responseBody := failoverErr.ResponseBody
+	platform := failoverErr.Platform
+	if platform == "" {
+		platform = service.PlatformOpenAI
+	}
+	upstreamMsg := service.ExtractUpstreamErrorMessage(responseBody)
+	service.SetOpsUpstreamError(c, statusCode, upstreamMsg, "")
 	if service.IsOpenAISilentRefusalErrorBody(responseBody) {
 		service.SetOpsUpstreamError(c, statusCode, service.OpenAISilentRefusalClientMessage(), "")
 		h.handleStreamingAwareError(c, http.StatusBadGateway, "upstream_error", service.OpenAISilentRefusalClientMessage(), streamStarted)
@@ -1956,7 +1997,7 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 
 	// 先检查透传规则
 	if h.errorPassthroughService != nil && len(responseBody) > 0 {
-		if rule := h.errorPassthroughService.MatchRule("openai", statusCode, responseBody); rule != nil {
+		if rule := h.errorPassthroughService.MatchRule(platform, statusCode, responseBody); rule != nil {
 			// 确定响应状态码
 			respCode := statusCode
 			if !rule.PassthroughCode && rule.ResponseCode != nil {
@@ -1966,7 +2007,7 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 			// 确定响应消息
 			msg := service.ExtractUpstreamErrorMessage(responseBody)
 			if !rule.PassthroughBody && rule.CustomMessage != nil {
-				msg = *rule.CustomMessage
+				msg = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
 			}
 
 			if rule.SkipMonitoring {
@@ -1977,10 +2018,6 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 			return
 		}
 	}
-
-	// 记录原始上游状态码，以便 ops 错误日志捕获真实的上游错误
-	upstreamMsg := service.ExtractUpstreamErrorMessage(responseBody)
-	service.SetOpsUpstreamError(c, statusCode, upstreamMsg, "")
 
 	// 使用默认的错误映射
 	status, errType, errMsg := h.mapUpstreamError(statusCode)
@@ -2180,28 +2217,69 @@ func closeOpenAIClientWS(conn *coderws.Conn, status coderws.StatusCode, reason s
 	if conn == nil {
 		return
 	}
-	reason = strings.TrimSpace(reason)
-	if len(reason) > 120 {
-		reason = reason[:120]
-	}
+	reason = service.TruncateErrorPassthroughWSReason(reason)
 	_ = conn.Close(status, reason)
 	_ = conn.CloseNow()
 }
 
-func closeOpenAIWSFailoverExhausted(conn *coderws.Conn, failoverErr *service.UpstreamFailoverError) {
+func (h *OpenAIGatewayHandler) closeOpenAIWSFailoverExhausted(c *gin.Context, conn *coderws.Conn, platform string, failoverErr *service.UpstreamFailoverError) {
 	if failoverErr == nil {
 		closeOpenAIClientWS(conn, coderws.StatusInternalError, "upstream websocket proxy failed")
 		return
 	}
+	if failoverErr.Platform != "" {
+		platform = failoverErr.Platform
+	}
+	service.SetOpsUpstreamError(c, failoverErr.StatusCode, service.ExtractUpstreamErrorMessage(failoverErr.ResponseBody), "")
+	customReason := ""
+	clientStatus := failoverErr.StatusCode
+	if h.errorPassthroughService != nil {
+		if rule := h.errorPassthroughService.MatchRule(platform, failoverErr.StatusCode, failoverErr.ResponseBody); rule != nil {
+			if !rule.PassthroughCode && rule.ResponseCode != nil {
+				clientStatus = *rule.ResponseCode
+			}
+			if !rule.PassthroughBody && rule.CustomMessage != nil {
+				customReason = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+			}
+			if rule.SkipMonitoring && c != nil {
+				c.Set(service.OpsSkipPassthroughKey, true)
+			}
+		}
+	}
 	switch failoverErr.StatusCode {
 	case http.StatusTooManyRequests:
-		closeOpenAIClientWS(conn, coderws.StatusTryAgainLater, "upstream rate limit exceeded, please retry later")
+		if customReason == "" {
+			customReason = "upstream rate limit exceeded, please retry later"
+		}
+		closeOpenAIClientWS(conn, openAIWSCloseStatusForHTTP(clientStatus, coderws.StatusTryAgainLater), customReason)
 	case 529, http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
-		closeOpenAIClientWS(conn, coderws.StatusTryAgainLater, "upstream service temporarily unavailable")
+		if customReason == "" {
+			customReason = "upstream service temporarily unavailable"
+		}
+		closeOpenAIClientWS(conn, openAIWSCloseStatusForHTTP(clientStatus, coderws.StatusTryAgainLater), customReason)
 	case http.StatusUnauthorized, http.StatusForbidden:
-		closeOpenAIClientWS(conn, coderws.StatusPolicyViolation, "upstream websocket authentication failed")
+		if customReason == "" {
+			customReason = "upstream websocket authentication failed"
+		}
+		closeOpenAIClientWS(conn, openAIWSCloseStatusForHTTP(clientStatus, coderws.StatusPolicyViolation), customReason)
 	default:
-		closeOpenAIClientWS(conn, coderws.StatusInternalError, "upstream websocket proxy failed")
+		if customReason == "" {
+			customReason = "upstream websocket proxy failed"
+		}
+		closeOpenAIClientWS(conn, openAIWSCloseStatusForHTTP(clientStatus, coderws.StatusInternalError), customReason)
+	}
+}
+
+// WebSocket close codes cannot represent arbitrary HTTP statuses. Map the
+// retryability/policy class and retain the existing close semantic otherwise.
+func openAIWSCloseStatusForHTTP(status int, fallback coderws.StatusCode) coderws.StatusCode {
+	switch {
+	case status == http.StatusRequestTimeout || status == http.StatusTooManyRequests || status >= http.StatusInternalServerError:
+		return coderws.StatusTryAgainLater
+	case status >= http.StatusBadRequest && status < http.StatusInternalServerError:
+		return coderws.StatusPolicyViolation
+	default:
+		return fallback
 	}
 }
 
@@ -2235,12 +2313,16 @@ func writeContentModerationWSError(ctx context.Context, conn *coderws.Conn, deci
 
 // writeCyberSessionBlockedWSError sends an error frame telling the client this
 // session is blocked by the cyber session block (F5a) before closing.
-func writeCyberSessionBlockedWSError(ctx context.Context, conn *coderws.Conn) {
+func writeCyberSessionBlockedWSError(ctx context.Context, conn *coderws.Conn, message string) {
 	if conn == nil {
 		return
 	}
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	message = strings.TrimSpace(message)
+	if message == "" {
+		message = cyberSessionBlockedClientMsg
 	}
 	payload, err := json.Marshal(gin.H{
 		"event_id": "evt_cyber_session_blocked",
@@ -2248,7 +2330,7 @@ func writeCyberSessionBlockedWSError(ctx context.Context, conn *coderws.Conn) {
 		"error": gin.H{
 			"type":    "permission_error",
 			"code":    "session_blocked_by_cyber_policy",
-			"message": cyberSessionBlockedClientMsg,
+			"message": message,
 		},
 	})
 	if err != nil {
@@ -2404,31 +2486,58 @@ func (h *OpenAIGatewayHandler) rejectIfCyberSessionBlocked(c *gin.Context, apiKe
 	if !h.gatewayService.IsCyberSessionBlocked(c.Request.Context(), key) {
 		return false
 	}
+	clientStatus, clientMessage := h.customizeCyberSessionBlockedError(c)
 	// body-signal compact 心跳可能已把响应头提交为 200（cyber 检查在用户槽位
 	// 长等待之后执行）：以 response.failed 终止事件回传；未提交时停拍后照常
 	// 写 JSON（#3887）。
 	if service.StopOpenAICompactSSEKeepaliveCommitted(c) {
 		service.MarkOpsStreamError(c, "permission_error", cyberSessionBlockedClientMsg, http.StatusForbidden)
-		if writeResponsesFailedSSE(c, "permission_error", cyberSessionBlockedClientMsg) {
+		if writeResponsesFailedSSE(c, "permission_error", clientMessage) {
 			h.enqueueCyberSessionBlockedOpsEntry(c, apiKey, model, key)
 			return true
 		}
 	}
 	switch format {
 	case cyberBlockFormatAnthropic:
-		c.JSON(http.StatusForbidden, gin.H{"type": "error", "error": gin.H{
+		c.JSON(clientStatus, gin.H{"type": "error", "error": gin.H{
 			"type":    "permission_error",
-			"message": cyberSessionBlockedClientMsg,
+			"message": clientMessage,
 		}})
 	default: // cyberBlockFormatResponses 与 cyberBlockFormatChat：同构的 OpenAI error envelope
-		c.JSON(http.StatusForbidden, gin.H{"error": gin.H{
+		c.JSON(clientStatus, gin.H{"error": gin.H{
 			"type":    "permission_error",
 			"code":    "session_blocked_by_cyber_policy",
-			"message": cyberSessionBlockedClientMsg,
+			"message": clientMessage,
 		}})
 	}
 	h.enqueueCyberSessionBlockedOpsEntry(c, apiKey, model, key)
 	return true
+}
+
+func (h *OpenAIGatewayHandler) customizeCyberSessionBlockedError(c *gin.Context) (int, string) {
+	status := http.StatusForbidden
+	message := cyberSessionBlockedClientMsg
+	if h == nil || h.errorPassthroughService == nil {
+		return status, message
+	}
+	body, _ := json.Marshal(gin.H{"error": gin.H{
+		"code":    "session_blocked_by_cyber_policy",
+		"message": cyberSessionBlockedClientMsg,
+	}})
+	rule := h.errorPassthroughService.MatchRule(service.PlatformOpenAI, status, body)
+	if rule == nil {
+		return status, message
+	}
+	if !rule.PassthroughCode && rule.ResponseCode != nil {
+		status = *rule.ResponseCode
+	}
+	if !rule.PassthroughBody && rule.CustomMessage != nil {
+		message = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+	}
+	if rule.SkipMonitoring && c != nil {
+		c.Set(service.OpsSkipPassthroughKey, true)
+	}
+	return status, message
 }
 
 // enqueueCyberSessionBlockedOpsEntry captures request meta and enqueues the

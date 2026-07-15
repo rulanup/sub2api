@@ -203,6 +203,28 @@
 
         <!-- Tab: Gateway -->
         <div v-show="activeTab === 'gateway'" class="space-y-6">
+          <div class="card">
+            <div class="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                  {{ t("admin.errorPassthrough.title") }}
+                </h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {{ t("admin.errorPassthrough.description") }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="btn btn-primary flex-shrink-0"
+                data-testid="open-error-customization"
+                @click="showErrorPassthroughRules = true"
+              >
+                <Icon name="shield" size="sm" class="mr-1.5" />
+                {{ t("admin.errorPassthrough.manageRules") }}
+              </button>
+            </div>
+          </div>
+
           <!-- Overload Cooldown (529) Settings -->
           <div class="card">
             <div
@@ -7350,6 +7372,10 @@
       </form>
 
       <!-- Provider dialogs placed outside the settings form to prevent form submission bubbling -->
+      <ErrorPassthroughRulesModal
+        :show="showErrorPassthroughRules"
+        @close="showErrorPassthroughRules = false"
+      />
       <PaymentProviderDialog
         ref="providerDialogRef"
         :show="showProviderDialog"
@@ -7430,6 +7456,7 @@ import Toggle from "@/components/common/Toggle.vue";
 import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
+import ErrorPassthroughRulesModal from "@/components/admin/ErrorPassthroughRulesModal.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
@@ -7483,6 +7510,7 @@ type SettingsTab =
   | "email"
   | "backup";
 const activeTab = ref<SettingsTab>("general");
+const showErrorPassthroughRules = ref(false);
 const settingsTabs = [
   { key: "general" as SettingsTab, icon: "home" as const },
   { key: "agreement" as SettingsTab, icon: "document" as const },

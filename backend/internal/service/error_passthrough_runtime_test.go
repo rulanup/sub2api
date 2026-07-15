@@ -8,12 +8,15 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/model"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
 
 func TestApplyErrorPassthroughRule_NoBoundService(t *testing.T) {
@@ -363,6 +366,182 @@ func TestGeminiWriteGeminiMappedError_SetsResponseCommitted(t *testing.T) {
 	err := svc.writeGeminiMappedError(c, account, http.StatusBadRequest, "req-99", body)
 	require.Error(t, err)
 	assert.True(t, IsResponseCommitted(c), "Gemini path must mark response committed")
+}
+
+func TestErrorPassthroughCompleteReplacementFor401And429(t *testing.T) {
+	for _, status := range []int{http.StatusUnauthorized, http.StatusTooManyRequests} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			message := "  replacement only  "
+			ruleSvc := &ErrorPassthroughService{}
+			ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{newNonFailoverPassthroughRule(status, "upstream secret", status, message)})
+			BindErrorPassthroughService(c, ruleSvc)
+
+			original := []byte(`{"error":{"type":"authentication_error","code":"invalid_api_key","message":"upstream secret detail"}}`)
+			clientStatus, clientBody, matched := applyErrorPassthroughRuleToJSON(c, PlatformOpenAI, status, original)
+
+			require.True(t, matched)
+			assert.Equal(t, status, clientStatus)
+			assert.JSONEq(t, `{"error":{"type":"authentication_error","code":"invalid_api_key","message":"replacement only"}}`, string(clientBody))
+			assert.Contains(t, string(original), "upstream secret detail")
+		})
+	}
+}
+
+func TestCyberPolicyReplacementKeepsOriginalMarkEvidence(t *testing.T) {
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	custom := "Request rejected"
+	status := http.StatusBadRequest
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{{
+		Enabled: true, Priority: 1, Keywords: []string{"cyber_policy"}, MatchMode: model.MatchModeAny,
+		Platforms: []string{PlatformOpenAI}, PassthroughCode: true, PassthroughBody: false, CustomMessage: &custom,
+	}})
+	BindErrorPassthroughService(c, ruleSvc)
+	original := []byte(`{"type":"response.failed","response":{"error":{"type":"safety_error","code":"cyber_policy","message":"original evidence"}}}`)
+	MarkOpsCyberPolicy(c, CyberPolicyMark{Code: "cyber_policy", Message: "original evidence", Body: string(original), UpstreamStatus: status})
+
+	clientBody := applyErrorPassthroughRuleToOpenAIWSEvent(c, PlatformOpenAI, original)
+	mark := GetOpsCyberPolicy(c)
+	require.NotNil(t, mark)
+	assert.Equal(t, "original evidence", mark.Message)
+	assert.Contains(t, mark.Body, "original evidence")
+	assert.Equal(t, "Request rejected", gjson.GetBytes(clientBody, "response.error.message").String())
+	assert.Equal(t, "cyber_policy", gjson.GetBytes(clientBody, "response.error.code").String())
+}
+
+func TestNativeGeminiErrorReplacementPreservesGoogleEnvelope(t *testing.T) {
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	custom := "Gemini unavailable"
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{newNonFailoverPassthroughRule(http.StatusTooManyRequests, "quota", http.StatusServiceUnavailable, custom)})
+	BindErrorPassthroughService(c, ruleSvc)
+	original := []byte(`{"error":{"code":429,"message":"quota exhausted","status":"RESOURCE_EXHAUSTED","details":[{"reason":"RATE_LIMIT"}]}}`)
+
+	status, clientBody, matched := applyErrorPassthroughRuleToGoogleJSON(c, PlatformGemini, http.StatusTooManyRequests, original)
+
+	require.True(t, matched)
+	assert.Equal(t, http.StatusServiceUnavailable, status)
+	assert.Equal(t, float64(http.StatusServiceUnavailable), gjson.GetBytes(clientBody, "error.code").Float())
+	assert.Equal(t, "RESOURCE_EXHAUSTED", gjson.GetBytes(clientBody, "error.status").String())
+	assert.Equal(t, "RATE_LIMIT", gjson.GetBytes(clientBody, "error.details.0.reason").String())
+	assert.Equal(t, custom, gjson.GetBytes(clientBody, "error.message").String())
+}
+
+func TestErrorReplacementSupportsProtocolMessageShapes(t *testing.T) {
+	custom := "replacement"
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{newNonFailoverPassthroughRule(http.StatusBadRequest, "original", http.StatusBadRequest, custom)})
+	for _, original := range []string{
+		`{"message":"original"}`,
+		`{"detail":"original"}`,
+		`{"error":"original"}`,
+	} {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		BindErrorPassthroughService(c, ruleSvc)
+		_, body, matched := applyErrorPassthroughRuleToJSON(c, PlatformOpenAI, http.StatusBadRequest, []byte(original))
+		require.True(t, matched)
+		require.NotContains(t, string(body), "original")
+		require.Contains(t, string(body), custom)
+	}
+}
+
+func TestErrorReplacementPreservesStructuredErrorWithoutMessage(t *testing.T) {
+	custom := "replacement"
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{newNonFailoverPassthroughRule(http.StatusBadRequest, "marker", http.StatusBadRequest, custom)})
+	original := []byte(`{"error":{"code":"marker","type":"invalid_request_error"}}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	BindErrorPassthroughService(c, ruleSvc)
+
+	_, body, matched := applyErrorPassthroughRuleToJSONPath(c, PlatformOpenAI, http.StatusBadRequest, original, "error.message")
+	require.True(t, matched)
+	require.Equal(t, "marker", gjson.GetBytes(body, "error.code").String())
+	require.Equal(t, "invalid_request_error", gjson.GetBytes(body, "error.type").String())
+	require.Equal(t, custom, gjson.GetBytes(body, "error.message").String())
+}
+
+func TestKnownSerializerInsertsMessageWithoutCorruptingArbitraryJSON(t *testing.T) {
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{newNonFailoverPassthroughRule(http.StatusBadRequest, "marker", http.StatusBadRequest, "replacement")})
+	original := []byte(`{"code":"marker","metadata":{"keep":true}}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	BindErrorPassthroughService(c, ruleSvc)
+	_, generic, matched := applyErrorPassthroughRuleToJSON(c, PlatformOpenAI, http.StatusBadRequest, original)
+	require.True(t, matched)
+	require.JSONEq(t, string(original), string(generic))
+	_, known, matched := applyErrorPassthroughRuleToJSONPath(c, PlatformOpenAI, http.StatusBadRequest, original, "error.message")
+	require.True(t, matched)
+	require.Equal(t, "replacement", gjson.GetBytes(known, "error.message").String())
+	require.True(t, gjson.GetBytes(known, "metadata.keep").Bool())
+}
+
+func TestOpenAIWSErrorAndResponseFailedReplacementKeepsClassification(t *testing.T) {
+	custom := "Please retry later"
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{newNonFailoverPassthroughRule(http.StatusTooManyRequests, "rate_limit", http.StatusTooManyRequests, custom)})
+
+	for _, payload := range [][]byte{
+		[]byte(`{"type":"error","error":{"type":"rate_limit_error","code":"rate_limit_exceeded","message":"rate_limit original"}}`),
+		[]byte(`{"type":"response.failed","response":{"error":{"type":"rate_limit_error","code":"rate_limit_exceeded","message":"rate_limit original"}}}`),
+	} {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		BindErrorPassthroughService(c, ruleSvc)
+		code, errType, _ := parseOpenAIWSErrorEventFields(payload)
+		originalStatus := openAIWSErrorHTTPStatusFromRaw(code, errType)
+		if gjson.GetBytes(payload, "type").String() == "response.failed" {
+			originalStatus = openAIStreamFailedEventSemanticStatus(payload, extractOpenAISSEErrorMessage(payload))
+		}
+
+		clientBody := applyErrorPassthroughRuleToOpenAIWSEvent(c, PlatformOpenAI, payload)
+
+		assert.Equal(t, http.StatusTooManyRequests, originalStatus, "failover classification must use original fields")
+		assert.Equal(t, "rate_limit_exceeded", firstNonEmpty(
+			gjson.GetBytes(clientBody, "error.code").String(),
+			gjson.GetBytes(clientBody, "response.error.code").String(),
+		))
+		assert.NotContains(t, string(clientBody), "rate_limit original")
+		assert.Contains(t, string(clientBody), custom)
+	}
+}
+
+func TestMatching429RuleDoesNotSuppressOpenAIFailover(t *testing.T) {
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	ruleSvc := &ErrorPassthroughService{}
+	ruleSvc.setLocalCache([]*model.ErrorPassthroughRule{newNonFailoverPassthroughRule(
+		http.StatusTooManyRequests, "rate limit", http.StatusTeapot, "custom terminal message",
+	)})
+	BindErrorPassthroughService(c, ruleSvc)
+	account := &Account{ID: 44, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	resp := &http.Response{StatusCode: http.StatusTooManyRequests, Header: http.Header{}}
+	body := []byte(`{"error":{"message":"rate limit"}}`)
+
+	failoverErr := (&OpenAIGatewayService{}).failoverOpenAIUpstreamHTTPError(
+		context.Background(), c, account, resp, body, "rate limit", "gpt-5",
+	)
+
+	require.NotNil(t, failoverErr)
+	require.Equal(t, http.StatusTooManyRequests, failoverErr.StatusCode)
+	require.Equal(t, PlatformOpenAI, failoverErr.Platform)
+	require.Equal(t, body, failoverErr.ResponseBody)
+	require.False(t, c.Writer.Written(), "customization is terminal-only and must not write during failover")
+}
+
+func TestRuntimeCustomMessageCapIsUTF8Safe(t *testing.T) {
+	message := strings.Repeat("界", model.MaxErrorPassthroughCustomMessageLength+5)
+	got := SanitizeErrorPassthroughCustomMessage(message)
+	assert.True(t, utf8.ValidString(got))
+	assert.Equal(t, model.MaxErrorPassthroughCustomMessageLength, utf8.RuneCountInString(got))
+	assert.True(t, utf8.ValidString(TruncateErrorPassthroughWSReason(strings.Repeat("界", 100))))
+	assert.LessOrEqual(t, len(TruncateErrorPassthroughWSReason(strings.Repeat("界", 100))), 120)
 }
 
 func newNonFailoverPassthroughRule(statusCode int, keyword string, respCode int, customMessage string) *model.ErrorPassthroughRule {

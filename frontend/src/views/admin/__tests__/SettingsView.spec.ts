@@ -306,6 +306,18 @@ const ImageUploadStub = defineComponent({
   },
 });
 
+const ErrorPassthroughRulesModalStub = defineComponent({
+  props: { show: Boolean },
+  emits: ["close"],
+  setup(props) {
+    return () =>
+      h("div", {
+        class: "error-passthrough-modal-stub",
+        "data-show": String(props.show),
+      });
+  },
+});
+
 const baseSettingsResponse = {
   registration_enabled: true,
   email_verify_enabled: false,
@@ -482,6 +494,7 @@ function mountView() {
         ProxySelector: true,
         ImageUpload: ImageUploadStub,
         BackupSettings: true,
+        ErrorPassthroughRulesModal: ErrorPassthroughRulesModalStub,
       },
     },
   });
@@ -514,6 +527,16 @@ async function openUsersTab(wrapper: ReturnType<typeof mountView>) {
 
   expect(usersTabButton).toBeDefined();
   await usersTabButton?.trigger("click");
+  await flushPromises();
+}
+
+async function openGatewayTab(wrapper: ReturnType<typeof mountView>) {
+  const gatewayTabButton = wrapper
+    .findAll("button")
+    .find((node) => node.text().includes("admin.settings.tabs.gateway"));
+
+  expect(gatewayTabButton).toBeDefined();
+  await gatewayTabButton?.trigger("click");
   await flushPromises();
 }
 
@@ -792,6 +815,7 @@ describe("admin SettingsView payment visible method controls", () => {
           ProxySelector: true,
           ImageUpload: ImageUploadStub,
           BackupSettings: true,
+          ErrorPassthroughRulesModal: ErrorPassthroughRulesModalStub,
         },
       },
     });
@@ -815,6 +839,18 @@ describe("admin SettingsView payment visible method controls", () => {
       "默认关闭。开启后仅影响本网关在 OpenAI 账号间的实验性调度选择逻辑",
     );
     expect(wrapper.text()).not.toContain("OpenAI 高级调度器");
+  });
+
+  it("opens error customization from the Gateway tab", async () => {
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openGatewayTab(wrapper);
+    expect(wrapper.get(".error-passthrough-modal-stub").attributes("data-show")).toBe("false");
+
+    await wrapper.get('[data-testid="open-error-customization"]').trigger("click");
+
+    expect(wrapper.get(".error-passthrough-modal-stub").attributes("data-show")).toBe("true");
   });
 
   it("passes translated upload and remove labels to the payment help image uploader", async () => {
@@ -885,6 +921,7 @@ describe("admin SettingsView payment visible method controls", () => {
           ProxySelector: true,
           ImageUpload: ImageUploadStub,
           BackupSettings: true,
+          ErrorPassthroughRulesModal: ErrorPassthroughRulesModalStub,
         },
       },
     });

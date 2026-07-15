@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/model"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -746,7 +747,7 @@ func TestBindGrokMediaVideoRequestAccountUsesRequestIDStickyHash(t *testing.T) {
 	require.Equal(t, int64(63), accountID)
 }
 
-func TestForwardGrokMedia429ReconcilesRateLimitBeforeCustomErrorBypass(t *testing.T) {
+func TestForwardGrokMedia429MatchingRuleStillReturnsFailover(t *testing.T) {
 	t.Setenv(xai.EnvAllowUnsafeURLOverrides, "true")
 	gin.SetMode(gin.TestMode)
 
@@ -755,6 +756,14 @@ func TestForwardGrokMedia429ReconcilesRateLimitBeforeCustomErrorBypass(t *testin
 	body := []byte(`{"model":"grok-imagine","prompt":"draw a cat"}`)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
 	c.Request.Header.Set("Content-Type", "application/json")
+	custom := "custom terminal message"
+	rules := &ErrorPassthroughService{}
+	rules.setLocalCache([]*model.ErrorPassthroughRule{{
+		Enabled: true, Priority: 1, ErrorCodes: []int{http.StatusTooManyRequests}, Keywords: []string{"do not expose"},
+		MatchMode: model.MatchModeAll, Platforms: []string{PlatformGrok}, PassthroughCode: false,
+		ResponseCode: func() *int { value := http.StatusTeapot; return &value }(), PassthroughBody: false, CustomMessage: &custom,
+	}})
+	BindErrorPassthroughService(c, rules)
 
 	account := &Account{
 		ID:          64,
@@ -766,7 +775,7 @@ func TestForwardGrokMedia429ReconcilesRateLimitBeforeCustomErrorBypass(t *testin
 			"api_key":                    "api-key",
 			"base_url":                   "https://xai.test/v1",
 			"custom_error_codes_enabled": true,
-			"custom_error_codes":         []any{float64(http.StatusBadRequest)},
+			"custom_error_codes":         []any{float64(http.StatusTooManyRequests)},
 		},
 	}
 	upstream := &httpUpstreamRecorder{resp: &http.Response{
@@ -784,9 +793,11 @@ func TestForwardGrokMedia429ReconcilesRateLimitBeforeCustomErrorBypass(t *testin
 	result, err := svc.ForwardGrokMedia(context.Background(), c, account, GrokMediaEndpointImagesGenerations, "", body, "application/json")
 	require.Error(t, err)
 	require.Nil(t, result)
-	require.Equal(t, http.StatusInternalServerError, recorder.Code)
-	require.Contains(t, recorder.Body.String(), "Upstream gateway error")
-	require.NotContains(t, recorder.Body.String(), "do not expose")
+	var failoverErr *UpstreamFailoverError
+	require.ErrorAs(t, err, &failoverErr)
+	require.Equal(t, http.StatusTooManyRequests, failoverErr.StatusCode)
+	require.Equal(t, PlatformGrok, failoverErr.Platform)
+	require.False(t, c.Writer.Written(), "matching rule must not commit a response before account failover")
 	require.Equal(t, 1, repo.rateLimitedCalls)
 	require.Zero(t, repo.tempUnschedCalls)
 	require.True(t, svc.isOpenAIAccountRuntimeBlocked(account))

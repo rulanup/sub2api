@@ -1143,19 +1143,38 @@ export default {
 
     // Error Passthrough Rules
     errorPassthrough: {
-      title: 'Error Passthrough Rules',
-      description: 'Configure how upstream errors are returned to clients',
+      title: 'Error Customization',
+      description: 'Customize the status and message returned to clients for selected upstream errors.',
+      manageRules: 'Manage rules',
       createRule: 'Create Rule',
       editRule: 'Edit Rule',
       deleteRule: 'Delete Rule',
       noRules: 'No rules configured',
-      createFirstRule: 'Create your first error passthrough rule',
+      createFirstRule: 'Create your first error customization rule',
       allPlatforms: 'All Platforms',
       passthrough: 'Passthrough',
       custom: 'Custom',
       code: 'Code',
       body: 'Body',
       skipMonitoring: 'Skip Monitoring',
+
+      presets: {
+        authentication: {
+          label: '401 Authentication',
+          name: 'Authentication error',
+          hint: 'Match status 401 and return custom text.'
+        },
+        rateLimit: {
+          label: '429 Rate limit',
+          name: 'Rate limit error',
+          hint: 'Match status 429 and return custom text.'
+        },
+        securityPolicy: {
+          label: 'Security policy',
+          name: 'Security policy error',
+          hint: 'Match the cyber_policy keyword with no status condition.'
+        }
+      },
 
       // Columns
       columns: {
@@ -1178,8 +1197,10 @@ export default {
 
       // Form
       form: {
+        quickPresets: 'Quick presets',
+        quickPresetsHint: 'Apply a starting point, then review and complete the rule before saving.',
         name: 'Rule Name',
-        namePlaceholder: 'e.g., Context Limit Passthrough',
+        namePlaceholder: 'e.g., Context limit response',
         priority: 'Priority',
         priorityHint: 'Lower values have higher priority',
         description: 'Description',
@@ -1195,11 +1216,18 @@ export default {
         platforms: 'Platforms',
         platformsHint: 'Leave empty to apply to all platforms',
         responseBehavior: 'Response Behavior',
-        passthroughCode: 'Passthrough upstream status code',
+        responseStatus: 'Response status',
+        responseStatusHint: 'Keep the upstream status or replace it with a custom HTTP status.',
+        originalStatus: 'Original status',
+        customStatus: 'Custom status',
         responseCode: 'Custom status code',
-        passthroughBody: 'Passthrough upstream error message',
-        customMessage: 'Custom error message',
-        customMessagePlaceholder: 'Error message to return to client...',
+        responseMessage: 'Response message',
+        responseMessageHint: 'Return the original upstream message or replace it completely.',
+        originalMessage: 'Original upstream message',
+        customText: 'Custom text',
+        customMessage: 'Replacement text',
+        customMessagePlaceholder: 'Enter the complete text returned to the client',
+        customMessageHint: 'This text completely replaces the upstream error message. Maximum 2000 characters.',
         skipMonitoring: 'Skip monitoring',
         skipMonitoringHint: 'When enabled, errors matching this rule will not be recorded in ops monitoring',
         enabled: 'Enable this rule'
@@ -1208,6 +1236,10 @@ export default {
       // Messages
       nameRequired: 'Please enter rule name',
       conditionsRequired: 'Please configure at least one error code or keyword',
+      invalidErrorCodes: 'Error status codes must be integers between 100 and 599',
+      invalidResponseCode: 'The custom response status must be an integer between 100 and 599',
+      customMessageRequired: 'Please enter replacement text for the custom response message',
+      customMessageTooLong: 'Replacement text cannot exceed 2000 characters',
       ruleCreated: 'Rule created successfully',
       ruleUpdated: 'Rule updated successfully',
       ruleDeleted: 'Rule deleted successfully',

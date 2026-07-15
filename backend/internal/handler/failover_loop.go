@@ -71,6 +71,9 @@ func (s *FailoverState) HandleFailoverError(
 	retryLimit int,
 	failoverErr *service.UpstreamFailoverError,
 ) FailoverAction {
+	if failoverErr.Platform == "" {
+		failoverErr.Platform = platform
+	}
 	s.LastFailoverErr = failoverErr
 
 	// 缓存计费判断

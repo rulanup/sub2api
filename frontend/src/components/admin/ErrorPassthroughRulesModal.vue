@@ -216,6 +216,24 @@
       @close="closeFormModal"
     >
       <form @submit.prevent="handleSubmit" class="space-y-4">
+        <fieldset>
+          <legend class="input-label">{{ t('admin.errorPassthrough.form.quickPresets') }}</legend>
+          <p class="input-hint mb-2">{{ t('admin.errorPassthrough.form.quickPresetsHint') }}</p>
+          <div class="grid gap-2 sm:grid-cols-3">
+            <button
+              v-for="preset in presetOptions"
+              :key="preset.key"
+              type="button"
+              class="rounded-md border border-gray-200 px-3 py-2 text-left transition-colors hover:border-primary-400 hover:bg-primary-50 dark:border-dark-600 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+              :data-testid="`error-preset-${preset.key}`"
+              @click="applyPreset(preset)"
+            >
+              <span class="block text-sm font-medium text-gray-900 dark:text-white">{{ preset.label }}</span>
+              <span class="mt-0.5 block text-xs text-gray-500 dark:text-gray-400">{{ preset.hint }}</span>
+            </button>
+          </div>
+        </fieldset>
+
         <!-- Basic Info -->
         <div class="grid grid-cols-2 gap-4">
           <div>
@@ -328,18 +346,25 @@
             {{ t('admin.errorPassthrough.form.responseBehavior') }}
           </h4>
 
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  v-model="form.passthrough_code"
-                  class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('admin.errorPassthrough.form.passthroughCode') }}
-                </span>
-              </label>
+          <div class="grid gap-4 md:grid-cols-2">
+            <fieldset>
+              <legend class="input-label text-xs">{{ t('admin.errorPassthrough.form.responseStatus') }}</legend>
+              <div class="grid grid-cols-2 rounded-md bg-gray-100 p-1 dark:bg-dark-700">
+                <label
+                  v-for="option in statusModeOptions"
+                  :key="String(option.value)"
+                  :class="[
+                    'cursor-pointer rounded px-2 py-1.5 text-center text-xs font-medium transition-colors',
+                    form.passthrough_code === option.value
+                      ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-600 dark:text-primary-300'
+                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                  ]"
+                >
+                  <input v-model="form.passthrough_code" type="radio" name="response-status-mode" :value="option.value" class="sr-only" />
+                  {{ option.label }}
+                </label>
+              </div>
+              <p class="input-hint text-xs">{{ t('admin.errorPassthrough.form.responseStatusHint') }}</p>
               <div v-if="!form.passthrough_code" class="mt-2">
                 <label class="input-label text-xs">{{ t('admin.errorPassthrough.form.responseCode') }}</label>
                 <input
@@ -351,28 +376,40 @@
                   placeholder="422"
                 />
               </div>
-            </div>
-            <div>
-              <label class="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  v-model="form.passthrough_body"
-                  class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
-                  {{ t('admin.errorPassthrough.form.passthroughBody') }}
-                </span>
-              </label>
+            </fieldset>
+            <fieldset>
+              <legend class="input-label text-xs">{{ t('admin.errorPassthrough.form.responseMessage') }}</legend>
+              <div class="grid grid-cols-2 rounded-md bg-gray-100 p-1 dark:bg-dark-700">
+                <label
+                  v-for="option in bodyModeOptions"
+                  :key="String(option.value)"
+                  :class="[
+                    'cursor-pointer rounded px-2 py-1.5 text-center text-xs font-medium transition-colors',
+                    form.passthrough_body === option.value
+                      ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-600 dark:text-primary-300'
+                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                  ]"
+                >
+                  <input v-model="form.passthrough_body" type="radio" name="response-message-mode" :value="option.value" class="sr-only" />
+                  {{ option.label }}
+                </label>
+              </div>
+              <p class="input-hint text-xs">{{ t('admin.errorPassthrough.form.responseMessageHint') }}</p>
               <div v-if="!form.passthrough_body" class="mt-2">
                 <label class="input-label text-xs">{{ t('admin.errorPassthrough.form.customMessage') }}</label>
-                <input
+                <textarea
                   v-model="form.custom_message"
-                  type="text"
                   class="input text-sm"
+                  rows="4"
+                  data-testid="custom-message"
                   :placeholder="t('admin.errorPassthrough.form.customMessagePlaceholder')"
                 />
+                <div class="mt-1 flex items-start justify-between gap-3 text-xs text-gray-500 dark:text-gray-400">
+                  <span>{{ t('admin.errorPassthrough.form.customMessageHint') }}</span>
+                  <span class="shrink-0 tabular-nums">{{ customMessageLength }}/2000</span>
+                </div>
               </div>
-            </div>
+            </fieldset>
           </div>
         </div>
 
@@ -480,10 +517,58 @@ const form = reactive({
   description: null as string | null
 })
 
+interface PresetOption {
+  key: 'authentication' | 'rateLimit' | 'securityPolicy'
+  label: string
+  hint: string
+  name: string
+  errorCodes: number[]
+  keywords: string[]
+}
+
+const presetOptions = computed<PresetOption[]>(() => [
+  {
+    key: 'authentication',
+    label: t('admin.errorPassthrough.presets.authentication.label'),
+    hint: t('admin.errorPassthrough.presets.authentication.hint'),
+    name: t('admin.errorPassthrough.presets.authentication.name'),
+    errorCodes: [401],
+    keywords: []
+  },
+  {
+    key: 'rateLimit',
+    label: t('admin.errorPassthrough.presets.rateLimit.label'),
+    hint: t('admin.errorPassthrough.presets.rateLimit.hint'),
+    name: t('admin.errorPassthrough.presets.rateLimit.name'),
+    errorCodes: [429],
+    keywords: []
+  },
+  {
+    key: 'securityPolicy',
+    label: t('admin.errorPassthrough.presets.securityPolicy.label'),
+    hint: t('admin.errorPassthrough.presets.securityPolicy.hint'),
+    name: t('admin.errorPassthrough.presets.securityPolicy.name'),
+    errorCodes: [],
+    keywords: ['cyber_policy']
+  }
+])
+
 const matchModeOptions = computed(() => [
   { value: 'any', label: t('admin.errorPassthrough.matchMode.any'), description: t('admin.errorPassthrough.matchMode.anyHint') },
   { value: 'all', label: t('admin.errorPassthrough.matchMode.all'), description: t('admin.errorPassthrough.matchMode.allHint') }
 ])
+
+const statusModeOptions = computed(() => [
+  { value: true, label: t('admin.errorPassthrough.form.originalStatus') },
+  { value: false, label: t('admin.errorPassthrough.form.customStatus') }
+])
+
+const bodyModeOptions = computed(() => [
+  { value: true, label: t('admin.errorPassthrough.form.originalMessage') },
+  { value: false, label: t('admin.errorPassthrough.form.customText') }
+])
+
+const customMessageLength = computed(() => Array.from(form.custom_message || '').length)
 
 const platformOptions = [
   { value: 'anthropic', label: 'Anthropic' },
@@ -535,6 +620,17 @@ const closeFormModal = () => {
   resetForm()
 }
 
+const applyPreset = (preset: PresetOption) => {
+  form.name = preset.name
+  form.match_mode = 'any'
+  form.passthrough_code = true
+  form.response_code = null
+  form.passthrough_body = false
+  form.custom_message = ''
+  errorCodesInput.value = preset.errorCodes.join(', ')
+  keywordsInput.value = preset.keywords.join('\n')
+}
+
 const handleEdit = (rule: ErrorPassthroughRule) => {
   editingRule.value = rule
   form.name = rule.name
@@ -558,12 +654,17 @@ const handleDelete = (rule: ErrorPassthroughRule) => {
   showDeleteDialog.value = true
 }
 
-const parseErrorCodes = (): number[] => {
-  if (!errorCodesInput.value.trim()) return []
-  return errorCodesInput.value
+const parseErrorCodes = (): { values: number[]; valid: boolean } => {
+  if (!errorCodesInput.value.trim()) return { values: [], valid: true }
+  const tokens = errorCodesInput.value
     .split(/[,\s]+/)
-    .map(s => parseInt(s.trim(), 10))
-    .filter(n => !isNaN(n) && n > 0)
+    .map(s => s.trim())
+    .filter(Boolean)
+  const values = tokens.map(token => Number(token))
+  return {
+    values: Array.from(new Set(values.filter(code => Number.isInteger(code) && code >= 100 && code <= 599))),
+    valid: values.every(code => Number.isInteger(code) && code >= 100 && code <= 599)
+  }
 }
 
 const parseKeywords = (): string[] => {
@@ -580,11 +681,31 @@ const handleSubmit = async () => {
     return
   }
 
-  const errorCodes = parseErrorCodes()
+  const parsedErrorCodes = parseErrorCodes()
+  if (!parsedErrorCodes.valid) {
+    appStore.showError(t('admin.errorPassthrough.invalidErrorCodes'))
+    return
+  }
+  const errorCodes = parsedErrorCodes.values
   const keywords = parseKeywords()
 
   if (errorCodes.length === 0 && keywords.length === 0) {
     appStore.showError(t('admin.errorPassthrough.conditionsRequired'))
+    return
+  }
+
+  if (!form.passthrough_code && (!Number.isInteger(form.response_code) || Number(form.response_code) < 100 || Number(form.response_code) > 599)) {
+    appStore.showError(t('admin.errorPassthrough.invalidResponseCode'))
+    return
+  }
+
+  const customMessage = form.custom_message?.trim() || ''
+  if (!form.passthrough_body && !customMessage) {
+    appStore.showError(t('admin.errorPassthrough.customMessageRequired'))
+    return
+  }
+  if (Array.from(customMessage).length > 2000) {
+    appStore.showError(t('admin.errorPassthrough.customMessageTooLong'))
     return
   }
 
@@ -601,7 +722,7 @@ const handleSubmit = async () => {
       passthrough_code: form.passthrough_code,
       response_code: form.passthrough_code ? null : form.response_code,
       passthrough_body: form.passthrough_body,
-      custom_message: form.passthrough_body ? null : form.custom_message,
+      custom_message: form.passthrough_body ? null : customMessage,
       skip_monitoring: form.skip_monitoring,
       description: form.description?.trim() || null
     }

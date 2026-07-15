@@ -810,7 +810,7 @@ func (s *GeminiMessagesCompatService) writeGeminiChatCompletionsMappedError(
 
 	if status, errType, errMsg, matched := applyErrorPassthroughRule(
 		c,
-		PlatformGemini,
+		account.Platform,
 		upstreamStatus,
 		body,
 		http.StatusBadGateway,

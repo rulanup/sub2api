@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/model"
 	"github.com/gin-gonic/gin"
 )
 
@@ -136,6 +137,12 @@ func TestImagesOAuthNonStreaming_ContentRefusalReturns400NoRetry(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", nil)
+	custom := "custom image refusal"
+	rules := &ErrorPassthroughService{}
+	rules.setLocalCache([]*model.ErrorPassthroughRule{newNonFailoverPassthroughRule(
+		http.StatusBadRequest, "安全系统", http.StatusUnprocessableEntity, custom,
+	)})
+	BindErrorPassthroughService(c, rules)
 	resp := &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(upstreamSSE))}
 
 	svc := &OpenAIGatewayService{}
@@ -158,6 +165,9 @@ func TestImagesOAuthNonStreaming_ContentRefusalReturns400NoRetry(t *testing.T) {
 	}
 	if !strings.Contains(imgErr.Message, "安全系统") && !strings.Contains(imgErr.Message, "违规") {
 		t.Fatalf("refusal message should carry model's reason, got %q", imgErr.Message)
+	}
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), custom) {
+		t.Fatalf("custom refusal must preserve image error envelope, status=%d body=%s", rec.Code, rec.Body.String())
 	}
 }
 

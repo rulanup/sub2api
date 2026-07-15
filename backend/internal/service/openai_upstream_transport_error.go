@@ -130,6 +130,7 @@ func (s *OpenAIGatewayService) handleOpenAIUpstreamTransportError(ctx context.Co
 
 	return &UpstreamFailoverError{
 		StatusCode:   http.StatusBadGateway,
+		Platform:     account.Platform,
 		ResponseBody: openAITransportFailoverBody,
 	}
 }

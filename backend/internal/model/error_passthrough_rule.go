@@ -1,7 +1,11 @@
 // Package model 定义服务层使用的数据模型。
 package model
 
-import "time"
+import (
+	"strings"
+	"time"
+	"unicode/utf8"
+)
 
 // ErrorPassthroughRule 全局错误透传规则
 // 用于控制上游错误如何返回给客户端
@@ -30,6 +34,12 @@ const MatchModeAny = "any"
 // MatchModeAll 表示所有条件都必须匹配
 const MatchModeAll = "all"
 
+const (
+	MaxErrorPassthroughCustomMessageLength = 2000
+	MaxErrorPassthroughKeywords            = 50
+	MaxErrorPassthroughKeywordLength       = 256
+)
+
 // 支持的平台常量
 const (
 	PlatformAnthropic   = "anthropic"
@@ -46,6 +56,7 @@ func AllPlatforms() []string {
 
 // Validate 验证规则配置的有效性
 func (r *ErrorPassthroughRule) Validate() error {
+	r.Name = strings.TrimSpace(r.Name)
 	if r.Name == "" {
 		return &ValidationError{Field: "name", Message: "name is required"}
 	}
@@ -56,8 +67,66 @@ func (r *ErrorPassthroughRule) Validate() error {
 	if len(r.ErrorCodes) == 0 && len(r.Keywords) == 0 {
 		return &ValidationError{Field: "conditions", Message: "at least one error_code or keyword is required"}
 	}
-	if !r.PassthroughCode && (r.ResponseCode == nil || *r.ResponseCode <= 0) {
+	seenCodes := make(map[int]struct{}, len(r.ErrorCodes))
+	codes := r.ErrorCodes[:0]
+	for _, code := range r.ErrorCodes {
+		if code < 100 || code > 599 {
+			return &ValidationError{Field: "error_codes", Message: "error codes must be between 100 and 599"}
+		}
+		if _, exists := seenCodes[code]; !exists {
+			seenCodes[code] = struct{}{}
+			codes = append(codes, code)
+		}
+	}
+	r.ErrorCodes = codes
+	if len(r.Keywords) > MaxErrorPassthroughKeywords {
+		return &ValidationError{Field: "keywords", Message: "too many keywords"}
+	}
+	seenKeywords := make(map[string]struct{}, len(r.Keywords))
+	keywords := r.Keywords[:0]
+	for _, keyword := range r.Keywords {
+		keyword = strings.TrimSpace(keyword)
+		if keyword == "" {
+			return &ValidationError{Field: "keywords", Message: "keywords must not be empty"}
+		}
+		if utf8.RuneCountInString(keyword) > MaxErrorPassthroughKeywordLength {
+			return &ValidationError{Field: "keywords", Message: "keyword is too long"}
+		}
+		if _, exists := seenKeywords[keyword]; !exists {
+			seenKeywords[keyword] = struct{}{}
+			keywords = append(keywords, keyword)
+		}
+	}
+	r.Keywords = keywords
+	validPlatforms := make(map[string]struct{}, len(AllPlatforms()))
+	for _, platform := range AllPlatforms() {
+		validPlatforms[platform] = struct{}{}
+	}
+	seenPlatforms := make(map[string]struct{}, len(r.Platforms))
+	platforms := r.Platforms[:0]
+	for _, platform := range r.Platforms {
+		platform = strings.TrimSpace(platform)
+		if _, valid := validPlatforms[platform]; !valid {
+			return &ValidationError{Field: "platforms", Message: "unsupported platform: " + platform}
+		}
+		if _, exists := seenPlatforms[platform]; !exists {
+			seenPlatforms[platform] = struct{}{}
+			platforms = append(platforms, platform)
+		}
+	}
+	r.Platforms = platforms
+	if !r.PassthroughCode && r.ResponseCode == nil {
 		return &ValidationError{Field: "response_code", Message: "response_code is required when passthrough_code is false"}
+	}
+	if r.ResponseCode != nil && (*r.ResponseCode < 100 || *r.ResponseCode > 599) {
+		return &ValidationError{Field: "response_code", Message: "response_code must be between 100 and 599"}
+	}
+	if r.CustomMessage != nil {
+		message := strings.TrimSpace(*r.CustomMessage)
+		if utf8.RuneCountInString(message) > MaxErrorPassthroughCustomMessageLength {
+			return &ValidationError{Field: "custom_message", Message: "custom_message is too long"}
+		}
+		r.CustomMessage = &message
 	}
 	if !r.PassthroughBody && (r.CustomMessage == nil || *r.CustomMessage == "") {
 		return &ValidationError{Field: "custom_message", Message: "custom_message is required when passthrough_body is false"}

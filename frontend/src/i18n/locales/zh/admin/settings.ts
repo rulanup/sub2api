@@ -1138,19 +1138,38 @@ export default {
 
     // Error Passthrough Rules
     errorPassthrough: {
-      title: '错误透传规则',
-      description: '配置上游错误如何返回给客户端',
+      title: '错误定制',
+      description: '针对指定上游错误，定制返回给客户端的状态码和错误信息。',
+      manageRules: '管理规则',
       createRule: '创建规则',
       editRule: '编辑规则',
       deleteRule: '删除规则',
       noRules: '暂无规则',
-      createFirstRule: '创建第一条错误透传规则',
+      createFirstRule: '创建第一条错误定制规则',
       allPlatforms: '所有平台',
       passthrough: '透传',
       custom: '自定义',
       code: '状态码',
       body: '消息体',
       skipMonitoring: '跳过监控',
+
+      presets: {
+        authentication: {
+          label: '401 身份认证',
+          name: '身份认证错误',
+          hint: '匹配 401 状态码并返回自定义文本。'
+        },
+        rateLimit: {
+          label: '429 速率限制',
+          name: '速率限制错误',
+          hint: '匹配 429 状态码并返回自定义文本。'
+        },
+        securityPolicy: {
+          label: '安全策略',
+          name: '安全策略错误',
+          hint: '仅匹配 cyber_policy 关键词，不限制状态码。'
+        }
+      },
 
       // Columns
       columns: {
@@ -1173,8 +1192,10 @@ export default {
 
       // Form
       form: {
+        quickPresets: '快捷预设',
+        quickPresetsHint: '应用预设作为起点，检查并补全规则后再保存。',
         name: '规则名称',
-        namePlaceholder: '例如：上下文超限透传',
+        namePlaceholder: '例如：上下文超限响应',
         priority: '优先级',
         priorityHint: '数值越小优先级越高，优先匹配',
         description: '规则描述',
@@ -1190,11 +1211,18 @@ export default {
         platforms: '适用平台',
         platformsHint: '不选择表示适用于所有平台',
         responseBehavior: '响应行为',
-        passthroughCode: '透传上游状态码',
+        responseStatus: '响应状态码',
+        responseStatusHint: '保留上游状态码，或替换为指定的 HTTP 状态码。',
+        originalStatus: '原始状态码',
+        customStatus: '自定义状态码',
         responseCode: '自定义状态码',
-        passthroughBody: '透传上游错误信息',
-        customMessage: '自定义错误信息',
-        customMessagePlaceholder: '返回给客户端的错误信息...',
+        responseMessage: '响应信息',
+        responseMessageHint: '返回上游原始信息，或使用自定义文本完整替换。',
+        originalMessage: '上游原始信息',
+        customText: '自定义文本',
+        customMessage: '替换文本',
+        customMessagePlaceholder: '输入返回给客户端的完整文本',
+        customMessageHint: '此文本将完整替换上游错误信息，最多 2000 个字符。',
         skipMonitoring: '跳过运维监控记录',
         skipMonitoringHint: '开启后，匹配此规则的错误不会被记录到运维监控中',
         enabled: '启用此规则'
@@ -1203,6 +1231,10 @@ export default {
       // Messages
       nameRequired: '请输入规则名称',
       conditionsRequired: '请至少配置一个错误码或关键词',
+      invalidErrorCodes: '错误状态码必须是 100–599 之间的整数',
+      invalidResponseCode: '自定义响应状态码必须是 100–599 之间的整数',
+      customMessageRequired: '使用自定义响应信息时，请输入替换文本',
+      customMessageTooLong: '替换文本不能超过 2000 个字符',
       ruleCreated: '规则创建成功',
       ruleUpdated: '规则更新成功',
       ruleDeleted: '规则删除成功',

@@ -463,6 +463,7 @@ func (s *OpenAIGatewayService) handleFailoverErrorResponsePassthrough(
 	})
 	return &UpstreamFailoverError{
 		StatusCode:      resp.StatusCode,
+		Platform:        account.Platform,
 		ResponseBody:    body,
 		ResponseHeaders: resp.Header.Clone(),
 	}
@@ -527,7 +528,11 @@ func (s *OpenAIGatewayService) handleErrorResponsePassthrough(
 	if contentType == "" {
 		contentType = "application/json"
 	}
-	c.Data(resp.StatusCode, contentType, body)
+	clientStatus, clientBody, matched := applyErrorPassthroughRuleToJSONPath(c, account.Platform, resp.StatusCode, body, "error.message")
+	if matched && !bytes.Equal(clientBody, body) && gjson.ValidBytes(clientBody) {
+		contentType = "application/json"
+	}
+	c.Data(clientStatus, contentType, clientBody)
 
 	if upstreamMsg == "" {
 		return fmt.Errorf("upstream error: %d", resp.StatusCode)
@@ -644,6 +649,12 @@ func openAIStreamFailedEventSemanticStatus(payload []byte, message string) int {
 	case strings.Contains(combined, "permission") || strings.Contains(combined, "forbidden") || strings.Contains(combined, "access denied"):
 		return http.StatusForbidden
 	case code == "server_is_overloaded" || code == "slow_down":
+		return http.StatusServiceUnavailable
+	case strings.Contains(combined, "service_unavailable") ||
+		strings.Contains(combined, "service unavailable") ||
+		strings.Contains(combined, "temporarily unavailable") ||
+		strings.Contains(combined, "overload") ||
+		strings.Contains(combined, " 503"):
 		return http.StatusServiceUnavailable
 	default:
 		return http.StatusBadGateway
@@ -821,6 +832,7 @@ func (s *OpenAIGatewayService) newOpenAIStreamFailoverError(
 	})
 	return &UpstreamFailoverError{
 		StatusCode:   http.StatusBadGateway,
+		Platform:     account.Platform,
 		ResponseBody: body,
 	}
 }
@@ -932,10 +944,14 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 					})
 				}
 				if !openAIStreamClientOutputStarted(c, clientOutputStarted) {
+					if openAIStreamFailedEventShouldFailover(dataBytes, failedMessage) {
+						return resultWithUsage(),
+							s.newOpenAIStreamFailoverError(c, account, true, upstreamRequestID, dataBytes, failedMessage)
+					}
+				}
+				failedMessage = s.recordOpenAIStreamUpstreamError(c, account, true, upstreamRequestID, "http_error", dataBytes, failedMessage)
+				if !openAIStreamClientOutputStarted(c, clientOutputStarted) {
 					if status, errType, errMsg, matched := applyOpenAIStreamFailedErrorPassthroughRule(c, account.Platform, dataBytes, failedMessage); matched {
-						// 命中透传规则也要记录 ops 上游错误事件（对齐 CC/Messages 与
-						// antigravity 先例），否则透传命中的 failed 在监控中不可见。
-						s.recordOpenAIStreamUpstreamError(c, account, true, upstreamRequestID, "http_error", dataBytes, failedMessage)
 						MarkResponseCommitted(c)
 						c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 						c.JSON(status, gin.H{
@@ -945,10 +961,6 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 							},
 						})
 						return resultWithUsage(), fmt.Errorf("upstream response failed: passthrough rule matched message=%s", errMsg)
-					}
-					if openAIStreamFailedEventShouldFailover(dataBytes, failedMessage) {
-						return resultWithUsage(),
-							s.newOpenAIStreamFailoverError(c, account, true, upstreamRequestID, dataBytes, failedMessage)
 					}
 				}
 				forceFlushFailedEvent = true
@@ -972,6 +984,11 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				dataBytes = sanitizedData
 				trimmedData = strings.TrimSpace(string(sanitizedData))
 				line = "data: " + string(sanitizedData)
+			}
+			if eventType == "response.failed" {
+				dataBytes = applyErrorPassthroughRuleToOpenAIWSEvent(c, account.Platform, dataBytes)
+				trimmedData = strings.TrimSpace(string(dataBytes))
+				line = "data: " + string(dataBytes)
 			}
 			lineStartsClientOutput = forceFlushFailedEvent || openAIStreamDataStartsClientOutput(trimmedData, eventType)
 			if firstTokenMs == nil && lineStartsClientOutput && trimmedData != "[DONE]" {

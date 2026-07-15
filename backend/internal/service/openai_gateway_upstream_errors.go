@@ -296,7 +296,8 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 		if contentType == "" {
 			contentType = "application/json"
 		}
-		c.Data(resp.StatusCode, contentType, body)
+		clientStatus, clientBody, _ := applyErrorPassthroughRuleToJSONPath(c, account.Platform, resp.StatusCode, body, "error.message")
+		c.Data(clientStatus, contentType, clientBody)
 		if cyberMsg == "" {
 			return nil, fmt.Errorf("openai cyber_policy: %d", resp.StatusCode)
 		}
@@ -327,31 +328,6 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 		)
 	}
 
-	if status, errType, errMsg, matched := applyErrorPassthroughRule(
-		c,
-		PlatformOpenAI,
-		resp.StatusCode,
-		body,
-		http.StatusBadGateway,
-		"upstream_error",
-		"Upstream request failed",
-	); matched {
-		MarkResponseCommitted(c)
-		c.JSON(status, gin.H{
-			"error": gin.H{
-				"type":    errType,
-				"message": errMsg,
-			},
-		})
-		if upstreamMsg == "" {
-			upstreamMsg = errMsg
-		}
-		if upstreamMsg == "" {
-			return nil, fmt.Errorf("upstream error: %d (passthrough rule matched)", resp.StatusCode)
-		}
-		return nil, fmt.Errorf("upstream error: %d (passthrough rule matched) message=%s", resp.StatusCode, upstreamMsg)
-	}
-
 	// Check custom error codes
 	if !account.ShouldHandleErrorCode(resp.StatusCode) {
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
@@ -364,11 +340,15 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 			Message:            upstreamMsg,
 			Detail:             upstreamDetail,
 		})
+		status, errType, errMsg, _ := applyErrorPassthroughRule(
+			c, account.Platform, resp.StatusCode, body,
+			http.StatusInternalServerError, "upstream_error", "Upstream gateway error",
+		)
 		MarkResponseCommitted(c)
-		c.JSON(http.StatusInternalServerError, gin.H{
+		c.JSON(status, gin.H{
 			"error": gin.H{
-				"type":    "upstream_error",
-				"message": "Upstream gateway error",
+				"type":    errType,
+				"message": errMsg,
 			},
 		})
 		if upstreamMsg == "" {
@@ -403,6 +383,7 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 	if shouldDisable {
 		return nil, &UpstreamFailoverError{
 			StatusCode:             resp.StatusCode,
+			Platform:               account.Platform,
 			ResponseBody:           body,
 			RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
 		}
@@ -439,6 +420,10 @@ func (s *OpenAIGatewayService) handleErrorResponse(
 	if isOpenAIContextWindowError(upstreamMsg, body) && upstreamMsg != "" {
 		errMsg = upstreamMsg
 	}
+	statusCode, errType, errMsg, _ = applyErrorPassthroughRule(
+		c, account.Platform, resp.StatusCode, body,
+		statusCode, errType, errMsg,
+	)
 
 	c.JSON(statusCode, gin.H{
 		"error": gin.H{
@@ -487,7 +472,14 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 		if clientMsg == "" {
 			clientMsg = "Request blocked by upstream cyber-security policy"
 		}
-		writeError(c, resp.StatusCode, "invalid_request_error", clientMsg)
+		status, _, customizedMsg, matched := applyErrorPassthroughRule(
+			c, account.Platform, resp.StatusCode, body,
+			resp.StatusCode, "invalid_request_error", clientMsg,
+		)
+		if matched {
+			clientMsg = customizedMsg
+		}
+		writeError(c, status, "invalid_request_error", clientMsg)
 		if cyberMsg == "" {
 			return nil, fmt.Errorf("openai cyber_policy: %d", resp.StatusCode)
 		}
@@ -510,22 +502,6 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 	}
 	setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, upstreamDetail)
 
-	// Apply error passthrough rules
-	if status, errType, errMsg, matched := applyErrorPassthroughRule(
-		c, account.Platform, resp.StatusCode, body,
-		http.StatusBadGateway, "api_error", "Upstream request failed",
-	); matched {
-		MarkResponseCommitted(c)
-		writeError(c, status, errType, errMsg)
-		if upstreamMsg == "" {
-			upstreamMsg = errMsg
-		}
-		if upstreamMsg == "" {
-			return nil, fmt.Errorf("upstream error: %d (passthrough rule matched)", resp.StatusCode)
-		}
-		return nil, fmt.Errorf("upstream error: %d (passthrough rule matched) message=%s", resp.StatusCode, upstreamMsg)
-	}
-
 	// Check custom error codes — if the account does not handle this status,
 	// return a generic error without exposing upstream details.
 	if !account.ShouldHandleErrorCode(resp.StatusCode) {
@@ -539,8 +515,12 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 			Message:            upstreamMsg,
 			Detail:             upstreamDetail,
 		})
+		status, errType, errMsg, _ := applyErrorPassthroughRule(
+			c, account.Platform, resp.StatusCode, body,
+			http.StatusInternalServerError, "api_error", "Upstream gateway error",
+		)
 		MarkResponseCommitted(c)
-		writeError(c, http.StatusInternalServerError, "api_error", "Upstream gateway error")
+		writeError(c, status, errType, errMsg)
 		if upstreamMsg == "" {
 			return nil, fmt.Errorf("upstream error: %d (not in custom error codes)", resp.StatusCode)
 		}
@@ -572,6 +552,7 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 	if shouldDisable {
 		return nil, &UpstreamFailoverError{
 			StatusCode:             resp.StatusCode,
+			Platform:               account.Platform,
 			ResponseBody:           body,
 			RetryableOnSameAccount: account.IsPoolMode() && account.IsPoolModeRetryableStatus(resp.StatusCode),
 		}
@@ -591,7 +572,11 @@ func (s *OpenAIGatewayService) handleCompatErrorResponse(
 	case resp.StatusCode >= 500:
 		errType = "api_error"
 	}
+	status, errType, errMsg, _ := applyErrorPassthroughRule(
+		c, account.Platform, resp.StatusCode, body,
+		resp.StatusCode, errType, upstreamMsg,
+	)
 
-	writeError(c, resp.StatusCode, errType, upstreamMsg)
+	writeError(c, status, errType, errMsg)
 	return nil, fmt.Errorf("upstream error: %d %s", resp.StatusCode, upstreamMsg)
 }

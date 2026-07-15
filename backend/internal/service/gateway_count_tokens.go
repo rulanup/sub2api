@@ -232,7 +232,11 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		case 529:
 			errMsg = "Service overloaded"
 		}
-		s.countTokensError(c, resp.StatusCode, "upstream_error", errMsg)
+		clientStatus, errType, clientMsg, _ := applyErrorPassthroughRule(
+			c, account.Platform, resp.StatusCode, respBody,
+			resp.StatusCode, "upstream_error", errMsg,
+		)
+		s.countTokensError(c, clientStatus, errType, clientMsg)
 		if upstreamMsg == "" {
 			return fmt.Errorf("upstream error: %d", resp.StatusCode)
 		}
@@ -343,7 +347,11 @@ func (s *GatewayService) forwardCountTokensAnthropicAPIKeyPassthrough(ctx contex
 		case 529:
 			errMsg = "Service overloaded"
 		}
-		s.countTokensError(c, resp.StatusCode, "upstream_error", errMsg)
+		clientStatus, errType, clientMsg, _ := applyErrorPassthroughRule(
+			c, account.Platform, resp.StatusCode, respBody,
+			resp.StatusCode, "upstream_error", errMsg,
+		)
+		s.countTokensError(c, clientStatus, errType, clientMsg)
 		if upstreamMsg == "" {
 			return fmt.Errorf("upstream error: %d", resp.StatusCode)
 		}

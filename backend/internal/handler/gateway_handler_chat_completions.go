@@ -332,10 +332,37 @@ func (h *GatewayHandler) handleCCFailoverExhausted(c *gin.Context, lastErr *serv
 	if lastErr != nil && lastErr.StatusCode > 0 {
 		statusCode = lastErr.StatusCode
 	}
+	responseBody := []byte(nil)
+	platform := service.PlatformAnthropic
+	if lastErr != nil {
+		responseBody = lastErr.ResponseBody
+		if lastErr.Platform != "" {
+			platform = lastErr.Platform
+		}
+	}
+	upstreamMsg := service.ExtractUpstreamErrorMessage(responseBody)
+	service.SetOpsUpstreamError(c, statusCode, upstreamMsg, "")
 	if lastErr != nil && service.IsOpenAISilentRefusalErrorBody(lastErr.ResponseBody) {
 		service.SetOpsUpstreamError(c, statusCode, service.OpenAISilentRefusalClientMessage(), "")
 		h.chatCompletionsErrorResponse(c, http.StatusBadGateway, "upstream_error", service.OpenAISilentRefusalClientMessage())
 		return
 	}
-	h.chatCompletionsErrorResponse(c, statusCode, "server_error", "All available accounts exhausted")
+	clientStatus, errType, message := statusCode, "server_error", "All available accounts exhausted"
+	if h.errorPassthroughService != nil && len(responseBody) > 0 {
+		if rule := h.errorPassthroughService.MatchRule(platform, statusCode, responseBody); rule != nil {
+			if !rule.PassthroughCode && rule.ResponseCode != nil {
+				clientStatus = *rule.ResponseCode
+			}
+			if !rule.PassthroughBody && rule.CustomMessage != nil {
+				message = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+			} else if upstreamMsg != "" {
+				message = upstreamMsg
+			}
+			errType = "upstream_error"
+			if rule.SkipMonitoring {
+				c.Set(service.OpsSkipPassthroughKey, true)
+			}
+		}
+	}
+	h.chatCompletionsErrorResponse(c, clientStatus, errType, message)
 }
