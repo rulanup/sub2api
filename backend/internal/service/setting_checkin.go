@@ -19,7 +19,10 @@ func (s *SettingService) IsCheckinEnabled(ctx context.Context) bool {
 func (s *SettingService) GetCheckinAmountRange(ctx context.Context) (float64, float64) {
 	minVal, _ := s.settingRepo.GetValue(ctx, SettingKeyCheckinMinAmount)
 	maxVal, _ := s.settingRepo.GetValue(ctx, SettingKeyCheckinMaxAmount)
+	return parseCheckinAmountRange(minVal, maxVal)
+}
 
+func parseCheckinAmountRange(minVal, maxVal string) (float64, float64) {
 	minAmt := 0.01
 	maxAmt := 0.10
 

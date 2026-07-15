@@ -104,6 +104,30 @@ func TestSettingService_GetPublicSettings_ExposesAllowUserViewErrorRequests(t *t
 	require.True(t, settings.AllowUserViewErrorRequests)
 }
 
+func TestSettingService_GetPublicSettings_ExposesCheckinSettings(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyCheckinEnabled:   "true",
+			SettingKeyCheckinMinAmount: "0.25",
+			SettingKeyCheckinMaxAmount: "1.50",
+		},
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.CheckinEnabled)
+	require.Equal(t, 0.25, settings.CheckinMinAmount)
+	require.Equal(t, 1.50, settings.CheckinMaxAmount)
+
+	payload, err := svc.GetPublicSettingsForInjection(context.Background())
+	require.NoError(t, err)
+	injection := payload.(*PublicSettingsInjectionPayload)
+	require.True(t, injection.CheckinEnabled)
+	require.Equal(t, 0.25, injection.CheckinMinAmount)
+	require.Equal(t, 1.50, injection.CheckinMaxAmount)
+}
+
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{
 		values: map[string]string{
