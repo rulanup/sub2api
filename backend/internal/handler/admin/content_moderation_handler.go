@@ -53,6 +53,15 @@ type contentModerationConfigRequest struct {
 	BlockedKeywords                *[]string                             `json:"blocked_keywords"`
 	KeywordBlockingMode            *string                               `json:"keyword_blocking_mode"`
 	ModelFilter                    *service.ContentModerationModelFilter `json:"model_filter"`
+	SyncAbuseDetectionEnabled      *bool                                 `json:"sync_abuse_detection_enabled"`
+	SyncAbuseWhitelistUserIDs      *[]int64                              `json:"sync_abuse_whitelist_user_ids"`
+	SyncAbuseRPMLimit              *int                                  `json:"sync_abuse_rpm_limit"`
+	SyncAbuseConcurrency           *int                                  `json:"sync_abuse_concurrency"`
+	SyncAbuseDisableUser           *bool                                 `json:"sync_abuse_disable_user"`
+	CyberUsageDetectionEnabled     *bool                                 `json:"cyber_usage_detection_enabled"`
+	CyberUsageWhitelistUserIDs     *[]int64                              `json:"cyber_usage_whitelist_user_ids"`
+	CyberUsageBanThreshold         *int                                  `json:"cyber_usage_ban_threshold"`
+	CyberUsageWindowHours          *int                                  `json:"cyber_usage_window_hours"`
 }
 
 type contentModerationAPIKeyTestRequest struct {
@@ -115,6 +124,15 @@ func (h *ContentModerationHandler) UpdateConfig(c *gin.Context) {
 		BlockedKeywords:                req.BlockedKeywords,
 		KeywordBlockingMode:            req.KeywordBlockingMode,
 		ModelFilter:                    req.ModelFilter,
+		SyncAbuseDetectionEnabled:      req.SyncAbuseDetectionEnabled,
+		SyncAbuseWhitelistUserIDs:      req.SyncAbuseWhitelistUserIDs,
+		SyncAbuseRPMLimit:              req.SyncAbuseRPMLimit,
+		SyncAbuseConcurrency:           req.SyncAbuseConcurrency,
+		SyncAbuseDisableUser:           req.SyncAbuseDisableUser,
+		CyberUsageDetectionEnabled:     req.CyberUsageDetectionEnabled,
+		CyberUsageWhitelistUserIDs:     req.CyberUsageWhitelistUserIDs,
+		CyberUsageBanThreshold:         req.CyberUsageBanThreshold,
+		CyberUsageWindowHours:          req.CyberUsageWindowHours,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

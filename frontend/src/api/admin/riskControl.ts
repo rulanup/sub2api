@@ -41,6 +41,15 @@ export interface ContentModerationConfig {
   keyword_blocking_mode: KeywordBlockingMode
   model_filter: ContentModerationModelFilter
   cyber_policy_exclude_from_ban_count: boolean
+  sync_abuse_detection_enabled: boolean
+  sync_abuse_whitelist_user_ids: number[]
+  sync_abuse_rpm_limit: number
+  sync_abuse_concurrency: number
+  sync_abuse_disable_user: boolean
+  cyber_usage_detection_enabled: boolean
+  cyber_usage_whitelist_user_ids: number[]
+  cyber_usage_ban_threshold: number
+  cyber_usage_window_hours: number
 }
 
 export type ContentModerationAPIKeyStatusValue = 'unknown' | 'ok' | 'error' | 'frozen'
@@ -117,6 +126,15 @@ export interface UpdateContentModerationConfig {
   keyword_blocking_mode?: KeywordBlockingMode
   model_filter?: ContentModerationModelFilter
   cyber_policy_exclude_from_ban_count?: boolean
+  sync_abuse_detection_enabled?: boolean
+  sync_abuse_whitelist_user_ids?: number[]
+  sync_abuse_rpm_limit?: number
+  sync_abuse_concurrency?: number
+  sync_abuse_disable_user?: boolean
+  cyber_usage_detection_enabled?: boolean
+  cyber_usage_whitelist_user_ids?: number[]
+  cyber_usage_ban_threshold?: number
+  cyber_usage_window_hours?: number
 }
 
 export interface ContentModerationRuntimeStatus {

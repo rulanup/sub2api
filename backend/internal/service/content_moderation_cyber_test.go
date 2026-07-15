@@ -44,6 +44,14 @@ func (r *cyberOrderingTestRepo) CountFlaggedByUserSince(ctx context.Context, use
 	return 0, nil
 }
 
+func (r *cyberOrderingTestRepo) ListSyncAbuseCandidateUserIDs(ctx context.Context, start, end time.Time, requiredMinuteBuckets int) ([]int64, error) {
+	return []int64{}, nil
+}
+
+func (r *cyberOrderingTestRepo) ListCyberUsageCandidateUserIDs(ctx context.Context, since time.Time, threshold int) ([]int64, error) {
+	return []int64{}, nil
+}
+
 func (r *cyberOrderingTestRepo) CleanupExpiredLogs(ctx context.Context, hitBefore time.Time, nonHitBefore time.Time) (*ContentModerationCleanupResult, error) {
 	return &ContentModerationCleanupResult{}, nil
 }

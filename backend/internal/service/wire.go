@@ -198,6 +198,22 @@ func ProvideDashboardAggregationService(repo DashboardAggregationRepository, tim
 	return svc
 }
 
+func ProvideContentModerationService(
+	settingRepo SettingRepository,
+	repo ContentModerationRepository,
+	hashCache ContentModerationHashCache,
+	groupRepo GroupRepository,
+	userRepo UserRepository,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	emailService *EmailService,
+	lockCache LeaderLockCache,
+	db *sql.DB,
+) *ContentModerationService {
+	svc := NewContentModerationService(settingRepo, repo, hashCache, groupRepo, userRepo, authCacheInvalidator, emailService)
+	svc.SetLeaderLock(lockCache, db)
+	return svc
+}
+
 // ProvideUsageCleanupService 创建并启动使用记录清理任务服务
 func ProvideUsageCleanupService(repo UsageCleanupRepository, timingWheel *TimingWheelService, dashboardAgg *DashboardAggregationService, cfg *config.Config) *UsageCleanupService {
 	svc := NewUsageCleanupService(repo, timingWheel, dashboardAgg, cfg)
@@ -650,7 +666,7 @@ var ProviderSet = wire.NewSet(
 	NewGroupCapacityService,
 	NewChannelService,
 	NewModelPricingResolver,
-	NewContentModerationService,
+	ProvideContentModerationService,
 	NewAffiliateService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,

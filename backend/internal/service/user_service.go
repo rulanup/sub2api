@@ -122,6 +122,14 @@ type UserRepository interface {
 	DisableTotp(ctx context.Context, userID int64) error
 }
 
+// AbuseDetectionUserRepository exposes only the conditional partial updates used
+// by the periodic abuse scanners. Implementations must reject deleted, inactive,
+// and admin users and report whether a row actually changed.
+type AbuseDetectionUserRepository interface {
+	ApplySyncAbuseAction(ctx context.Context, userID int64, rpmLimit, concurrency int, disable bool) (bool, error)
+	ApplyCyberAbuseAction(ctx context.Context, userID int64) (bool, error)
+}
+
 // RedeemUserAdjustmentRepository provides the atomic, floor-at-zero updates
 // used by negative-value redeem codes. It is intentionally narrower than
 // UserRepository because normal usage billing is allowed to overdraw.

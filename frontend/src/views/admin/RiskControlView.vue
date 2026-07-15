@@ -860,6 +860,75 @@
             </div>
           </div>
 
+          <div v-else-if="activeSettingsTab === 'abuse'" class="space-y-6" data-test="abuse-settings">
+            <section class="w-full border-b border-gray-100 pb-6 dark:border-dark-700">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.syncAbuseTitle') }}</h3>
+                  <p class="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.syncAbuseRule') }}</p>
+                </div>
+                <Toggle v-model="configForm.sync_abuse_detection_enabled" />
+              </div>
+
+              <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div>
+                  <label class="input-label">{{ t('admin.riskControl.syncAbuseRpmLimit') }}</label>
+                  <input v-model.number="configForm.sync_abuse_rpm_limit" data-test="sync-abuse-rpm" type="number" min="1" max="1000000" step="1" class="input" />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.riskControl.syncAbuseConcurrency') }}</label>
+                  <input v-model.number="configForm.sync_abuse_concurrency" data-test="sync-abuse-concurrency" type="number" min="1" max="10000" step="1" class="input" />
+                </div>
+                <div class="flex items-center justify-between gap-4 md:col-span-2">
+                  <div>
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.riskControl.syncAbuseDisableUser') }}</p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.syncAbuseDisableUserHint') }}</p>
+                  </div>
+                  <Toggle v-model="configForm.sync_abuse_disable_user" />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="input-label">{{ t('admin.riskControl.userAllowlist') }}</label>
+                  <SearchableUserAllowlistSelector
+                    v-model="configForm.sync_abuse_whitelist_user_ids"
+                    data-test="sync-abuse-allowlist"
+                    :placeholder="t('admin.riskControl.syncAbuseAllowlistPlaceholder')"
+                  />
+                  <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.syncAbuseAllowlistHint') }}</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="w-full">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.cyberUsageTitle') }}</h3>
+                  <p class="mt-1 text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.cyberUsageRule') }}</p>
+                </div>
+                <Toggle v-model="configForm.cyber_usage_detection_enabled" />
+              </div>
+
+              <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div>
+                  <label class="input-label">{{ t('admin.riskControl.cyberUsageBanThreshold') }}</label>
+                  <input v-model.number="configForm.cyber_usage_ban_threshold" data-test="cyber-usage-threshold" type="number" min="1" max="1000000" step="1" class="input" />
+                </div>
+                <div>
+                  <label class="input-label">{{ t('admin.riskControl.cyberUsageWindowHours') }}</label>
+                  <input v-model.number="configForm.cyber_usage_window_hours" data-test="cyber-usage-window" type="number" min="1" max="8760" step="1" class="input" />
+                </div>
+                <div class="md:col-span-2">
+                  <label class="input-label">{{ t('admin.riskControl.userAllowlist') }}</label>
+                  <SearchableUserAllowlistSelector
+                    v-model="configForm.cyber_usage_whitelist_user_ids"
+                    data-test="cyber-usage-allowlist"
+                    :placeholder="t('admin.riskControl.cyberUsageAllowlistPlaceholder')"
+                  />
+                  <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.cyberUsageAllowlistHint') }}</p>
+                </div>
+              </div>
+            </section>
+          </div>
+
           <div v-else-if="activeSettingsTab === 'response'" class="space-y-5">
             <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
               <div>
@@ -1123,6 +1192,7 @@ import Select from '@/components/common/Select.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import ModelWhitelistSelector from '@/components/account/ModelWhitelistSelector.vue'
+import SearchableUserAllowlistSelector from '@/components/admin/SearchableUserAllowlistSelector.vue'
 import { adminAPI } from '@/api/admin'
 import type {
   ContentModerationAPIKeyLoad,
@@ -1142,7 +1212,7 @@ import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime as formatDateTimeValue } from '@/utils/format'
 
-type SettingsTab = 'basic' | 'scope' | 'runtime' | 'response' | 'riskThresholds' | 'retention' | 'keywords'
+type SettingsTab = 'basic' | 'scope' | 'runtime' | 'abuse' | 'response' | 'riskThresholds' | 'retention' | 'keywords'
 type WorkerSlotState = 'active' | 'idle' | 'disabled'
 type APIKeysWriteMode = 'append' | 'replace'
 type OverviewIcon = 'shield' | 'key' | 'users' | 'document'
@@ -1252,6 +1322,15 @@ const configForm = reactive({
   keyword_blocking_mode: 'keyword_and_api' as KeywordBlockingMode,
   model_filter_type: 'all' as ContentModerationModelFilterType,
   model_filter_models: [] as string[],
+  sync_abuse_detection_enabled: false,
+  sync_abuse_whitelist_user_ids: [] as number[],
+  sync_abuse_rpm_limit: 10,
+  sync_abuse_concurrency: 1,
+  sync_abuse_disable_user: false,
+  cyber_usage_detection_enabled: false,
+  cyber_usage_whitelist_user_ids: [] as number[],
+  cyber_usage_ban_threshold: 3,
+  cyber_usage_window_hours: 24,
 })
 
 const pagination = reactive({
@@ -1274,6 +1353,7 @@ const settingsTabs = computed<Array<{ id: SettingsTab; label: string }>>(() => [
   { id: 'basic', label: t('admin.riskControl.tabs.basic') },
   { id: 'scope', label: t('admin.riskControl.tabs.scope') },
   { id: 'runtime', label: t('admin.riskControl.tabs.runtime') },
+  { id: 'abuse', label: t('admin.riskControl.tabs.abuse') },
   { id: 'response', label: t('admin.riskControl.tabs.response') },
   { id: 'riskThresholds', label: t('admin.riskControl.tabs.riskThresholds') },
   { id: 'keywords', label: t('admin.riskControl.tabs.keywords') },
@@ -1690,6 +1770,13 @@ const runtimeBadgeClass = computed(() => {
   return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
 })
 
+function normalizeUserIDs(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  return Array.from(new Set(value
+    .map(Number)
+    .filter((id) => Number.isInteger(id) && id > 0)))
+}
+
 function applyConfig(config: ContentModerationConfig) {
   configForm.enabled = config.enabled
   configForm.mode = config.mode
@@ -1730,6 +1817,15 @@ function applyConfig(config: ContentModerationConfig) {
   const modelFilter = normalizeModelFilter(config.model_filter)
   configForm.model_filter_type = modelFilter.type
   configForm.model_filter_models = modelFilter.models
+  configForm.sync_abuse_detection_enabled = config.sync_abuse_detection_enabled ?? false
+  configForm.sync_abuse_whitelist_user_ids = normalizeUserIDs(config.sync_abuse_whitelist_user_ids)
+  configForm.sync_abuse_rpm_limit = Number(config.sync_abuse_rpm_limit) || 10
+  configForm.sync_abuse_concurrency = Number(config.sync_abuse_concurrency) || 1
+  configForm.sync_abuse_disable_user = config.sync_abuse_disable_user ?? false
+  configForm.cyber_usage_detection_enabled = config.cyber_usage_detection_enabled ?? false
+  configForm.cyber_usage_whitelist_user_ids = normalizeUserIDs(config.cyber_usage_whitelist_user_ids)
+  configForm.cyber_usage_ban_threshold = Number(config.cyber_usage_ban_threshold) || 3
+  configForm.cyber_usage_window_hours = Number(config.cyber_usage_window_hours) || 24
 }
 
 async function loadAll() {
@@ -1809,6 +1905,15 @@ async function saveConfig() {
       blocked_keywords: blockedKeywordList.value,
       keyword_blocking_mode: configForm.keyword_blocking_mode,
       model_filter: modelFilterPayload,
+      sync_abuse_detection_enabled: configForm.sync_abuse_detection_enabled,
+      sync_abuse_whitelist_user_ids: normalizeUserIDs(configForm.sync_abuse_whitelist_user_ids),
+      sync_abuse_rpm_limit: Math.min(1000000, Math.max(1, Math.trunc(Number(configForm.sync_abuse_rpm_limit) || 10))),
+      sync_abuse_concurrency: Math.min(10000, Math.max(1, Math.trunc(Number(configForm.sync_abuse_concurrency) || 1))),
+      sync_abuse_disable_user: configForm.sync_abuse_disable_user,
+      cyber_usage_detection_enabled: configForm.cyber_usage_detection_enabled,
+      cyber_usage_whitelist_user_ids: normalizeUserIDs(configForm.cyber_usage_whitelist_user_ids),
+      cyber_usage_ban_threshold: Math.min(1000000, Math.max(1, Math.trunc(Number(configForm.cyber_usage_ban_threshold) || 3))),
+      cyber_usage_window_hours: Math.min(8760, Math.max(1, Math.trunc(Number(configForm.cyber_usage_window_hours) || 24))),
     }
     const keys = parseApiKeys(configForm.api_keys_text)
     if (!payload.clear_api_key && configForm.api_keys_mode === 'replace' && keys.length === 0) {

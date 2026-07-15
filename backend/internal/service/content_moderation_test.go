@@ -81,6 +81,14 @@ type contentModerationTestRepo struct {
 	logs []ContentModerationLog
 }
 
+func (r *contentModerationTestRepo) ListSyncAbuseCandidateUserIDs(ctx context.Context, start, end time.Time, requiredMinuteBuckets int) ([]int64, error) {
+	return []int64{}, nil
+}
+
+func (r *contentModerationTestRepo) ListCyberUsageCandidateUserIDs(ctx context.Context, since time.Time, threshold int) ([]int64, error) {
+	return []int64{}, nil
+}
+
 func (r *contentModerationTestRepo) CreateLog(ctx context.Context, log *ContentModerationLog) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

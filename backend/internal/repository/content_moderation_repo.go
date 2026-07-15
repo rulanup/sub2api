@@ -205,6 +205,73 @@ WHERE user_id = $1
 	return count, nil
 }
 
+func (r *contentModerationRepository) ListSyncAbuseCandidateUserIDs(ctx context.Context, start, end time.Time, requiredMinuteBuckets int) ([]int64, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT l.user_id
+FROM usage_logs AS l
+JOIN users AS u ON u.id = l.user_id
+WHERE l.request_type = 1
+  AND l.user_id > 0
+  AND l.created_at >= $1
+  AND l.created_at < $2
+  AND u.deleted_at IS NULL
+  AND u.status = 'active'
+  AND u.role <> 'admin'
+GROUP BY l.user_id
+HAVING COUNT(DISTINCT date_trunc('minute', l.created_at)) >= $3
+ORDER BY l.user_id`, start, end, requiredMinuteBuckets)
+	if err != nil {
+		return nil, fmt.Errorf("list sync abuse candidate user ids: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	userIDs := make([]int64, 0)
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			return nil, fmt.Errorf("scan sync abuse candidate user id: %w", err)
+		}
+		userIDs = append(userIDs, userID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate sync abuse candidate user ids: %w", err)
+	}
+	return userIDs, nil
+}
+
+func (r *contentModerationRepository) ListCyberUsageCandidateUserIDs(ctx context.Context, since time.Time, threshold int) ([]int64, error) {
+	rows, err := r.db.QueryContext(ctx, `
+SELECT l.user_id
+FROM usage_logs AS l
+JOIN users AS u ON u.id = l.user_id
+WHERE l.request_type = 4
+  AND l.user_id > 0
+  AND l.created_at >= $1
+  AND u.deleted_at IS NULL
+  AND u.status = 'active'
+  AND u.role <> 'admin'
+GROUP BY l.user_id
+HAVING COUNT(*) >= $2
+ORDER BY l.user_id`, since, threshold)
+	if err != nil {
+		return nil, fmt.Errorf("list cyber usage candidate user ids: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	userIDs := make([]int64, 0)
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			return nil, fmt.Errorf("scan cyber usage candidate user id: %w", err)
+		}
+		userIDs = append(userIDs, userID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate cyber usage candidate user ids: %w", err)
+	}
+	return userIDs, nil
+}
+
 func (r *contentModerationRepository) UpdateLogEmailSent(ctx context.Context, id int64, sent bool) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE content_moderation_logs SET email_sent = $1 WHERE id = $2`, sent, id)
 	if err != nil {

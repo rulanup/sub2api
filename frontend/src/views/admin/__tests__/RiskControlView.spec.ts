@@ -105,6 +105,16 @@ const baseConfig = (): ContentModerationConfig => ({
     type: 'all',
     models: [],
   },
+  cyber_policy_exclude_from_ban_count: false,
+  sync_abuse_detection_enabled: true,
+  sync_abuse_whitelist_user_ids: [3],
+  sync_abuse_rpm_limit: 10,
+  sync_abuse_concurrency: 1,
+  sync_abuse_disable_user: true,
+  cyber_usage_detection_enabled: true,
+  cyber_usage_whitelist_user_ids: [4],
+  cyber_usage_ban_threshold: 3,
+  cyber_usage_window_hours: 24,
 })
 
 const runtimeStatus = () => ({
@@ -173,6 +183,28 @@ const ModelWhitelistSelectorStub = defineComponent({
         value: (props.modelValue as string[]).join('\n'),
         onInput,
       })
+  },
+})
+const SearchableUserAllowlistSelectorStub = defineComponent({
+  inheritAttrs: false,
+  props: {
+    modelValue: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  emits: ['update:modelValue'],
+  setup(props, { attrs, emit }) {
+    return () => h('input', {
+      'data-test': attrs['data-test'],
+      value: (props.modelValue as number[]).join(','),
+      onInput: (event: Event) => {
+        emit('update:modelValue', (event.target as HTMLInputElement).value
+          .split(',')
+          .map(Number)
+          .filter((id) => Number.isInteger(id) && id > 0))
+      },
+    })
   },
 })
 
@@ -273,6 +305,53 @@ describe('admin RiskControlView', () => {
         harassment: 0.99,
       }),
     }))
+    expect(showError).not.toHaveBeenCalled()
+  })
+
+  it('submits abuse detection settings with numeric values and copied allowlists', async () => {
+    const config = baseConfig()
+    getConfig.mockResolvedValue(config)
+    const wrapper = mount(RiskControlView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+          Select: true,
+          Toggle: true,
+          Pagination: true,
+          ModelWhitelistSelector: ModelWhitelistSelectorStub,
+          SearchableUserAllowlistSelector: SearchableUserAllowlistSelectorStub,
+        },
+      },
+    })
+
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.tabs.abuse').trigger('click')
+    await wrapper.get('[data-test="sync-abuse-rpm"]').setValue('18')
+    await wrapper.get('[data-test="sync-abuse-concurrency"]').setValue('4')
+    await wrapper.get('[data-test="cyber-usage-threshold"]').setValue('6')
+    await wrapper.get('[data-test="cyber-usage-window"]').setValue('72')
+    await wrapper.get('[data-test="sync-abuse-allowlist"]').setValue('7,8')
+    await wrapper.get('[data-test="cyber-usage-allowlist"]').setValue('9')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    const payload = updateConfig.mock.calls[0]?.[0]
+    expect(payload).toEqual(expect.objectContaining({
+      sync_abuse_detection_enabled: true,
+      sync_abuse_whitelist_user_ids: [7, 8],
+      sync_abuse_rpm_limit: 18,
+      sync_abuse_concurrency: 4,
+      sync_abuse_disable_user: true,
+      cyber_usage_detection_enabled: true,
+      cyber_usage_whitelist_user_ids: [9],
+      cyber_usage_ban_threshold: 6,
+      cyber_usage_window_hours: 72,
+    }))
+    expect(payload.sync_abuse_whitelist_user_ids).not.toBe(config.sync_abuse_whitelist_user_ids)
+    expect(payload.cyber_usage_whitelist_user_ids).not.toBe(config.cyber_usage_whitelist_user_ids)
     expect(showError).not.toHaveBeenCalled()
   })
 

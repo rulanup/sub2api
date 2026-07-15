@@ -33,6 +33,7 @@ type userRepository struct {
 }
 
 var _ service.RedeemUserAdjustmentRepository = (*userRepository)(nil)
+var _ service.AbuseDetectionUserRepository = (*userRepository)(nil)
 
 func NewUserRepository(client *dbent.Client, sqlDB *sql.DB) service.UserRepository {
 	return newUserRepositoryWithSQL(client, sqlDB)
@@ -813,6 +814,61 @@ func (r *userRepository) UpdateConcurrency(ctx context.Context, id int64, amount
 		return service.ErrUserNotFound
 	}
 	return nil
+}
+
+func (r *userRepository) ApplySyncAbuseAction(ctx context.Context, userID int64, rpmLimit, concurrency int, disable bool) (bool, error) {
+	query := `
+		UPDATE users
+		SET rpm_limit = $2, concurrency = $3, updated_at = NOW()
+		WHERE id = $1
+		  AND deleted_at IS NULL
+		  AND status = $4
+		  AND role <> $5
+		  AND (rpm_limit IS DISTINCT FROM $2 OR concurrency IS DISTINCT FROM $3)
+	`
+	args := []any{userID, rpmLimit, concurrency, service.StatusActive, service.RoleAdmin}
+	if disable {
+		query = `
+			UPDATE users
+			SET rpm_limit = $2, concurrency = $3, status = $4, updated_at = NOW()
+			WHERE id = $1
+			  AND deleted_at IS NULL
+			  AND status = $5
+			  AND role <> $6
+			  AND (rpm_limit IS DISTINCT FROM $2 OR concurrency IS DISTINCT FROM $3 OR status IS DISTINCT FROM $4)
+		`
+		args = []any{userID, rpmLimit, concurrency, service.StatusDisabled, service.StatusActive, service.RoleAdmin}
+	}
+
+	result, err := r.sql.ExecContext(ctx, query, args...)
+	if err != nil {
+		return false, fmt.Errorf("apply sync abuse action: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("apply sync abuse action rows affected: %w", err)
+	}
+	return affected > 0, nil
+}
+
+func (r *userRepository) ApplyCyberAbuseAction(ctx context.Context, userID int64) (bool, error) {
+	result, err := r.sql.ExecContext(ctx, `
+		UPDATE users
+		SET status = $2, updated_at = NOW()
+		WHERE id = $1
+		  AND deleted_at IS NULL
+		  AND status = $3
+		  AND role <> $4
+		  AND status IS DISTINCT FROM $2
+	`, userID, service.StatusDisabled, service.StatusActive, service.RoleAdmin)
+	if err != nil {
+		return false, fmt.Errorf("apply cyber abuse action: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("apply cyber abuse action rows affected: %w", err)
+	}
+	return affected > 0, nil
 }
 
 func (r *userRepository) ApplyRedeemConcurrencyAdjustment(ctx context.Context, id int64, delta int) error {
