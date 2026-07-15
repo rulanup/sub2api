@@ -19,9 +19,13 @@ import (
 )
 
 // Group management implementations
+type adminGroupListRepository interface {
+	ListAdminWithFilters(ctx context.Context, params pagination.PaginationParams, platform, status, search string, isExclusive *bool) ([]Group, *pagination.PaginationResult, error)
+}
+
 func (s *adminServiceImpl) ListGroups(ctx context.Context, page, pageSize int, platform, status, search string, isExclusive *bool, sortBy, sortOrder string) ([]Group, int64, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
-	groups, result, err := s.groupRepo.ListWithFilters(ctx, params, platform, status, search, isExclusive)
+	groups, result, err := s.listAdminGroups(ctx, params, platform, status, search, isExclusive)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -29,18 +33,27 @@ func (s *adminServiceImpl) ListGroups(ctx context.Context, page, pageSize int, p
 }
 
 func (s *adminServiceImpl) GetAllGroups(ctx context.Context) ([]Group, error) {
-	return s.groupRepo.ListActive(ctx)
+	groups, _, err := s.listAdminGroups(ctx, pagination.PaginationParams{Page: 1, PageSize: 10000}, "", StatusActive, "", nil)
+	return groups, err
 }
 
 func (s *adminServiceImpl) GetAllGroupsByPlatform(ctx context.Context, platform string) ([]Group, error) {
-	return s.groupRepo.ListActiveByPlatform(ctx, platform)
+	groups, _, err := s.listAdminGroups(ctx, pagination.PaginationParams{Page: 1, PageSize: 10000}, platform, StatusActive, "", nil)
+	return groups, err
 }
 
 func (s *adminServiceImpl) GetAllGroupsIncludingInactive(ctx context.Context) ([]Group, error) {
 	// ListWithFilters with empty status = no status filter, so active + disabled groups are returned.
 	// PageSize 10000 is intentionally large; group count is O(dozens) in practice.
-	groups, _, err := s.groupRepo.ListWithFilters(ctx, pagination.PaginationParams{Page: 1, PageSize: 10000}, "", "", "", nil)
+	groups, _, err := s.listAdminGroups(ctx, pagination.PaginationParams{Page: 1, PageSize: 10000}, "", "", "", nil)
 	return groups, err
+}
+
+func (s *adminServiceImpl) listAdminGroups(ctx context.Context, params pagination.PaginationParams, platform, status, search string, isExclusive *bool) ([]Group, *pagination.PaginationResult, error) {
+	if repo, ok := s.groupRepo.(adminGroupListRepository); ok {
+		return repo.ListAdminWithFilters(ctx, params, platform, status, search, isExclusive)
+	}
+	return s.groupRepo.ListWithFilters(ctx, params, platform, status, search, isExclusive)
 }
 
 func (s *adminServiceImpl) GetGroup(ctx context.Context, id int64) (*Group, error) {

@@ -530,7 +530,9 @@ func (h *AccountHandler) List(c *gin.Context) {
 		}
 	}
 
-	var userID int64
+	// Admin resource management defaults to system accounts. User routes inject a
+	// positive user_id and therefore continue to list only that user's private pool.
+	userID := service.AccountListOwnerSystem
 	if userIDStr := c.Query("user_id"); userIDStr != "" {
 		if parsedUserID, parseErr := strconv.ParseInt(userIDStr, 10, 64); parseErr == nil && parsedUserID > 0 {
 			userID = parsedUserID
@@ -2716,7 +2718,7 @@ func (h *AccountHandler) BatchRefreshTier(c *gin.Context) {
 	accounts := make([]*service.Account, 0)
 
 	if len(req.AccountIDs) == 0 {
-		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0, "", "name", "asc", 0)
+		allAccounts, _, err := h.adminService.ListAccounts(ctx, 1, 10000, "gemini", "oauth", "", "", 0, "", "name", "asc", service.AccountListOwnerSystem)
 		if err != nil {
 			response.ErrorFrom(c, err)
 			return

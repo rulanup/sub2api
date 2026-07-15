@@ -274,6 +274,16 @@ func (r *groupRepository) List(ctx context.Context, params pagination.Pagination
 }
 
 func (r *groupRepository) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, status, search string, isExclusive *bool) ([]service.Group, *pagination.PaginationResult, error) {
+	return r.listWithFilters(ctx, params, platform, status, search, isExclusive, nil)
+}
+
+// ListAdminWithFilters excludes user-owned private groups from administrator resource management.
+func (r *groupRepository) ListAdminWithFilters(ctx context.Context, params pagination.PaginationParams, platform, status, search string, isExclusive *bool) ([]service.Group, *pagination.PaginationResult, error) {
+	isPrivate := false
+	return r.listWithFilters(ctx, params, platform, status, search, isExclusive, &isPrivate)
+}
+
+func (r *groupRepository) listWithFilters(ctx context.Context, params pagination.PaginationParams, platform, status, search string, isExclusive, isPrivate *bool) ([]service.Group, *pagination.PaginationResult, error) {
 	q := r.client.Group.Query()
 
 	if platform != "" {
@@ -290,6 +300,9 @@ func (r *groupRepository) ListWithFilters(ctx context.Context, params pagination
 	}
 	if isExclusive != nil {
 		q = q.Where(group.IsExclusiveEQ(*isExclusive))
+	}
+	if isPrivate != nil {
+		q = q.Where(group.IsPrivateEQ(*isPrivate))
 	}
 
 	total, err := q.Clone().Count(ctx)

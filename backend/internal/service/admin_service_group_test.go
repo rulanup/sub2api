@@ -23,6 +23,7 @@ type groupRepoStubForAdmin struct {
 	getErr  error  // GetByID 返回的错误
 
 	listWithFiltersCalls       int
+	listAdminWithFiltersCalls  int
 	listWithFiltersParams      pagination.PaginationParams
 	listWithFiltersPlatform    string
 	listWithFiltersStatus      string
@@ -93,6 +94,11 @@ func (s *groupRepoStubForAdmin) ListWithFilters(_ context.Context, params pagina
 	return s.listWithFiltersGroups, result, nil
 }
 
+func (s *groupRepoStubForAdmin) ListAdminWithFilters(ctx context.Context, params pagination.PaginationParams, platform, status, search string, isExclusive *bool) ([]Group, *pagination.PaginationResult, error) {
+	s.listAdminWithFiltersCalls++
+	return s.ListWithFilters(ctx, params, platform, status, search, isExclusive)
+}
+
 func (s *groupRepoStubForAdmin) ListActive(_ context.Context) ([]Group, error) {
 	panic("unexpected ListActive call")
 }
@@ -139,6 +145,7 @@ func TestAdminService_ListGroups_PassesSortParams(t *testing.T) {
 		SortBy:    "account_count",
 		SortOrder: "ASC",
 	}, repo.listWithFiltersParams)
+	require.Equal(t, 1, repo.listAdminWithFiltersCalls)
 }
 
 // TestAdminService_CreateGroup_WithImagePricing 测试创建分组时 ImagePrice 字段正确传递

@@ -488,10 +488,14 @@ func (r *accountRepository) List(ctx context.Context, params pagination.Paginati
 func (r *accountRepository) accountListFilteredQuery(platform, accountType, status, search string, groupID int64, privacyMode string, userID int64) *dbent.AccountQuery {
 	q := r.client.Account.Query()
 
-	// Filter by user_id for private accounts
+	// Positive IDs select one user's private pool; negative selects system-owned accounts.
 	if userID > 0 {
 		q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
 			s.Where(entsql.EQ("user_id", userID))
+		}))
+	} else if userID < 0 {
+		q = q.Where(dbpredicate.Account(func(s *entsql.Selector) {
+			s.Where(entsql.IsNull(s.C("user_id")))
 		}))
 	}
 
@@ -619,7 +623,7 @@ func (r *accountRepository) ListWithFilters(ctx context.Context, params paginati
 }
 
 func (r *accountRepository) ListAllWithFilters(ctx context.Context, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, error) {
-	accounts, err := r.accountListFilteredQuery(platform, accountType, status, search, groupID, privacyMode, 0).All(ctx)
+	accounts, err := r.accountListFilteredQuery(platform, accountType, status, search, groupID, privacyMode, service.AccountListOwnerSystem).All(ctx)
 	if err != nil {
 		return nil, err
 	}

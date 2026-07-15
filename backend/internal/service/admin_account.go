@@ -568,7 +568,7 @@ func (s *adminServiceImpl) resolveBulkUpdateTargetIDs(ctx context.Context, filte
 			filters.PrivacyMode,
 			"",
 			"",
-			0, // userID = 0 for admin operations
+			AccountListOwnerSystem,
 		)
 		if err != nil {
 			return nil, err

@@ -237,6 +237,7 @@ func TestExportDataPassesAccountFiltersAndSort(t *testing.T) {
 	require.Equal(t, "keyword", adminSvc.lastListAccounts.search)
 	require.Equal(t, "priority", adminSvc.lastListAccounts.sortBy)
 	require.Equal(t, "desc", adminSvc.lastListAccounts.sortOrder)
+	require.Equal(t, service.AccountListOwnerSystem, adminSvc.lastListAccounts.userID)
 }
 
 func TestExportDataSelectedIDsOverrideFilters(t *testing.T) {

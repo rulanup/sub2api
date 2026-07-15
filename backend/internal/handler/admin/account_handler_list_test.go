@@ -31,6 +31,7 @@ func TestAccountHandlerListIncludesCreatedAt(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "created_at", adminSvc.lastListAccounts.sortBy)
+	require.Equal(t, service.AccountListOwnerSystem, adminSvc.lastListAccounts.userID)
 
 	var payload struct {
 		Data struct {

@@ -16,6 +16,7 @@ var (
 )
 
 const AccountListGroupUngrouped int64 = -1
+const AccountListOwnerSystem int64 = -1
 const AccountPrivacyModeUnsetFilter = "__unset__"
 
 type AccountRepository interface {
