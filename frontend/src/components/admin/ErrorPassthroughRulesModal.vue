@@ -17,6 +17,42 @@
         </button>
       </div>
 
+      <section class="rounded-lg border border-gray-200 p-3 dark:border-dark-600" data-testid="error-passthrough-whitelist">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('admin.errorPassthrough.whitelist.title') }}
+            </h3>
+            <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+              {{ t('admin.errorPassthrough.whitelist.description') }}
+            </p>
+          </div>
+          <button
+            type="button"
+            class="btn btn-secondary btn-sm shrink-0"
+            data-testid="save-error-passthrough-whitelist"
+            :disabled="savingWhitelist || loadingWhitelist || !whitelistLoaded"
+            @click="saveWhitelist"
+          >
+            <Icon v-if="savingWhitelist" name="refresh" size="sm" class="mr-1 animate-spin" />
+            {{ savingWhitelist ? t('admin.errorPassthrough.whitelist.saving') : t('admin.errorPassthrough.whitelist.save') }}
+          </button>
+        </div>
+        <div v-if="loadingWhitelist" class="flex items-center justify-center py-3">
+          <Icon name="refresh" size="sm" class="animate-spin text-gray-400" />
+        </div>
+        <SearchableUserAllowlistSelector
+          v-else
+          v-model="whitelistUserIds"
+          class="mt-3"
+          :placeholder="t('admin.errorPassthrough.whitelist.searchPlaceholder')"
+          :empty-label="t('admin.errorPassthrough.whitelist.searchEmpty')"
+          :deleted-label="t('admin.errorPassthrough.whitelist.deleted')"
+          :fallback-label="t('admin.errorPassthrough.whitelist.fallback', { id: '{id}' })"
+          :remove-label="t('admin.errorPassthrough.whitelist.remove')"
+        />
+      </section>
+
       <!-- Rules Table -->
       <div v-if="loading" class="flex items-center justify-center py-8">
         <Icon name="refresh" size="lg" class="animate-spin text-gray-400" />
@@ -474,6 +510,7 @@ import { adminAPI } from '@/api/admin'
 import type { ErrorPassthroughRule } from '@/api/admin/errorPassthrough'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
+import SearchableUserAllowlistSelector from '@/components/admin/SearchableUserAllowlistSelector.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const props = defineProps<{
@@ -493,6 +530,12 @@ const appStore = useAppStore()
 const rules = ref<ErrorPassthroughRule[]>([])
 const loading = ref(false)
 const submitting = ref(false)
+const whitelistUserIds = ref<number[]>([])
+const loadingWhitelist = ref(false)
+const savingWhitelist = ref(false)
+const whitelistLoaded = ref(false)
+let whitelistLoadSequence = 0
+let pendingWhitelistSave: Promise<void> | null = null
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showDeleteDialog = ref(false)
@@ -578,10 +621,17 @@ const platformOptions = [
   { value: 'grok', label: 'Grok' }
 ]
 
-// Load rules when dialog opens
+// Load independent settings when the dialog opens.
 watch(() => props.show, (newVal) => {
   if (newVal) {
     loadRules()
+    loadWhitelist()
+  } else {
+    whitelistLoadSequence += 1
+    whitelistUserIds.value = []
+    whitelistLoaded.value = false
+    loadingWhitelist.value = false
+    savingWhitelist.value = false
   }
 })
 
@@ -595,6 +645,57 @@ const loadRules = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const loadWhitelist = async () => {
+  const sequence = ++whitelistLoadSequence
+  whitelistUserIds.value = []
+  whitelistLoaded.value = false
+  savingWhitelist.value = false
+  loadingWhitelist.value = true
+  try {
+    const pendingSave = pendingWhitelistSave
+    if (pendingSave) await pendingSave
+    if (sequence !== whitelistLoadSequence) return
+    const response = await adminAPI.errorPassthrough.getWhitelist()
+    if (sequence !== whitelistLoadSequence) return
+    whitelistUserIds.value = response.user_ids
+    whitelistLoaded.value = true
+  } catch (error) {
+    if (sequence !== whitelistLoadSequence) return
+    appStore.showError(t('admin.errorPassthrough.whitelist.failedToLoad'))
+    console.error('Error loading error passthrough whitelist:', error)
+  } finally {
+    if (sequence === whitelistLoadSequence) loadingWhitelist.value = false
+  }
+}
+
+const saveWhitelist = () => {
+  if (!whitelistLoaded.value || loadingWhitelist.value || savingWhitelist.value) return
+  const sequence = whitelistLoadSequence
+  const userIds = Array.from(new Set(
+    whitelistUserIds.value.filter((id) => Number.isInteger(id) && id > 0)
+  )).sort((a, b) => a - b)
+
+  savingWhitelist.value = true
+  let savePromise!: Promise<void>
+  savePromise = (async () => {
+    try {
+      const response = await adminAPI.errorPassthrough.updateWhitelist(userIds)
+      if (sequence !== whitelistLoadSequence) return
+      whitelistUserIds.value = response.user_ids
+      appStore.showSuccess(t('admin.errorPassthrough.whitelist.saved'))
+    } catch (error) {
+      if (sequence !== whitelistLoadSequence) return
+      appStore.showError(t('admin.errorPassthrough.whitelist.failedToSave'))
+      console.error('Error saving error passthrough whitelist:', error)
+    } finally {
+      if (sequence === whitelistLoadSequence) savingWhitelist.value = false
+      if (pendingWhitelistSave === savePromise) pendingWhitelistSave = null
+    }
+  })()
+  pendingWhitelistSave = savePromise
+  return savePromise
 }
 
 const resetForm = () => {

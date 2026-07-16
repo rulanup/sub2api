@@ -10,14 +10,88 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/model"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
+
+func whitelistRuntimeService() *ErrorPassthroughService {
+	customStatus := http.StatusTeapot
+	customMessage := "customized error"
+	svc := NewErrorPassthroughService(whitelistRuleRepo{rules: []*model.ErrorPassthroughRule{{
+		Name: "override", Enabled: true, Priority: -100,
+		ErrorCodes: []int{http.StatusServiceUnavailable, http.StatusTooManyRequests}, MatchMode: model.MatchModeAny,
+		PassthroughCode: false, ResponseCode: &customStatus,
+		PassthroughBody: false, CustomMessage: &customMessage, SkipMonitoring: true,
+	}}}, nil)
+	svc.setWhitelistUserIDs([]int64{42}, time.Now().Add(errorPassthroughWhitelistMaxAge))
+	return svc
+}
+
+func whitelistRuntimeContext(t *testing.T, svc *ErrorPassthroughService, userID int64) (*gin.Context, *httptest.ResponseRecorder) {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req = req.WithContext(context.WithValue(req.Context(), ctxkey.UserID, userID))
+	c.Request = req
+	BindErrorPassthroughService(c, svc)
+	return c, rec
+}
+
+func TestErrorPassthroughWhitelistPreservesJSONGoogleAndWS(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	svc := whitelistRuntimeService()
+
+	t.Run("JSON", func(t *testing.T) {
+		body := []byte(`{"error":{"message":"original JSON message"}}`)
+		c, _ := whitelistRuntimeContext(t, svc, 42)
+		status, got, matched := applyErrorPassthroughRuleToJSON(c, PlatformOpenAI, http.StatusServiceUnavailable, body)
+		require.True(t, matched)
+		require.Equal(t, http.StatusServiceUnavailable, status)
+		require.JSONEq(t, string(body), string(got))
+		_, marked := c.Get(OpsSkipPassthroughKey)
+		require.False(t, marked)
+
+		normal, _ := whitelistRuntimeContext(t, svc, 43)
+		status, got, matched = applyErrorPassthroughRuleToJSON(normal, PlatformOpenAI, http.StatusServiceUnavailable, body)
+		require.True(t, matched)
+		require.Equal(t, http.StatusTeapot, status)
+		require.Equal(t, "customized error", gjson.GetBytes(got, "error.message").String())
+		_, marked = normal.Get(OpsSkipPassthroughKey)
+		require.True(t, marked)
+	})
+
+	t.Run("Google", func(t *testing.T) {
+		body := []byte(`{"error":{"code":503,"message":"original Google message","status":"UNAVAILABLE"}}`)
+		c, _ := whitelistRuntimeContext(t, svc, 42)
+		status, got, matched := applyErrorPassthroughRuleToGoogleJSON(c, PlatformGemini, http.StatusServiceUnavailable, body)
+		require.True(t, matched)
+		require.Equal(t, http.StatusServiceUnavailable, status)
+		require.JSONEq(t, string(body), string(got))
+		_, marked := c.Get(OpsSkipPassthroughKey)
+		require.False(t, marked)
+	})
+
+	t.Run("WebSocket", func(t *testing.T) {
+		body := []byte(`{"type":"error","error":{"type":"rate_limit_error","code":"rate_limit_exceeded","message":"original WS message"}}`)
+		c, _ := whitelistRuntimeContext(t, svc, 42)
+		got := applyErrorPassthroughRuleToOpenAIWSEvent(c, PlatformOpenAI, body)
+		require.JSONEq(t, string(body), string(got))
+		_, marked := c.Get(OpsSkipPassthroughKey)
+		require.False(t, marked)
+
+		normal, _ := whitelistRuntimeContext(t, svc, 43)
+		got = applyErrorPassthroughRuleToOpenAIWSEvent(normal, PlatformOpenAI, body)
+		require.Equal(t, "customized error", gjson.GetBytes(got, "error.message").String())
+	})
+}
 
 func TestApplyErrorPassthroughRule_NoBoundService(t *testing.T) {
 	gin.SetMode(gin.TestMode)

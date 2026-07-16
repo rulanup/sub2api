@@ -248,7 +248,7 @@ func checkSkipMonitoringForUpstreamEvent(c *gin.Context, ev *OpsUpstreamErrorEve
 		body = ev.Message
 	}
 
-	rule := svc.MatchRule(ev.Platform, ev.UpstreamStatusCode, []byte(body))
+	rule := svc.MatchRuleForRequest(c, ev.Platform, ev.UpstreamStatusCode, []byte(body))
 	if rule != nil && rule.SkipMonitoring {
 		c.Set(OpsSkipPassthroughKey, true)
 	}

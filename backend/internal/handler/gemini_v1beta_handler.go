@@ -596,8 +596,8 @@ func (h *GatewayHandler) handleGeminiFailoverExhausted(c *gin.Context, failoverE
 	service.SetOpsUpstreamError(c, statusCode, upstreamMsg, "")
 
 	// 先检查透传规则
-	if h.errorPassthroughService != nil && len(responseBody) > 0 {
-		if rule := h.errorPassthroughService.MatchRule(platform, statusCode, responseBody); rule != nil {
+	if h.errorPassthroughService != nil {
+		if rule := h.errorPassthroughService.MatchRuleForRequest(c, platform, statusCode, responseBody); rule != nil {
 			// 确定响应状态码
 			respCode := statusCode
 			if !rule.PassthroughCode && rule.ResponseCode != nil {
@@ -605,9 +605,11 @@ func (h *GatewayHandler) handleGeminiFailoverExhausted(c *gin.Context, failoverE
 			}
 
 			// 确定响应消息
-			msg := service.ExtractUpstreamErrorMessage(responseBody)
+			msg := upstreamMsg
 			if !rule.PassthroughBody && rule.CustomMessage != nil {
 				msg = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+			} else if msg == "" {
+				_, msg = mapGeminiUpstreamError(statusCode)
 			}
 
 			if rule.SkipMonitoring {

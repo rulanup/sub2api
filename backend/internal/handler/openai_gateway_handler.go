@@ -1107,8 +1107,9 @@ func (h *OpenAIGatewayHandler) handleAnthropicFailoverExhausted(c *gin.Context, 
 	upstreamMsg := service.ExtractUpstreamErrorMessage(failoverErr.ResponseBody)
 	service.SetOpsUpstreamError(c, statusCode, upstreamMsg, "")
 	status, errType, errMsg := h.mapUpstreamError(statusCode)
-	if h.errorPassthroughService != nil && len(failoverErr.ResponseBody) > 0 {
-		if rule := h.errorPassthroughService.MatchRule(platform, statusCode, failoverErr.ResponseBody); rule != nil {
+	if h.errorPassthroughService != nil {
+		if rule := h.errorPassthroughService.MatchRuleForRequest(c, platform, statusCode, failoverErr.ResponseBody); rule != nil {
+			status = statusCode
 			if !rule.PassthroughCode && rule.ResponseCode != nil {
 				status = *rule.ResponseCode
 			}
@@ -1996,8 +1997,8 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 	}
 
 	// 先检查透传规则
-	if h.errorPassthroughService != nil && len(responseBody) > 0 {
-		if rule := h.errorPassthroughService.MatchRule(platform, statusCode, responseBody); rule != nil {
+	if h.errorPassthroughService != nil {
+		if rule := h.errorPassthroughService.MatchRuleForRequest(c, platform, statusCode, responseBody); rule != nil {
 			// 确定响应状态码
 			respCode := statusCode
 			if !rule.PassthroughCode && rule.ResponseCode != nil {
@@ -2005,9 +2006,11 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 			}
 
 			// 确定响应消息
-			msg := service.ExtractUpstreamErrorMessage(responseBody)
+			msg := upstreamMsg
 			if !rule.PassthroughBody && rule.CustomMessage != nil {
 				msg = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+			} else if msg == "" {
+				_, _, msg = h.mapUpstreamError(statusCode)
 			}
 
 			if rule.SkipMonitoring {
@@ -2028,6 +2031,21 @@ func (h *OpenAIGatewayHandler) handleFailoverExhausted(c *gin.Context, failoverE
 func (h *OpenAIGatewayHandler) handleFailoverExhaustedSimple(c *gin.Context, statusCode int, streamStarted bool) {
 	status, errType, errMsg := h.mapUpstreamError(statusCode)
 	service.SetOpsUpstreamError(c, statusCode, errMsg, "")
+	if h.errorPassthroughService != nil {
+		if rule := h.errorPassthroughService.MatchRuleForRequest(c, service.PlatformOpenAI, statusCode, nil); rule != nil {
+			status = statusCode
+			if !rule.PassthroughCode && rule.ResponseCode != nil {
+				status = *rule.ResponseCode
+			}
+			if !rule.PassthroughBody && rule.CustomMessage != nil {
+				errMsg = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+			}
+			errType = "upstream_error"
+			if rule.SkipMonitoring {
+				c.Set(service.OpsSkipPassthroughKey, true)
+			}
+		}
+	}
 	h.handleStreamingAwareError(c, status, errType, errMsg, streamStarted)
 }
 
@@ -2234,12 +2252,14 @@ func (h *OpenAIGatewayHandler) closeOpenAIWSFailoverExhausted(c *gin.Context, co
 	customReason := ""
 	clientStatus := failoverErr.StatusCode
 	if h.errorPassthroughService != nil {
-		if rule := h.errorPassthroughService.MatchRule(platform, failoverErr.StatusCode, failoverErr.ResponseBody); rule != nil {
+		if rule := h.errorPassthroughService.MatchRuleForRequest(c, platform, failoverErr.StatusCode, failoverErr.ResponseBody); rule != nil {
 			if !rule.PassthroughCode && rule.ResponseCode != nil {
 				clientStatus = *rule.ResponseCode
 			}
 			if !rule.PassthroughBody && rule.CustomMessage != nil {
 				customReason = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+			} else if upstreamReason := service.ExtractUpstreamErrorMessage(failoverErr.ResponseBody); upstreamReason != "" {
+				customReason = upstreamReason
 			}
 			if rule.SkipMonitoring && c != nil {
 				c.Set(service.OpsSkipPassthroughKey, true)
@@ -2524,7 +2544,7 @@ func (h *OpenAIGatewayHandler) customizeCyberSessionBlockedError(c *gin.Context)
 		"code":    "session_blocked_by_cyber_policy",
 		"message": cyberSessionBlockedClientMsg,
 	}})
-	rule := h.errorPassthroughService.MatchRule(service.PlatformOpenAI, status, body)
+	rule := h.errorPassthroughService.MatchRuleForRequest(c, service.PlatformOpenAI, status, body)
 	if rule == nil {
 		return status, message
 	}

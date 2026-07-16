@@ -245,6 +245,12 @@ func ProvideSubscriptionExpiryService(userSubRepo UserSubscriptionRepository, se
 	return svc
 }
 
+func ProvideErrorPassthroughService(repo ErrorPassthroughRepository, cache ErrorPassthroughCache, settingRepo SettingRepository) *ErrorPassthroughService {
+	svc := NewErrorPassthroughService(repo, cache)
+	svc.SetSettingRepository(settingRepo)
+	return svc
+}
+
 // ProvideTimingWheelService creates and starts TimingWheelService
 func ProvideTimingWheelService() (*TimingWheelService, error) {
 	svc, err := NewTimingWheelService()
@@ -655,7 +661,7 @@ var ProviderSet = wire.NewSet(
 	NewUserAttributeService,
 	NewUsageCache,
 	NewTotpService,
-	NewErrorPassthroughService,
+	ProvideErrorPassthroughService,
 	NewTLSFingerprintProfileService,
 	NewDigestSessionStore,
 	ProvideIdempotencyCoordinator,

@@ -348,8 +348,8 @@ func (h *GatewayHandler) handleCCFailoverExhausted(c *gin.Context, lastErr *serv
 		return
 	}
 	clientStatus, errType, message := statusCode, "server_error", "All available accounts exhausted"
-	if h.errorPassthroughService != nil && len(responseBody) > 0 {
-		if rule := h.errorPassthroughService.MatchRule(platform, statusCode, responseBody); rule != nil {
+	if h.errorPassthroughService != nil {
+		if rule := h.errorPassthroughService.MatchRuleForRequest(c, platform, statusCode, responseBody); rule != nil {
 			if !rule.PassthroughCode && rule.ResponseCode != nil {
 				clientStatus = *rule.ResponseCode
 			}

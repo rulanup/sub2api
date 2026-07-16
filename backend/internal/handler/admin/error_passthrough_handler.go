@@ -53,6 +53,49 @@ type UpdateErrorPassthroughRuleRequest struct {
 	Description     *string  `json:"description"`
 }
 
+type ErrorPassthroughWhitelistRequest struct {
+	UserIDs *[]int64 `json:"user_ids"`
+}
+
+type ErrorPassthroughWhitelistResponse struct {
+	UserIDs []int64 `json:"user_ids"`
+}
+
+// GetWhitelist returns the normalized global user whitelist.
+// GET /api/v1/admin/error-passthrough-rules/whitelist
+func (h *ErrorPassthroughHandler) GetWhitelist(c *gin.Context) {
+	userIDs, err := h.service.ReloadAndGetWhitelistUserIDs(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, ErrorPassthroughWhitelistResponse{UserIDs: userIDs})
+}
+
+// UpdateWhitelist replaces the global user whitelist.
+// PUT /api/v1/admin/error-passthrough-rules/whitelist
+func (h *ErrorPassthroughHandler) UpdateWhitelist(c *gin.Context) {
+	var req ErrorPassthroughWhitelistRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if req.UserIDs == nil {
+		response.BadRequest(c, "Invalid request: user_ids is required")
+		return
+	}
+	userIDs, err := h.service.UpdateWhitelistUserIDs(c.Request.Context(), *req.UserIDs)
+	if err != nil {
+		if _, ok := err.(*model.ValidationError); ok {
+			response.BadRequest(c, err.Error())
+			return
+		}
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, ErrorPassthroughWhitelistResponse{UserIDs: userIDs})
+}
+
 // List 获取所有规则
 // GET /api/v1/admin/error-passthrough-rules
 func (h *ErrorPassthroughHandler) List(c *gin.Context) {

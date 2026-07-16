@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/model"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
@@ -41,12 +44,19 @@ type ErrorPassthroughCache interface {
 
 // ErrorPassthroughService 错误透传规则服务
 type ErrorPassthroughService struct {
-	repo  ErrorPassthroughRepository
-	cache ErrorPassthroughCache
+	repo        ErrorPassthroughRepository
+	cache       ErrorPassthroughCache
+	settingRepo SettingRepository
 
 	// 本地内存缓存，用于快速匹配
 	localCache   []*cachedPassthroughRule
 	localCacheMu sync.RWMutex
+
+	whitelistUserIDs   []int64
+	whitelistUserIDSet map[int64]struct{}
+	whitelistMu        sync.RWMutex
+	whitelistReloadMu  sync.Mutex
+	whitelistRefreshAt time.Time
 }
 
 // cachedPassthroughRule 预计算的规则缓存，避免运行时重复 ToLower
@@ -57,7 +67,20 @@ type cachedPassthroughRule struct {
 	errorCodeSet   map[int]struct{} // 预计算的 error code set
 }
 
-const maxBodyMatchLen = 8 << 10 // 8KB，错误信息不会在 8KB 之后才出现
+const (
+	maxBodyMatchLen                     = 8 << 10 // 8KB，错误信息不会在 8KB 之后才出现
+	errorPassthroughWhitelistUserIDsKey = "error_passthrough_whitelist_user_ids"
+	errorPassthroughWhitelistMaxAge     = 30 * time.Second
+	errorPassthroughWhitelistRetryDelay = 5 * time.Second
+	errorPassthroughWhitelistTimeout    = 3 * time.Second
+)
+
+var whitelistPassthroughRule = &model.ErrorPassthroughRule{
+	Name:            "global user whitelist passthrough",
+	Enabled:         true,
+	PassthroughCode: true,
+	PassthroughBody: true,
+}
 
 // NewErrorPassthroughService 创建错误透传规则服务
 func NewErrorPassthroughService(
@@ -81,6 +104,9 @@ func NewErrorPassthroughService(
 	// 订阅缓存更新通知
 	if cache != nil {
 		cache.SubscribeUpdates(ctx, func() {
+			if err := svc.reloadWhitelist(context.Background()); err != nil {
+				logger.LegacyPrintf("service.error_passthrough", "[ErrorPassthroughService] Failed to reload whitelist on notification: %v", err)
+			}
 			if err := svc.refreshLocalCache(context.Background()); err != nil {
 				logger.LegacyPrintf("service.error_passthrough", "[ErrorPassthroughService] Failed to refresh cache on notification: %v", err)
 			}
@@ -88,6 +114,94 @@ func NewErrorPassthroughService(
 	}
 
 	return svc
+}
+
+// SetSettingRepository injects whitelist persistence without changing the legacy constructor.
+func (s *ErrorPassthroughService) SetSettingRepository(repo SettingRepository) {
+	s.whitelistMu.Lock()
+	s.settingRepo = repo
+	s.whitelistRefreshAt = time.Time{}
+	s.whitelistMu.Unlock()
+	if err := s.reloadWhitelist(context.Background()); err != nil {
+		logger.LegacyPrintf("service.error_passthrough", "[ErrorPassthroughService] Failed to load whitelist after repository setup: %v", err)
+	}
+}
+
+// GetWhitelistUserIDs returns a sorted snapshot of the global whitelist.
+func (s *ErrorPassthroughService) GetWhitelistUserIDs() []int64 {
+	s.whitelistMu.RLock()
+	defer s.whitelistMu.RUnlock()
+	return append([]int64{}, s.whitelistUserIDs...)
+}
+
+// ReloadAndGetWhitelistUserIDs returns the canonical durable whitelist.
+func (s *ErrorPassthroughService) ReloadAndGetWhitelistUserIDs(ctx context.Context) ([]int64, error) {
+	reloadCtx, cancel := s.newWhitelistReloadContext(ctx)
+	defer cancel()
+	if err := s.lockWhitelistReload(reloadCtx); err != nil {
+		return nil, err
+	}
+	defer s.whitelistReloadMu.Unlock()
+	if err := s.reloadWhitelistLocked(reloadCtx); err != nil {
+		return nil, err
+	}
+	return s.GetWhitelistUserIDs(), nil
+}
+
+// UpdateWhitelistUserIDs validates, persists, and publishes a normalized whitelist.
+func (s *ErrorPassthroughService) UpdateWhitelistUserIDs(ctx context.Context, userIDs []int64) ([]int64, error) {
+	for _, userID := range userIDs {
+		if userID <= 0 {
+			return nil, &model.ValidationError{Field: "user_ids", Message: "user IDs must be positive"}
+		}
+	}
+	userIDs = normalizeWhitelistUserIDs(userIDs)
+	data, err := json.Marshal(userIDs)
+	if err != nil {
+		return nil, err
+	}
+	updateCtx, cancel := s.newWhitelistReloadContext(ctx)
+	defer cancel()
+	if err := s.lockWhitelistReload(updateCtx); err != nil {
+		return nil, err
+	}
+	locked := true
+	defer func() {
+		if locked {
+			s.whitelistReloadMu.Unlock()
+		}
+	}()
+	s.whitelistMu.RLock()
+	settingRepo := s.settingRepo
+	s.whitelistMu.RUnlock()
+	if settingRepo == nil {
+		return nil, errors.New("setting repository is not configured")
+	}
+	if err := settingRepo.Set(updateCtx, errorPassthroughWhitelistUserIDsKey, string(data)); err != nil {
+		return nil, err
+	}
+	s.setWhitelistUserIDs(userIDs, time.Now().Add(errorPassthroughWhitelistMaxAge))
+	s.whitelistReloadMu.Unlock()
+	locked = false
+	if s.cache != nil {
+		notifyCtx, cancel := s.newCacheRefreshContext()
+		defer cancel()
+		if err := s.cache.NotifyUpdate(notifyCtx); err != nil {
+			logger.LegacyPrintf("service.error_passthrough", "[ErrorPassthroughService] Failed to notify whitelist update: %v", err)
+		}
+	}
+	return append([]int64{}, userIDs...), nil
+}
+
+// IsUserWhitelisted checks the current in-memory whitelist.
+func (s *ErrorPassthroughService) IsUserWhitelisted(userID int64) bool {
+	if userID <= 0 {
+		return false
+	}
+	s.whitelistMu.RLock()
+	_, ok := s.whitelistUserIDSet[userID]
+	s.whitelistMu.RUnlock()
+	return ok
 }
 
 // List 获取所有规则
@@ -177,6 +291,136 @@ func (s *ErrorPassthroughService) MatchRule(platform string, statusCode int, bod
 	}
 
 	return nil
+}
+
+// MatchRuleWithContext applies the trusted authenticated-user whitelist before normal rules.
+func (s *ErrorPassthroughService) MatchRuleWithContext(ctx context.Context, platform string, statusCode int, body []byte) *model.ErrorPassthroughRule {
+	if ctx != nil {
+		s.revalidateWhitelist(ctx)
+		if userID, ok := ctx.Value(ctxkey.UserID).(int64); ok && s.IsUserWhitelisted(userID) {
+			return whitelistPassthroughRule
+		}
+	}
+	return s.MatchRule(platform, statusCode, body)
+}
+
+func (s *ErrorPassthroughService) reloadWhitelist(ctx context.Context) error {
+	reloadCtx, cancel := s.newWhitelistReloadContext(ctx)
+	defer cancel()
+	if err := s.lockWhitelistReload(reloadCtx); err != nil {
+		return err
+	}
+	defer s.whitelistReloadMu.Unlock()
+	return s.reloadWhitelistLocked(reloadCtx)
+}
+
+func (s *ErrorPassthroughService) revalidateWhitelist(ctx context.Context) {
+	now := time.Now()
+	s.whitelistMu.RLock()
+	settingRepo := s.settingRepo
+	refreshAt := s.whitelistRefreshAt
+	s.whitelistMu.RUnlock()
+	if settingRepo == nil || now.Before(refreshAt) {
+		return
+	}
+
+	if !s.whitelistReloadMu.TryLock() {
+		return
+	}
+	defer s.whitelistReloadMu.Unlock()
+	s.whitelistMu.RLock()
+	refreshAt = s.whitelistRefreshAt
+	s.whitelistMu.RUnlock()
+	if time.Now().Before(refreshAt) {
+		return
+	}
+	reloadCtx, cancel := s.newWhitelistReloadContext(ctx)
+	defer cancel()
+	_ = s.reloadWhitelistLocked(reloadCtx)
+}
+
+func (s *ErrorPassthroughService) reloadWhitelistLocked(ctx context.Context) error {
+	s.whitelistMu.RLock()
+	settingRepo := s.settingRepo
+	s.whitelistMu.RUnlock()
+	if settingRepo == nil {
+		s.setWhitelistUserIDs(nil, time.Time{})
+		return errors.New("setting repository is not configured")
+	}
+	value, err := settingRepo.GetValue(ctx, errorPassthroughWhitelistUserIDsKey)
+	if err != nil {
+		if errors.Is(err, ErrSettingNotFound) {
+			s.setWhitelistUserIDs(nil, time.Now().Add(errorPassthroughWhitelistMaxAge))
+			return nil
+		}
+		logger.LegacyPrintf("service.error_passthrough", "[ErrorPassthroughService] Failed to load whitelist: %v", err)
+		s.setWhitelistUserIDs(nil, time.Now().Add(errorPassthroughWhitelistRetryDelay))
+		return err
+	}
+	var userIDs []int64
+	if err := json.Unmarshal([]byte(value), &userIDs); err != nil {
+		logger.LegacyPrintf("service.error_passthrough", "[ErrorPassthroughService] Failed to parse whitelist: %v", err)
+		s.setWhitelistUserIDs(nil, time.Now().Add(errorPassthroughWhitelistMaxAge))
+		return nil
+	}
+	s.setWhitelistUserIDs(normalizeWhitelistUserIDs(userIDs), time.Now().Add(errorPassthroughWhitelistMaxAge))
+	return nil
+}
+
+func (s *ErrorPassthroughService) newWhitelistReloadContext(parent context.Context) (context.Context, context.CancelFunc) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	return context.WithTimeout(parent, errorPassthroughWhitelistTimeout)
+}
+
+func (s *ErrorPassthroughService) lockWhitelistReload(ctx context.Context) error {
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if s.whitelistReloadMu.TryLock() {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+func normalizeWhitelistUserIDs(userIDs []int64) []int64 {
+	set := make(map[int64]struct{}, len(userIDs))
+	for _, userID := range userIDs {
+		if userID > 0 {
+			set[userID] = struct{}{}
+		}
+	}
+	normalized := make([]int64, 0, len(set))
+	for userID := range set {
+		normalized = append(normalized, userID)
+	}
+	sort.Slice(normalized, func(i, j int) bool { return normalized[i] < normalized[j] })
+	return normalized
+}
+
+func (s *ErrorPassthroughService) setWhitelistUserIDs(userIDs []int64, refreshAt time.Time) {
+	userIDs = append([]int64(nil), userIDs...)
+	set := make(map[int64]struct{}, len(userIDs))
+	for _, userID := range userIDs {
+		set[userID] = struct{}{}
+	}
+	s.whitelistMu.Lock()
+	s.whitelistUserIDs = userIDs
+	s.whitelistUserIDSet = set
+	s.whitelistRefreshAt = refreshAt
+	s.whitelistMu.Unlock()
+}
+
+func (s *ErrorPassthroughService) setWhitelistRefreshAt(refreshAt time.Time) {
+	s.whitelistMu.Lock()
+	s.whitelistRefreshAt = refreshAt
+	s.whitelistMu.Unlock()
 }
 
 // getCachedRules 获取缓存的规则列表（按优先级排序）

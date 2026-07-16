@@ -1153,6 +1153,21 @@ export default {
       body: '消息体',
       skipMonitoring: '跳过监控',
 
+      whitelist: {
+        title: '全局用户白名单',
+        description: '选中的用户将绕过所有错误定制规则，收到上游原始状态码和错误信息；兼容端点仍会保留其协议要求的响应封装。',
+        searchPlaceholder: '按邮箱或用户 ID 搜索',
+        searchEmpty: '未找到匹配用户',
+        deleted: '（已删除）',
+        fallback: '用户 #{id}',
+        remove: '从错误定制白名单中移除用户',
+        save: '保存白名单',
+        saving: '保存中...',
+        saved: '全局白名单保存成功',
+        failedToLoad: '加载全局错误定制白名单失败',
+        failedToSave: '保存全局错误定制白名单失败'
+      },
+
       presets: {
         authentication: {
           label: '401 身份认证',

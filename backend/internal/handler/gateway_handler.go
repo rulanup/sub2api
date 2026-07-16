@@ -1619,8 +1619,8 @@ func (h *GatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *se
 	}
 
 	// 先检查透传规则
-	if h.errorPassthroughService != nil && len(responseBody) > 0 {
-		if rule := h.errorPassthroughService.MatchRule(platform, statusCode, responseBody); rule != nil {
+	if h.errorPassthroughService != nil {
+		if rule := h.errorPassthroughService.MatchRuleForRequest(c, platform, statusCode, responseBody); rule != nil {
 			// 确定响应状态码
 			respCode := statusCode
 			if !rule.PassthroughCode && rule.ResponseCode != nil {
@@ -1628,9 +1628,11 @@ func (h *GatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *se
 			}
 
 			// 确定响应消息
-			msg := service.ExtractUpstreamErrorMessage(responseBody)
+			msg := upstreamMsg
 			if !rule.PassthroughBody && rule.CustomMessage != nil {
 				msg = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+			} else if msg == "" {
+				_, _, msg = h.mapUpstreamError(statusCode)
 			}
 
 			if rule.SkipMonitoring {
@@ -1651,6 +1653,21 @@ func (h *GatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *se
 func (h *GatewayHandler) handleFailoverExhaustedSimple(c *gin.Context, statusCode int, streamStarted bool) {
 	status, errType, errMsg := h.mapUpstreamError(statusCode)
 	service.SetOpsUpstreamError(c, statusCode, errMsg, "")
+	if h.errorPassthroughService != nil {
+		if rule := h.errorPassthroughService.MatchRuleForRequest(c, service.PlatformAnthropic, statusCode, nil); rule != nil {
+			status = statusCode
+			if !rule.PassthroughCode && rule.ResponseCode != nil {
+				status = *rule.ResponseCode
+			}
+			if !rule.PassthroughBody && rule.CustomMessage != nil {
+				errMsg = service.SanitizeErrorPassthroughCustomMessage(*rule.CustomMessage)
+			}
+			errType = "upstream_error"
+			if rule.SkipMonitoring {
+				c.Set(service.OpsSkipPassthroughKey, true)
+			}
+		}
+	}
 	h.handleStreamingAwareError(c, status, errType, errMsg, streamStarted)
 }
 

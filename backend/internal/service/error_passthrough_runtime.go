@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"unicode/utf8"
@@ -12,6 +13,15 @@ import (
 )
 
 const errorPassthroughServiceContextKey = "error_passthrough_service"
+
+// MatchRuleForRequest safely uses the authenticated request context when available.
+func (s *ErrorPassthroughService) MatchRuleForRequest(c *gin.Context, platform string, statusCode int, body []byte) *model.ErrorPassthroughRule {
+	ctx := context.Background()
+	if c != nil && c.Request != nil {
+		ctx = c.Request.Context()
+	}
+	return s.MatchRuleWithContext(ctx, platform, statusCode, body)
+}
 
 // BindErrorPassthroughService 将错误透传服务绑定到请求上下文，供 service 层在非 failover 场景下复用规则。
 func BindErrorPassthroughService(c *gin.Context, svc *ErrorPassthroughService) {
@@ -80,7 +90,7 @@ func resolveErrorPassthroughRule(c *gin.Context, platform string, upstreamStatus
 	if svc == nil {
 		return nil
 	}
-	rule := svc.MatchRule(platform, upstreamStatus, responseBody)
+	rule := svc.MatchRuleForRequest(c, platform, upstreamStatus, responseBody)
 	if rule != nil && rule.SkipMonitoring {
 		c.Set(OpsSkipPassthroughKey, true)
 	}

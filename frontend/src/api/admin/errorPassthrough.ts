@@ -65,6 +65,10 @@ export interface UpdateRuleRequest {
   description?: string | null
 }
 
+export interface ErrorPassthroughWhitelist {
+  user_ids: number[]
+}
+
 /**
  * List all error passthrough rules
  * @returns List of all rules sorted by priority
@@ -125,13 +129,27 @@ export async function toggleEnabled(id: number, enabled: boolean): Promise<Error
   return update(id, { enabled })
 }
 
+export async function getWhitelist(): Promise<ErrorPassthroughWhitelist> {
+  const { data } = await apiClient.get<ErrorPassthroughWhitelist>('/admin/error-passthrough-rules/whitelist')
+  return data
+}
+
+export async function updateWhitelist(userIds: number[]): Promise<ErrorPassthroughWhitelist> {
+  const { data } = await apiClient.put<ErrorPassthroughWhitelist>('/admin/error-passthrough-rules/whitelist', {
+    user_ids: userIds
+  })
+  return data
+}
+
 export const errorPassthroughAPI = {
   list,
   getById,
   create,
   update,
   delete: deleteRule,
-  toggleEnabled
+  toggleEnabled,
+  getWhitelist,
+  updateWhitelist
 }
 
 export default errorPassthroughAPI

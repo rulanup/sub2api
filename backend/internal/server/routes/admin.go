@@ -615,6 +615,8 @@ func registerErrorPassthroughRoutes(admin *gin.RouterGroup, h *handler.Handlers)
 	rules := admin.Group("/error-passthrough-rules")
 	{
 		rules.GET("", h.Admin.ErrorPassthrough.List)
+		rules.GET("/whitelist", h.Admin.ErrorPassthrough.GetWhitelist)
+		rules.PUT("/whitelist", h.Admin.ErrorPassthrough.UpdateWhitelist)
 		rules.GET("/:id", h.Admin.ErrorPassthrough.GetByID)
 		rules.POST("", h.Admin.ErrorPassthrough.Create)
 		rules.PUT("/:id", h.Admin.ErrorPassthrough.Update)

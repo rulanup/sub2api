@@ -1158,6 +1158,21 @@ export default {
       body: 'Body',
       skipMonitoring: 'Skip Monitoring',
 
+      whitelist: {
+        title: 'Global user whitelist',
+        description: 'Selected users bypass every error customization rule and receive the original upstream status and error message. Compatibility endpoints retain their required protocol envelope.',
+        searchPlaceholder: 'Search users by email or ID',
+        searchEmpty: 'No matching users',
+        deleted: '(deleted)',
+        fallback: 'User #{id}',
+        remove: 'Remove user from error customization whitelist',
+        save: 'Save whitelist',
+        saving: 'Saving...',
+        saved: 'Global whitelist saved successfully',
+        failedToLoad: 'Failed to load global error customization whitelist',
+        failedToSave: 'Failed to save global error customization whitelist'
+      },
+
       presets: {
         authentication: {
           label: '401 Authentication',
