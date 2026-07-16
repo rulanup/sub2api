@@ -38,7 +38,18 @@ Please read the following carefully before using this project:
 - **Channel Pricing Import** - Import channel pricing models from a saved account whitelist or model mapping
 - **Spending Leaderboard** - Users can view daily/weekly/monthly spending rankings
 - **Daily Check-in** - Users check in daily to receive random balance rewards, admin-configurable amount range and toggle
+- **Automated Abuse Detection** - Detect sustained synchronous relay traffic and repeated `cyber_policy` usage, then apply configurable RPM/concurrency penalties or disable users, with separate searchable user allowlists
+- **Error Customization** - Customize upstream error status codes and client-facing messages by HTTP status, keyword, and platform, with presets for 401, 429, and security-policy errors plus a global user allowlist
 
+### Risk Control and Error Customization
+
+- Open **Risk Control > Settings > Abuse Detection** to configure relay detection, repeated security-policy usage, penalties, optional account disabling, and separate allowlists. The global risk-control switch and each detector switch must both be enabled.
+- Relay detection evaluates the latest 10 complete UTC minute buckets. A user is flagged when every bucket contains at least one synchronous request.
+- Security-policy detection counts `cyber_policy` usage within the configured hour window and disables the user after the configured threshold is reached.
+- Open **System Settings > Gateway > Error Customization** to create rules matched by HTTP status, response keyword, and upstream platform. Rules can preserve or replace the response status and can return a complete replacement message.
+- Error customization covers OpenAI, Anthropic, Gemini, Antigravity, Grok, image endpoints, streaming responses, and WebSocket errors without changing retry, failover, billing, or risk evidence.
+- Users in the global error-customization allowlist bypass all editable rules and receive the original upstream status and error message. Compatibility endpoints still use their required protocol envelope, and mandatory security sanitization remains in effect.
+- Multi-instance deployments synchronize both rule and allowlist changes through Redis and periodically reconcile the allowlist from PostgreSQL.
 
 ## Overview
 
@@ -90,9 +101,11 @@ Nginx drops headers containing underscores by default (e.g. `session_id`), which
 
 ## Deployment
 
-### Method 1: Script Installation (Recommended)
+### Method 1: Script Installation (Requires a Fork Release)
 
 One-click installation script that downloads pre-built binaries from GitHub Releases.
+
+> This fork currently publishes multi-architecture Docker images but may not have a GitHub Release. The script only downloads releases from `rulanup/sub2api` and never falls back to the upstream project. If no fork release is available, use Docker Compose below.
 
 #### Prerequisites
 
@@ -104,7 +117,7 @@ One-click installation script that downloads pre-built binaries from GitHub Rele
 #### Installation Steps
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/rulanup/sub2api/main/deploy/install.sh | sudo bash
 ```
 
 The script will:
@@ -154,7 +167,7 @@ sudo journalctl -u sub2api -f
 sudo systemctl restart sub2api
 
 # Uninstall
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y
+curl -sSL https://raw.githubusercontent.com/rulanup/sub2api/main/deploy/install.sh | sudo bash -s -- uninstall -y
 ```
 
 ---
@@ -162,6 +175,8 @@ curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/install
 ### Method 2: Docker Compose (Recommended)
 
 Deploy with Docker Compose, including PostgreSQL and Redis containers.
+
+The fork deployment files use `ghcr.io/rulanup/sub2api:latest` for both `linux/amd64` and `linux/arm64`.
 
 #### Prerequisites
 
@@ -177,7 +192,7 @@ Use the automated deployment script for easy setup:
 mkdir -p sub2api-deploy && cd sub2api-deploy
 
 # Download and run deployment preparation script
-curl -sSL https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/deploy/docker-deploy.sh | bash
+curl -sSL https://raw.githubusercontent.com/rulanup/sub2api/main/deploy/docker-deploy.sh | bash
 
 # Start services
 docker compose up -d
@@ -199,7 +214,7 @@ If you prefer manual setup:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/rulanup/sub2api.git
 cd sub2api/deploy
 
 # 2. Copy environment configuration
@@ -345,7 +360,7 @@ rm -rf data/ postgres_data/ redis_data/
 Apple-silicon Macs running macOS 26 can run the full Sub2API, PostgreSQL, and Redis stack with Apple `container` 1.1.0 or newer:
 
 ```bash
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/rulanup/sub2api.git
 cd sub2api/deploy
 ./apple-container.sh init
 ./apple-container.sh up
@@ -371,7 +386,7 @@ Build and run from source code for development or customization.
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Wei-Shaw/sub2api.git
+git clone https://github.com/rulanup/sub2api.git
 cd sub2api
 
 # 2. Install pnpm (if not already installed)
@@ -706,11 +721,11 @@ sub2api/
 
 ## Star History
 
-<a href="https://star-history.com/#Wei-Shaw/sub2api&Date">
+<a href="https://star-history.com/#rulanup/sub2api&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Wei-Shaw/sub2api&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Wei-Shaw/sub2api&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Wei-Shaw/sub2api&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=rulanup/sub2api&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=rulanup/sub2api&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=rulanup/sub2api&type=Date" />
  </picture>
 </a>
 

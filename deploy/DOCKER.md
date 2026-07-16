@@ -72,5 +72,5 @@ volumes:
 
 ## Links
 
-- [GitHub Repository](https://github.com/ghcr.io/rulanup/sub2api)
-- [Documentation](https://github.com/ghcr.io/rulanup/sub2api#readme)
+- [GitHub Repository](https://github.com/rulanup/sub2api)
+- [Documentation](https://github.com/rulanup/sub2api#readme)
