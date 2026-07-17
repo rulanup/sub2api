@@ -5963,6 +5963,7 @@
               <div>
                 <label class="input-label">{{ t('admin.settings.features.checkin.minAmount') }}</label>
                 <input
+                  data-testid="checkin-min-amount"
                   v-model.number="form.checkin_min_amount"
                   type="number"
                   step="0.01"
@@ -5970,10 +5971,12 @@
                   class="input"
                   placeholder="0.01"
                 />
+                <p class="input-hint">{{ t('admin.settings.features.checkin.minAmountHint') }}</p>
               </div>
               <div>
                 <label class="input-label">{{ t('admin.settings.features.checkin.maxAmount') }}</label>
                 <input
+                  data-testid="checkin-max-amount"
                   v-model.number="form.checkin_max_amount"
                   type="number"
                   step="0.01"
@@ -5981,6 +5984,7 @@
                   class="input"
                   placeholder="0.10"
                 />
+                <p class="input-hint">{{ t('admin.settings.features.checkin.maxAmountHint') }}</p>
               </div>
             </div>
           </div>
@@ -9333,6 +9337,23 @@ function findDuplicateDefaultSubscription(
 async function saveSettings() {
   saving.value = true;
   try {
+    const checkinMinAmount = Number(form.checkin_min_amount);
+    const checkinMaxAmount = Number(form.checkin_max_amount);
+    if (
+      String(form.checkin_min_amount).trim() === "" ||
+      String(form.checkin_max_amount).trim() === "" ||
+      !Number.isFinite(checkinMinAmount) ||
+      !Number.isFinite(checkinMaxAmount) ||
+      checkinMinAmount < 0 ||
+      checkinMaxAmount < 0 ||
+      checkinMinAmount > checkinMaxAmount
+    ) {
+      appStore.showError(t("admin.settings.features.checkin.amountRangeError"));
+      return;
+    }
+    form.checkin_min_amount = checkinMinAmount;
+    form.checkin_max_amount = checkinMaxAmount;
+
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -9660,8 +9681,8 @@ async function saveSettings() {
       payment_enabled: form.payment_enabled,
       risk_control_enabled: form.risk_control_enabled,
       checkin_enabled: form.checkin_enabled,
-      checkin_min_amount: form.checkin_min_amount,
-      checkin_max_amount: form.checkin_max_amount,
+      checkin_min_amount: checkinMinAmount,
+      checkin_max_amount: checkinMaxAmount,
       cyber_session_block_enabled: form.cyber_session_block_enabled,
       cyber_session_block_ttl_seconds:
         Number(form.cyber_session_block_ttl_seconds) || 3600,

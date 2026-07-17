@@ -40,6 +40,17 @@ export default {
           cyberSessionBlockHint: '开启后,被上游网络安全策略(cyber_policy)拦截的会话将在 TTL 内被本地屏蔽,不再发往上游。仅屏蔽该会话,不影响同 Key 其他会话。',
           cyberSessionBlockTTL: '屏蔽时长(秒)',
         },
+        checkin: {
+          title: '每日签到',
+          description: '允许用户每天签到一次，并随机获得账户余额奖励。',
+          enabled: '启用每日签到',
+          enabledHint: '关闭后，用户无法领取每日签到奖励。',
+          minAmount: '最低奖励（美元）',
+          minAmountHint: '单次签到可获得的最低金额，允许为 0。',
+          maxAmount: '最高奖励（美元）',
+          maxAmountHint: '单次签到可获得的最高金额，不能低于最低金额。',
+          amountRangeError: '签到金额必须是有限的非负数，且最低金额不能大于最高金额。',
+        },
         affiliate: {
           title: '邀请返利',
           description: '老用户邀请新用户注册，新用户充值后老用户按比例获得返利额度。默认关闭。',

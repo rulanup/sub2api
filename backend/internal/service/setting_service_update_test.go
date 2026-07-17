@@ -443,3 +443,31 @@ func TestSettingService_UpdateSettings_RejectsInvalidPaymentVisibleMethodSource(
 	require.Equal(t, "INVALID_PAYMENT_VISIBLE_METHOD_SOURCE", infraerrors.Reason(err))
 	require.Nil(t, repo.updates)
 }
+
+func TestSettingService_UpdateSettings_PersistsCheckinSettings(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		CheckinEnabled:   true,
+		CheckinMinAmount: 0,
+		CheckinMaxAmount: 1.25,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "true", repo.updates[SettingKeyCheckinEnabled])
+	require.Equal(t, "0", repo.updates[SettingKeyCheckinMinAmount])
+	require.Equal(t, "1.25", repo.updates[SettingKeyCheckinMaxAmount])
+}
+
+func TestSettingService_UpdateSettings_RejectsInvalidCheckinRange(t *testing.T) {
+	repo := &settingUpdateRepoStub{}
+	svc := NewSettingService(repo, &config.Config{})
+
+	err := svc.UpdateSettings(context.Background(), &SystemSettings{
+		CheckinMinAmount: 2,
+		CheckinMaxAmount: 1,
+	})
+	require.Error(t, err)
+	require.Equal(t, "INVALID_CHECKIN_AMOUNT_RANGE", infraerrors.Reason(err))
+	require.Nil(t, repo.updates)
+}

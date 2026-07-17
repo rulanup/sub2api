@@ -305,6 +305,11 @@ type UpdateSettingsRequest struct {
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
 
+	// 每日签到
+	CheckinEnabled   *bool    `json:"checkin_enabled"`
+	CheckinMinAmount *float64 `json:"checkin_min_amount"`
+	CheckinMaxAmount *float64 `json:"checkin_max_amount"`
+
 	// cyber 会话屏蔽开关 + TTL
 	CyberSessionBlockEnabled    *bool `json:"cyber_session_block_enabled"`
 	CyberSessionBlockTTLSeconds *int  `json:"cyber_session_block_ttl_seconds"`
@@ -390,6 +395,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 	if affiliateRebatePerInviteeCap < 0 {
 		affiliateRebatePerInviteeCap = service.AffiliateRebatePerInviteeCapDefault
+	}
+	checkinMinAmount := float64ValueOrDefault(req.CheckinMinAmount, previousSettings.CheckinMinAmount)
+	checkinMaxAmount := float64ValueOrDefault(req.CheckinMaxAmount, previousSettings.CheckinMaxAmount)
+	if err := service.ValidateCheckinAmountRange(checkinMinAmount, checkinMaxAmount); err != nil {
+		response.ErrorFrom(c, err)
+		return
 	}
 	// 通用表格配置：兼容旧客户端未传字段时保留当前值。
 	if req.TableDefaultPageSize <= 0 {
@@ -1517,6 +1528,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.RiskControlEnabled
 		}(),
+		CheckinEnabled:   boolValueOrDefault(req.CheckinEnabled, previousSettings.CheckinEnabled),
+		CheckinMinAmount: checkinMinAmount,
+		CheckinMaxAmount: checkinMaxAmount,
 		CyberSessionBlockEnabled: func() bool {
 			if req.CyberSessionBlockEnabled != nil {
 				return *req.CyberSessionBlockEnabled
@@ -1884,6 +1898,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
+		CheckinEnabled:              updatedSettings.CheckinEnabled,
+		CheckinMinAmount:            updatedSettings.CheckinMinAmount,
+		CheckinMaxAmount:            updatedSettings.CheckinMaxAmount,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,
 		CyberSessionBlockTTLSeconds: updatedSettings.CyberSessionBlockTTLSeconds,
 		AllowUserViewErrorRequests:  updatedSettings.AllowUserViewErrorRequests,

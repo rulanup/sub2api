@@ -51,6 +51,9 @@ func (s *SettingService) UpdateSettingsWithAuthSourceDefaults(ctx context.Contex
 }
 
 func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, settings *SystemSettings) (map[string]string, error) {
+	if err := ValidateCheckinAmountRange(settings.CheckinMinAmount, settings.CheckinMaxAmount); err != nil {
+		return nil, err
+	}
 	if err := s.validateDefaultSubscriptionGroups(ctx, settings.DefaultSubscriptions); err != nil {
 		return nil, err
 	}
@@ -337,6 +340,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
+	updates[SettingKeyCheckinEnabled] = strconv.FormatBool(settings.CheckinEnabled)
+	updates[SettingKeyCheckinMinAmount] = strconv.FormatFloat(settings.CheckinMinAmount, 'f', -1, 64)
+	updates[SettingKeyCheckinMaxAmount] = strconv.FormatFloat(settings.CheckinMaxAmount, 'f', -1, 64)
 
 	// cyber 会话屏蔽开关 + TTL
 	updates[SettingKeyCyberSessionBlockEnabled] = strconv.FormatBool(settings.CyberSessionBlockEnabled)

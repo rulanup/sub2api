@@ -40,6 +40,17 @@ export default {
           cyberSessionBlockHint: 'When enabled, sessions hit by upstream cyber_policy are blocked locally for the TTL and no longer forwarded. Only the offending session is blocked; other sessions on the same key are unaffected.',
           cyberSessionBlockTTL: 'Block TTL (seconds)',
         },
+        checkin: {
+          title: 'Daily Check-in',
+          description: 'Let users claim a random account balance reward once per day.',
+          enabled: 'Enable Daily Check-in',
+          enabledHint: 'When off, users cannot claim daily check-in rewards.',
+          minAmount: 'Minimum reward (USD)',
+          minAmountHint: 'Lowest amount that a check-in can add. Zero is allowed.',
+          maxAmount: 'Maximum reward (USD)',
+          maxAmountHint: 'Highest amount that a check-in can add. Must not be below the minimum.',
+          amountRangeError: 'Check-in amounts must be finite non-negative numbers, and the minimum cannot exceed the maximum.',
+        },
         affiliate: {
           title: 'Affiliate (Invite Rebate)',
           description: 'Existing users invite new ones; the inviter earns a percentage rebate on the invitee’s recharges. Disabled by default.',

@@ -440,6 +440,117 @@ func TestSettingHandler_UpdateSettings_RejectsInvalidPaymentVisibleMethodSource(
 	require.NotContains(t, repo.values, service.SettingPaymentVisibleMethodAlipaySource)
 }
 
+func TestSettingHandler_CheckinSettingsLifecycle(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &settingHandlerRepoStub{values: map[string]string{
+		service.SettingKeyPromoCodeEnabled: "true",
+		service.SettingKeyCheckinEnabled:   "true",
+		service.SettingKeyCheckinMinAmount: "0.25",
+		service.SettingKeyCheckinMaxAmount: "0.75",
+	}}
+	svc := service.NewSettingService(repo, &config.Config{Default: config.DefaultConfig{UserConcurrency: 5}})
+	handler := NewSettingHandler(svc, nil, nil, nil, nil, nil, nil)
+
+	t.Run("GET maps stored values", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/admin/settings", nil)
+		handler.GetSettings(c)
+		require.Equal(t, http.StatusOK, rec.Code)
+		data := decodeSettingsResponseData(t, rec)
+		require.Equal(t, true, data["checkin_enabled"])
+		require.Equal(t, 0.25, data["checkin_min_amount"])
+		require.Equal(t, 0.75, data["checkin_max_amount"])
+	})
+
+	t.Run("PUT persists false and exact zero and returns canonical values", func(t *testing.T) {
+		data := putSettingsForTest(t, handler, map[string]any{
+			"promo_code_enabled": true,
+			"checkin_enabled":    false,
+			"checkin_min_amount": 0,
+			"checkin_max_amount": 1.5,
+		})
+		require.Equal(t, "false", repo.values[service.SettingKeyCheckinEnabled])
+		require.Equal(t, "0", repo.values[service.SettingKeyCheckinMinAmount])
+		require.Equal(t, "1.5", repo.values[service.SettingKeyCheckinMaxAmount])
+		require.Equal(t, false, data["checkin_enabled"])
+		require.Equal(t, 0.0, data["checkin_min_amount"])
+		require.Equal(t, 1.5, data["checkin_max_amount"])
+	})
+
+	t.Run("omitted fields are preserved", func(t *testing.T) {
+		putSettingsForTest(t, handler, map[string]any{"promo_code_enabled": true})
+		require.Equal(t, "false", repo.values[service.SettingKeyCheckinEnabled])
+		require.Equal(t, "0", repo.values[service.SettingKeyCheckinMinAmount])
+		require.Equal(t, "1.5", repo.values[service.SettingKeyCheckinMaxAmount])
+	})
+
+	t.Run("PUT persists true and amounts", func(t *testing.T) {
+		putSettingsForTest(t, handler, map[string]any{
+			"promo_code_enabled": true,
+			"checkin_enabled":    true,
+			"checkin_min_amount": 0.5,
+			"checkin_max_amount": 2.5,
+		})
+		require.Equal(t, "true", repo.values[service.SettingKeyCheckinEnabled])
+		require.Equal(t, "0.5", repo.values[service.SettingKeyCheckinMinAmount])
+		require.Equal(t, "2.5", repo.values[service.SettingKeyCheckinMaxAmount])
+	})
+
+	t.Run("invalid range returns bad request without persistence", func(t *testing.T) {
+		beforeMin := repo.values[service.SettingKeyCheckinMinAmount]
+		beforeMax := repo.values[service.SettingKeyCheckinMaxAmount]
+		rawBody, err := json.Marshal(map[string]any{
+			"promo_code_enabled": true,
+			"checkin_min_amount": 3,
+			"checkin_max_amount": 2,
+		})
+		require.NoError(t, err)
+		rec := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(rec)
+		c.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings", bytes.NewReader(rawBody))
+		c.Request.Header.Set("Content-Type", "application/json")
+		handler.UpdateSettings(c)
+		require.Equal(t, http.StatusBadRequest, rec.Code)
+		require.Equal(t, beforeMin, repo.values[service.SettingKeyCheckinMinAmount])
+		require.Equal(t, beforeMax, repo.values[service.SettingKeyCheckinMaxAmount])
+	})
+}
+
+func TestDiffSettings_DetectsCheckinChanges(t *testing.T) {
+	before := &service.SystemSettings{CheckinMinAmount: 0.01, CheckinMaxAmount: 0.1}
+	after := &service.SystemSettings{CheckinEnabled: true, CheckinMinAmount: 0.25, CheckinMaxAmount: 1.5}
+
+	changed := diffSettings(before, after, nil, nil, UpdateSettingsRequest{})
+	require.ElementsMatch(t, []string{
+		service.SettingKeyCheckinEnabled,
+		service.SettingKeyCheckinMinAmount,
+		service.SettingKeyCheckinMaxAmount,
+	}, changed)
+}
+
+func putSettingsForTest(t *testing.T, handler *SettingHandler, body map[string]any) map[string]any {
+	t.Helper()
+	rawBody, err := json.Marshal(body)
+	require.NoError(t, err)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPut, "/api/v1/admin/settings", bytes.NewReader(rawBody))
+	c.Request.Header.Set("Content-Type", "application/json")
+	handler.UpdateSettings(c)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	return decodeSettingsResponseData(t, rec)
+}
+
+func decodeSettingsResponseData(t *testing.T, rec *httptest.ResponseRecorder) map[string]any {
+	t.Helper()
+	var resp response.Response
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	return data
+}
+
 func TestSettingHandler_UpdateSettings_DoesNotPersistPartialSystemSettingsWhenAuthSourceDefaultsFail(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	repo := &failingAuthSourceSettingsRepoStub{

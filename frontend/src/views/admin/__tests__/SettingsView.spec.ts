@@ -190,6 +190,7 @@ vi.mock("vue-i18n", async () => {
     "admin.settings.defaults.platformQuotaNotice": "月限额为 30 天滚动窗口，非自然月",
     "admin.settings.authSourceDefaults.platformQuotasOverride": "平台限额覆盖",
     "admin.settings.authSourceDefaults.platformQuotasOverrideHint": "留空的字段继承「系统默认平台限额」；填 0 表示禁止该窗口使用。",
+    "admin.settings.features.checkin.amountRangeError": "签到金额范围无效",
   };
   return {
     ...actual,
@@ -440,6 +441,9 @@ const baseSettingsResponse = {
   payment_visible_method_wxpay_source: "invalid-source",
   payment_visible_method_alipay_enabled: true,
   payment_visible_method_wxpay_enabled: true,
+  checkin_enabled: true,
+  checkin_min_amount: 0.25,
+  checkin_max_amount: 0.75,
   openai_advanced_scheduler_enabled: false,
   openai_advanced_scheduler_sticky_weighted_enabled: false,
   openai_advanced_scheduler_subscription_priority_enabled: false,
@@ -687,6 +691,51 @@ describe("admin SettingsView payment visible method controls", () => {
         enable_anthropic_cache_ttl_1h_injection: true,
       }),
     );
+  });
+
+  it("renders loaded check-in values", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="checkin-min-amount"]').element).toHaveProperty("value", "0.25");
+    expect(wrapper.get('[data-testid="checkin-max-amount"]').element).toHaveProperty("value", "0.75");
+  });
+
+  it("submits exact check-in values including zero and assigns canonical response", async () => {
+    updateSettings.mockImplementationOnce(async (payload) => ({
+      ...baseSettingsResponse,
+      ...payload,
+      checkin_min_amount: 0.1,
+      checkin_max_amount: 0.9,
+    }));
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="checkin-min-amount"]').setValue("0");
+    await wrapper.get('[data-testid="checkin-max-amount"]').setValue("0");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      checkin_enabled: true,
+      checkin_min_amount: 0,
+      checkin_max_amount: 0,
+    }));
+    expect(wrapper.get('[data-testid="checkin-min-amount"]').element).toHaveProperty("value", "0.1");
+    expect(wrapper.get('[data-testid="checkin-max-amount"]').element).toHaveProperty("value", "0.9");
+  });
+
+  it("rejects an invalid check-in range before updating", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="checkin-min-amount"]').setValue("2");
+    await wrapper.get('[data-testid="checkin-max-amount"]').setValue("1");
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).not.toHaveBeenCalled();
+    expect(showError).toHaveBeenCalledWith("签到金额范围无效");
   });
 
   it("submits message cache_control rewrite gateway setting", async () => {
