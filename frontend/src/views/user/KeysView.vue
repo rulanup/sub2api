@@ -1060,7 +1060,7 @@
       @close="closeUseKeyModal"
     />
 
-    <!-- CCS Client Selection Dialog for Antigravity -->
+    <!-- CC-Switch Client Selection Dialog -->
     <BaseDialog
       :show="showCcsClientSelect"
       :title="t('keys.ccsClientSelect.title')"
@@ -1070,34 +1070,21 @@
       <div class="space-y-4">
         <p class="text-sm text-gray-600 dark:text-gray-400">
           {{ t('keys.ccsClientSelect.description') }}
-	        </p>
-	        <div class="grid grid-cols-2 gap-3">
-	          <button
-	            @click="handleCcsClientSelect('claude')"
-	            class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-dark-600 hover:border-primary-500 dark:hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-	          >
-	            <Icon name="terminal" size="xl" class="text-gray-600 dark:text-gray-400" />
-	            <span class="font-medium text-gray-900 dark:text-white">{{
-	              t('keys.ccsClientSelect.claudeCode')
-	            }}</span>
-	            <span class="text-xs text-gray-500 dark:text-gray-400">{{
-	              t('keys.ccsClientSelect.claudeCodeDesc')
-	            }}</span>
-	          </button>
-	          <button
-	            @click="handleCcsClientSelect('gemini')"
-	            class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-200 dark:border-dark-600 hover:border-primary-500 dark:hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all"
-	          >
-	            <Icon name="sparkles" size="xl" class="text-gray-600 dark:text-gray-400" />
-	            <span class="font-medium text-gray-900 dark:text-white">{{
-	              t('keys.ccsClientSelect.geminiCli')
-	            }}</span>
-	            <span class="text-xs text-gray-500 dark:text-gray-400">{{
-	              t('keys.ccsClientSelect.geminiCliDesc')
-	            }}</span>
-	          </button>
-	        </div>
-	      </div>
+        </p>
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            v-for="client in ccsClientOptions"
+            :key="client.type"
+            :data-test="`ccs-client-${client.type}`"
+            class="flex min-h-28 flex-col items-center justify-center gap-2 rounded-lg border-2 border-gray-200 p-4 text-center transition-all hover:border-primary-500 hover:bg-primary-50 dark:border-dark-600 dark:hover:border-primary-500 dark:hover:bg-primary-900/20"
+            @click="handleCcsClientSelect(client.type)"
+          >
+            <Icon :name="client.icon" size="xl" class="text-gray-600 dark:text-gray-400" />
+            <span class="font-medium text-gray-900 dark:text-white">{{ client.label }}</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ client.description }}</span>
+          </button>
+        </div>
+      </div>
       <template #footer>
         <div class="flex justify-end">
           <button @click="closeCcsClientSelect" class="btn btn-secondary">
@@ -1224,7 +1211,9 @@ import type { BatchApiKeyUsageStats } from '@/api/usage'
 import { formatDateTime } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
 import {
+  CC_SWITCH_USAGE_SCRIPT,
   buildCcSwitchImportDeeplink,
+  getCcSwitchTargets,
   type CcSwitchClientType
 } from '@/utils/ccswitchImport'
 
@@ -1395,6 +1384,16 @@ const columnDropdownRef = ref<HTMLElement | null>(null)
 const dropdownPosition = ref<{ top?: number; bottom?: number; left: number } | null>(null)
 const groupButtonRefs = ref<Map<number, HTMLElement>>(new Map())
 let abortController: AbortController | null = null
+
+const ccsClientOptions = computed(() => {
+  const platform = pendingCcsRow.value?.group?.platform
+  return getCcSwitchTargets(platform).map((type) => ({
+    type,
+    icon: (type === 'gemini' ? 'sparkles' : 'terminal') as 'sparkles' | 'terminal',
+    label: t(`keys.ccsClientSelect.clients.${type}.label`),
+    description: t(`keys.ccsClientSelect.clients.${type}.description`)
+  }))
+})
 
 // Get the currently selected key for group change
 const selectedKeyForGroup = computed(() => {
@@ -2124,50 +2123,35 @@ const resetRateLimitUsage = async () => {
 }
 
 const importToCcswitch = (row: ApiKey) => {
-  const platform = row.group?.platform || 'anthropic'
+  const targets = getCcSwitchTargets(row.group?.platform)
+  if (targets.length === 0) {
+    appStore.showError(t('keys.ccsImportUnsupported'))
+    return
+  }
 
-  // For antigravity platform, show client selection dialog
-  if (platform === 'antigravity') {
+  if (targets.length > 1) {
     pendingCcsRow.value = row
     showCcsClientSelect.value = true
     return
   }
 
-  // For other platforms, execute directly
-  executeCcsImport(row, platform === 'gemini' ? 'gemini' : 'claude')
+  executeCcsImport(row, targets[0])
 }
 
 const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
   const baseUrl = publicSettings.value?.api_base_url || window.location.origin
-  const platform = row.group?.platform || 'anthropic'
-
-  const usageScript = `({
-    request: {
-      url: "{{baseUrl}}/v1/usage",
-      method: "GET",
-      headers: { "Authorization": "Bearer {{apiKey}}" }
-    },
-    extractor: function(response) {
-      const remaining = response?.remaining ?? response?.quota?.remaining ?? response?.balance;
-      const unit = response?.unit ?? response?.quota?.unit ?? "USD";
-      return {
-        isValid: response?.is_active ?? response?.isValid ?? true,
-        remaining,
-        unit
-      };
-    }
-  })`
+  const platform = row.group?.platform
   const providerName = (publicSettings.value?.site_name || 'sub2api').trim() || 'sub2api'
-  const deeplink = buildCcSwitchImportDeeplink({
-    baseUrl,
-    platform,
-    clientType,
-    providerName,
-    apiKey: row.key,
-    usageScript
-  })
 
   try {
+    const deeplink = buildCcSwitchImportDeeplink({
+      baseUrl,
+      platform,
+      clientType,
+      providerName,
+      apiKey: row.key,
+      usageScript: CC_SWITCH_USAGE_SCRIPT
+    })
     window.open(deeplink, '_self')
 
     // Check if the protocol handler worked by detecting if we're still focused
@@ -2177,8 +2161,12 @@ const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
         appStore.showError(t('keys.ccSwitchNotInstalled'))
       }
     }, 100)
-  } catch (error) {
-    appStore.showError(t('keys.ccSwitchNotInstalled'))
+  } catch {
+    appStore.showError(
+      getCcSwitchTargets(platform).includes(clientType)
+        ? t('keys.ccSwitchNotInstalled')
+        : t('keys.ccsImportUnsupported')
+    )
   }
 }
 

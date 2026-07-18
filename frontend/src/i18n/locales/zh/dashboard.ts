@@ -206,13 +206,32 @@ export default {
     ipRestrictionEnabled: '已配置 IP 限制',
     ccSwitchNotInstalled:
       'CC-Switch 未安装或协议处理程序未注册。请先安装 CC-Switch 或手动复制 API 密钥。',
+    ccsImportUnsupported: '当前分组平台无法导入到兼容的 CC-Switch 客户端。',
     ccsClientSelect: {
       title: '选择客户端',
-      description: '请选择您要导入到 CC-Switch 的客户端类型：',
-      claudeCode: 'Claude Code',
-      claudeCodeDesc: '导入为 Claude Code 配置',
-      geminiCli: 'Gemini CLI',
-      geminiCliDesc: '导入为 Gemini CLI 配置'
+      description: '请选择本次导入的客户端。',
+      clients: {
+        claude: {
+          label: 'Claude Code',
+          description: '导入 Claude Code 供应商'
+        },
+        codex: {
+          label: 'Codex',
+          description: '导入 Codex 供应商'
+        },
+        opencode: {
+          label: 'OpenCode',
+          description: '导入 OpenCode 供应商'
+        },
+        gemini: {
+          label: 'Gemini CLI',
+          description: '导入 Gemini CLI 供应商'
+        },
+        grokbuild: {
+          label: 'Grok Build',
+          description: '导入 Grok Build 供应商'
+        }
+      }
     },
     // 配额和有效期
     quotaLimit: '额度限制',

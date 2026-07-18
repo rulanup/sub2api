@@ -201,13 +201,32 @@ export default {
     ipBlacklistHint: 'One IP or CIDR per line. These IPs will be blocked from using this key.',
     ipRestrictionEnabled: 'IP restriction enabled',
     ccSwitchNotInstalled: 'CC-Switch is not installed or the protocol handler is not registered. Please install CC-Switch first or manually copy the API key.',
+    ccsImportUnsupported: 'This group platform cannot be imported to a compatible CC-Switch client.',
     ccsClientSelect: {
       title: 'Select Client',
-      description: 'Please select the client type to import to CC-Switch:',
-      claudeCode: 'Claude Code',
-      claudeCodeDesc: 'Import as Claude Code configuration',
-      geminiCli: 'Gemini CLI',
-      geminiCliDesc: 'Import as Gemini CLI configuration',
+      description: 'Select a client for this import.',
+      clients: {
+        claude: {
+          label: 'Claude Code',
+          description: 'Import a Claude Code provider'
+        },
+        codex: {
+          label: 'Codex',
+          description: 'Import a Codex provider'
+        },
+        opencode: {
+          label: 'OpenCode',
+          description: 'Import an OpenCode provider'
+        },
+        gemini: {
+          label: 'Gemini CLI',
+          description: 'Import a Gemini CLI provider'
+        },
+        grokbuild: {
+          label: 'Grok Build',
+          description: 'Import a Grok Build provider'
+        }
+      }
     },
     // Quota and expiration
     quotaLimit: 'Quota Limit',

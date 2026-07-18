@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
-import type { ApiKey } from '@/types'
+import type { ApiKey, GroupPlatform } from '@/types'
 import KeysView from '../KeysView.vue'
 
 const {
@@ -47,6 +47,16 @@ const messages: Record<string, string> = {
   'keys.lastUsedIP': 'Last Used IP',
   'keys.rateLimitColumn': 'Rate Limit',
   'keys.searchPlaceholder': 'Search name or key...',
+  'keys.importToCcSwitch': 'Import to CC-Switch',
+  'keys.ccsClientSelect.title': 'Select Client',
+  'keys.ccsClientSelect.description': 'Select a client for this import.',
+  'keys.ccsClientSelect.clients.codex.label': 'Codex',
+  'keys.ccsClientSelect.clients.codex.description': 'Import a Codex provider',
+  'keys.ccsClientSelect.clients.opencode.label': 'OpenCode',
+  'keys.ccsClientSelect.clients.opencode.description': 'Import an OpenCode provider',
+  'keys.ccsClientSelect.clients.claude.label': 'Claude Code',
+  'keys.ccsClientSelect.clients.claude.description': 'Import a Claude Code provider',
+  'keys.ccsImportUnsupported': 'Unsupported CC-Switch import',
   'keys.status.active': 'Active',
   'keys.status.expired': 'Expired',
   'keys.status.inactive': 'Inactive',
@@ -104,7 +114,7 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-const createApiKey = (): ApiKey => ({
+const createApiKey = (platform?: GroupPlatform): ApiKey => ({
   id: 1,
   user_id: 1,
   key: 'sk-test-key',
@@ -133,6 +143,15 @@ const createApiKey = (): ApiKey => ({
   reset_5h_at: null,
   reset_1d_at: null,
   reset_7d_at: null,
+  ...(platform
+    ? {
+        group: {
+          id: 1,
+          name: platform,
+          platform,
+        } as ApiKey['group'],
+      }
+    : {}),
 })
 
 const AppLayoutStub = {
@@ -161,18 +180,21 @@ const DataTableStub = {
       <button data-test="sort-current-concurrency" @click="$emit('sort', 'current_concurrency', 'asc')">
         Sort Current Concurrency
       </button>
-      <div v-for="row in data" :key="row.id">
+       <div v-for="row in data" :key="row.id">
         <slot name="cell-name" :value="row.name" :row="row" />
         <div data-test="current-concurrency">
           <slot name="cell-current_concurrency" :value="row.current_concurrency" :row="row" />
         </div>
-        <div
+         <div
           v-if="columns.some((col) => col.key === 'last_used_ip')"
           data-test="last-used-ip"
         >
-          <slot name="cell-last_used_ip" :value="row.last_used_ip" :row="row" />
-        </div>
-      </div>
+           <slot name="cell-last_used_ip" :value="row.last_used_ip" :row="row" />
+         </div>
+         <div data-test="row-actions">
+           <slot name="cell-actions" :row="row" />
+         </div>
+       </div>
       <slot name="empty" />
     </div>
   `,
@@ -208,6 +230,13 @@ const IconStub = {
   template: '<span data-test="icon">{{ name }}</span>',
 }
 
+const BaseDialogStub = {
+  name: 'BaseDialog',
+  props: ['show', 'title'],
+  emits: ['close'],
+  template: '<div v-if="show" data-test="base-dialog"><slot /><slot name="footer" /></div>',
+}
+
 const mountView = async () => {
   const wrapper = mount(KeysView, {
     global: {
@@ -216,7 +245,7 @@ const mountView = async () => {
         TablePageLayout: TablePageLayoutStub,
         DataTable: DataTableStub,
         Pagination: PaginationStub,
-        BaseDialog: true,
+        BaseDialog: BaseDialogStub,
         ConfirmDialog: true,
         EmptyState: true,
         Select: SelectStub,
@@ -251,6 +280,7 @@ const getButtonByText = (wrapper: VueWrapper, text: string) => {
 
 describe('user KeysView column settings', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
     localStorage.clear()
 
     listKeys.mockReset()
@@ -276,6 +306,84 @@ describe('user KeysView column settings', () => {
     getAvailableGroups.mockResolvedValue([])
     getUserGroupRates.mockResolvedValue({})
     isCurrentStep.mockReturnValue(false)
+  })
+
+  it('opens the generic selector for OpenAI and launches each selected target separately', async () => {
+    const openWindow = vi.spyOn(window, 'open').mockImplementation(() => null)
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    listKeys.mockResolvedValueOnce({
+      items: [createApiKey('openai')],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    getPublicSettings.mockResolvedValueOnce({
+      api_base_url: 'https://api.example.com/v1/',
+      site_name: 'Sub2API',
+    })
+    const wrapper = await mountView()
+
+    await getButtonByText(wrapper, 'Import to CC-Switch').trigger('click')
+
+    expect(openWindow).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-test="ccs-client-claude"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-test="ccs-client-codex"]').text()).toContain('Codex')
+    expect(wrapper.get('[data-test="ccs-client-opencode"]').text()).toContain('OpenCode')
+
+    await wrapper.get('[data-test="ccs-client-opencode"]').trigger('click')
+    const deeplink = String(openWindow.mock.calls[0]?.[0])
+    const params = new URLSearchParams(deeplink.split('?')[1])
+    expect(params.get('app')).toBe('opencode')
+    expect(params.get('endpoint')).toBe('https://api.example.com/v1')
+    expect(params.get('usageBaseUrl')).toBe('https://api.example.com')
+  })
+
+  it('imports an OpenAI group into Claude through CC-Switch routing', async () => {
+    const openWindow = vi.spyOn(window, 'open').mockImplementation(() => null)
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    const key = createApiKey('openai')
+    listKeys.mockResolvedValueOnce({ items: [key], total: 1, page: 1, page_size: 20, pages: 1 })
+    const wrapper = await mountView()
+
+    await getButtonByText(wrapper, 'Import to CC-Switch').trigger('click')
+    const claude = wrapper.get('[data-test="ccs-client-claude"]')
+    expect(claude.attributes('disabled')).toBeUndefined()
+    await claude.trigger('click')
+
+    const deeplink = String(openWindow.mock.calls[0]?.[0])
+    const params = new URLSearchParams(deeplink.split('?')[1])
+    expect(params.get('app')).toBe('claude')
+    expect(params.get('endpoint')).toBe('http://localhost:3000')
+  })
+
+  it('directly launches the sole compatible target', async () => {
+    const openWindow = vi.spyOn(window, 'open').mockImplementation(() => null)
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    listKeys.mockResolvedValueOnce({
+      items: [createApiKey('anthropic')],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1,
+    })
+    const wrapper = await mountView()
+
+    await getButtonByText(wrapper, 'Import to CC-Switch').trigger('click')
+
+    expect(wrapper.find('[data-test="base-dialog"]').exists()).toBe(false)
+    const deeplink = String(openWindow.mock.calls[0]?.[0])
+    expect(new URLSearchParams(deeplink.split('?')[1]).get('app')).toBe('claude')
+  })
+
+  it('reports an unsupported import instead of falling back for an unassigned key', async () => {
+    const openWindow = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const wrapper = await mountView()
+
+    await getButtonByText(wrapper, 'Import to CC-Switch').trigger('click')
+
+    expect(openWindow).not.toHaveBeenCalled()
+    expect(showError).toHaveBeenCalledWith('Unsupported CC-Switch import')
   })
 
   it('uses the default API key columns with low-frequency columns hidden', async () => {
