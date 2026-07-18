@@ -38,6 +38,8 @@ Please read the following carefully before using this project:
 - **Channel Pricing Import** - Import channel pricing models from a saved account whitelist or model mapping
 - **Spending Leaderboard** - Users can view daily/weekly/monthly spending rankings
 - **Daily Check-in** - Users check in daily to receive random balance rewards, admin-configurable amount range and toggle
+- **Lottery Activity** - Admin-configurable campaign window, per-user daily draws, global draw cap, and weighted balance or fixed-term subscription-group prizes
+- **CC-Switch Integration** - Import API Keys directly into Claude Code, Codex, OpenCode, Gemini CLI, or Grok Build and query balance, quota, and subscription allowance through `/v1/usage`
 - **Automated Abuse Detection** - Detect sustained synchronous relay traffic and repeated `cyber_policy` usage, then apply configurable RPM/concurrency penalties or disable users, with separate searchable user allowlists
 - **Error Customization** - Customize upstream error status codes and client-facing messages by HTTP status, keyword, and platform, with presets for 401, 429, and security-policy errors plus a global user allowlist
 
@@ -50,6 +52,14 @@ Please read the following carefully before using this project:
 - Error customization covers OpenAI, Anthropic, Gemini, Antigravity, Grok, image endpoints, streaming responses, and WebSocket errors without changing retry, failover, billing, or risk evidence.
 - Users in the global error-customization allowlist bypass all editable rules and receive the original upstream status and error message. Compatibility endpoints still use their required protocol envelope, and mandatory security sanitization remains in effect.
 - Multi-instance deployments synchronize both rule and allowlist changes through Redis and periodically reconcile the allowlist from PostgreSQL.
+
+### Lottery Activity and CC-Switch
+
+- Open **System Settings > Features > Lottery Activity** to configure the campaign ID, title, start/end times, daily draws per user, and the global draw cap. Changing the activity ID starts a separate campaign history.
+- Draws are free and never check or deduct the user's balance. The backend selects results inside a PostgreSQL transaction so attempt consumption, audit history, and balance or subscription delivery commit together. The campaign stops automatically when its end time or global cap is reached.
+- Weighted prizes can grant balance or fixed-term access to subscription groups. Group prizes already active for a user are removed from that user's eligible pool.
+- Click **Import to CCS** on the **API Keys** page. OpenAI groups can be imported into Claude Code, Codex, or OpenCode; other platforms show only compatible clients. CC-Switch imports one client per action, so run the import separately for each required client.
+- Imported providers enable CC-Switch usage queries against `GET /v1/usage`, covering wallet balance, API Key quota, subscription allowance, and rate limits. OpenCode receives a separate usage root URL to avoid an invalid `/v1/v1/usage` request.
 
 ## Overview
 
