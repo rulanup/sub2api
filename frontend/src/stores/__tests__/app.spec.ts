@@ -56,6 +56,7 @@ function createPublicSettings(overrides: Partial<PublicSettings> = {}): PublicSe
     available_channels_enabled: false,
     service_quota_enabled: false,
     affiliate_enabled: false,
+    activity_enabled: false,
     ...overrides,
   }
 }
@@ -399,6 +400,7 @@ describe('useAppStore', () => {
         contact_info: 'test@test.com',
         api_base_url: 'https://api.test.com',
         doc_url: 'https://docs.test.com',
+        activity_enabled: true,
       }
 
       const store = useAppStore()
@@ -409,6 +411,7 @@ describe('useAppStore', () => {
       expect(store.siteLogo).toBe('/logo.png')
       expect(store.siteVersion).toBe('1.0.0')
       expect(store.publicSettingsLoaded).toBe(true)
+      expect(store.cachedPublicSettings?.activity_enabled).toBe(true)
     })
 
     it('无注入配置时返回 false', () => {

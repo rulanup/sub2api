@@ -119,6 +119,18 @@ func TestMigrationsRunner_IsIdempotent_AndSchemaIsUpToDate(t *testing.T) {
 	// user_subscriptions: deleted_at for soft delete support (migration 012)
 	requireColumn(t, tx, "user_subscriptions", "deleted_at", "timestamp with time zone", 0, true)
 
+	// lottery_activity_draws: immutable campaign award audit (migration 180)
+	requireColumn(t, tx, "lottery_activity_draws", "activity_id", "character varying", 64, false)
+	requireColumn(t, tx, "lottery_activity_draws", "period_key", "date", 0, false)
+	requireColumn(t, tx, "lottery_activity_draws", "idempotency_hash", "character", 64, false)
+	requireColumnAbsent(t, tx, "lottery_activity_draws", "idempotency_key")
+	requireColumn(t, tx, "lottery_activity_draws", "config_snapshot", "jsonb", 0, false)
+	requireIndex(t, tx, "lottery_activity_draws", "lottery_activity_draws_activity_user_idempotency_hash_unique")
+	requireIndex(t, tx, "lottery_activity_draws", "idx_lottery_activity_draws_activity_total")
+	requireIndex(t, tx, "lottery_activity_draws", "idx_lottery_activity_draws_user_day")
+	requireForeignKeyOnDelete(t, tx, "lottery_activity_draws", "user_id", "users", "RESTRICT")
+	requireForeignKeyOnDelete(t, tx, "lottery_activity_draws", "subscription_id", "user_subscriptions", "SET NULL")
+
 	// orphan_allowed_groups_audit table should exist (migration 013)
 	var orphanAuditRegclass sql.NullString
 	require.NoError(t, tx.QueryRowContext(context.Background(), "SELECT to_regclass('public.orphan_allowed_groups_audit')").Scan(&orphanAuditRegclass))
@@ -321,4 +333,15 @@ WHERE table_schema = 'public'
 	} else {
 		require.Equal(t, "NO", row.Nullable, "nullable mismatch for %s.%s", table, column)
 	}
+}
+
+func requireColumnAbsent(t *testing.T, tx *sql.Tx, table, column string) {
+	t.Helper()
+	var count int
+	require.NoError(t, tx.QueryRowContext(context.Background(), `
+		SELECT COUNT(*)
+		FROM information_schema.columns
+		WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2
+	`, table, column).Scan(&count))
+	require.Zero(t, count, "expected column %s.%s to be absent", table, column)
 }

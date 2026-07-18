@@ -339,6 +339,7 @@ type PublicSettings struct {
 	CheckinEnabled   bool    `json:"checkin_enabled"`
 	CheckinMinAmount float64 `json:"checkin_min_amount"`
 	CheckinMaxAmount float64 `json:"checkin_max_amount"`
+	ActivityEnabled  bool    `json:"activity_enabled"`
 
 	// 允许终端用户在用量页查看自己的失败请求
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`

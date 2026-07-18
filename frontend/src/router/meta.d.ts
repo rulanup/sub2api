@@ -55,6 +55,9 @@ declare module 'vue-router' {
      */
     requiresRiskControl?: boolean
 
+    /** Whether the lottery activity feature is enabled. */
+    requiresActivity?: boolean
+
     /**
      * i18n key for the page title
      */

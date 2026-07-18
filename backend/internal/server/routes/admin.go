@@ -106,6 +106,12 @@ func RegisterAdminRoutes(
 
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
+
+		activity := admin.Group("/activity")
+		{
+			activity.GET("/config", h.Admin.Activity.GetConfig)
+			activity.PUT("/config", h.Admin.Activity.UpdateConfig)
+		}
 	}
 }
 

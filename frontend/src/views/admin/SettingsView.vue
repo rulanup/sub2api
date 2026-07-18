@@ -5936,6 +5936,24 @@
           </div>
         </div>
 
+        <!-- Lottery activity configuration -->
+        <div class="card">
+          <div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t('admin.settings.features.activity.title') }}
+              </h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t('admin.settings.features.activity.description') }}
+              </p>
+            </div>
+            <button type="button" data-testid="activity-config-launcher" class="btn btn-secondary shrink-0" @click="showActivityConfig = true">
+              <Icon name="gift" size="sm" />
+              {{ t('admin.settings.features.activity.configure') }}
+            </button>
+          </div>
+        </div>
+
         <!-- Checkin (每日签到) feature card -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -7380,6 +7398,11 @@
         :show="showErrorPassthroughRules"
         @close="showErrorPassthroughRules = false"
       />
+      <LotteryActivityConfigModal
+        :show="showActivityConfig"
+        @close="showActivityConfig = false"
+        @saved="handleActivityConfigSaved"
+      />
       <PaymentProviderDialog
         ref="providerDialogRef"
         :show="showProviderDialog"
@@ -7463,6 +7486,7 @@ import BackupSettings from "@/views/admin/BackupView.vue";
 import ErrorPassthroughRulesModal from "@/components/admin/ErrorPassthroughRulesModal.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
+import LotteryActivityConfigModal from "@/components/admin/LotteryActivityConfigModal.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSimpleUser } from "@/api/admin/affiliates";
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
@@ -7515,6 +7539,12 @@ type SettingsTab =
   | "backup";
 const activeTab = ref<SettingsTab>("general");
 const showErrorPassthroughRules = ref(false);
+const showActivityConfig = ref(false);
+
+async function handleActivityConfigSaved(): Promise<void> {
+  appStore.showSuccess(t("admin.settings.features.activity.saved"));
+  await appStore.fetchPublicSettings(true);
+}
 const settingsTabs = [
   { key: "general" as SettingsTab, icon: "home" as const },
   { key: "agreement" as SettingsTab, icon: "document" as const },

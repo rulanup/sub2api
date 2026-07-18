@@ -157,6 +157,7 @@ export default {
     privateAccounts: '私人号池',
     privateGroups: '私人分组',
     checkin: '每日签到',
+    activity: '幸运转盘',
     usage: '使用记录',
     redeem: '兑换',
     affiliate: '邀请返利',

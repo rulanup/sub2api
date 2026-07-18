@@ -53,3 +53,10 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
   })
 })
+
+describe('AppSidebar activity navigation', () => {
+  it('places the activity entry beside check-in and gates it with the activity flag', () => {
+    expect(componentSource).toContain("const flagActivity = makeSidebarFlag(FeatureFlags.activity)")
+    expect(componentSource).toMatch(/path: '\/checkin'[\s\S]*path: '\/activity'.*featureFlag: flagActivity/)
+  })
+})

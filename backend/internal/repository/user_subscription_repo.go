@@ -22,6 +22,12 @@ func NewUserSubscriptionRepository(client *dbent.Client) service.UserSubscriptio
 	return &userSubscriptionRepository{client: client}
 }
 
+func (r *userSubscriptionRepository) LockUserForSubscription(ctx context.Context, userID int64) error {
+	client := clientFromContext(ctx, r.client)
+	_, err := client.User.Query().Where(user.IDEQ(userID)).ForUpdate().OnlyID(ctx)
+	return translatePersistenceError(err, service.ErrUserNotFound, nil)
+}
+
 func (r *userSubscriptionRepository) Create(ctx context.Context, sub *service.UserSubscription) error {
 	if sub == nil {
 		return service.ErrSubscriptionNilInput

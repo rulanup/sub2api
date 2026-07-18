@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -126,6 +127,36 @@ func TestSettingService_GetPublicSettings_ExposesCheckinSettings(t *testing.T) {
 	require.True(t, injection.CheckinEnabled)
 	require.Equal(t, 0.25, injection.CheckinMinAmount)
 	require.Equal(t, 1.50, injection.CheckinMaxAmount)
+}
+
+func TestSettingService_GetPublicSettings_ExposesOnlyActivityEnabledFlag(t *testing.T) {
+	cfg := validLotteryConfig()
+	raw, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	repo := &settingPublicRepoStub{values: map[string]string{
+		SettingKeyLotteryActivityConfig: string(raw),
+	}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.True(t, settings.ActivityEnabled)
+
+	payload, err := svc.GetPublicSettingsForInjection(context.Background())
+	require.NoError(t, err)
+	injection := payload.(*PublicSettingsInjectionPayload)
+	require.True(t, injection.ActivityEnabled)
+}
+
+func TestSettingService_GetPublicSettings_DisablesMalformedActivity(t *testing.T) {
+	repo := &settingPublicRepoStub{values: map[string]string{
+		SettingKeyLotteryActivityConfig: `{"enabled":true,"activity_id":"broken"}`,
+	}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.False(t, settings.ActivityEnabled)
 }
 
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {

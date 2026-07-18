@@ -499,10 +499,30 @@ function mountView() {
         ImageUpload: ImageUploadStub,
         BackupSettings: true,
         ErrorPassthroughRulesModal: ErrorPassthroughRulesModalStub,
+        LotteryActivityConfigModal: defineComponent({
+          name: "LotteryActivityConfigModal",
+          props: { show: Boolean },
+          template: '<div data-testid="activity-modal-stub" :data-show="String(show)" />',
+        }),
       },
     },
   });
 }
+
+describe("admin SettingsView activity launcher", () => {
+  it("opens the independently saved activity configuration modal", async () => {
+    getSettings.mockResolvedValue(baseSettingsResponse);
+    getGroups.mockResolvedValue([]);
+    listProxies.mockResolvedValue([]);
+    getProviders.mockResolvedValue([]);
+    const wrapper = mountView();
+    await flushPromises();
+    const featuresTab = wrapper.findAll("button").find(node => node.text().includes("admin.settings.tabs.features"));
+    await featuresTab?.trigger("click");
+    await wrapper.get('[data-testid="activity-config-launcher"]').trigger("click");
+    expect(wrapper.get('[data-testid="activity-modal-stub"]').attributes("data-show")).toBe("true");
+  });
+});
 
 async function openPaymentTab(wrapper: ReturnType<typeof mountView>) {
   const paymentTabButton = wrapper

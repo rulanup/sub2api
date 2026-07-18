@@ -157,6 +157,7 @@ export default {
     privateAccounts: 'Private Pool',
     privateGroups: 'Private Groups',
     checkin: 'Daily Check-in',
+    activity: 'Prize Wheel',
     usage: 'Usage',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',

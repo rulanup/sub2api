@@ -225,6 +225,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyCheckinEnabled,
 		SettingKeyCheckinMinAmount,
 		SettingKeyCheckinMaxAmount,
+		SettingKeyLotteryActivityConfig,
 		SettingKeyAllowUserViewErrorRequests,
 	}
 
@@ -286,6 +287,13 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		settings[SettingKeyCheckinMinAmount],
 		settings[SettingKeyCheckinMaxAmount],
 	)
+	activityEnabled := false
+	if raw := settings[SettingKeyLotteryActivityConfig]; raw != "" {
+		var activity LotteryActivityConfig
+		if json.Unmarshal([]byte(raw), &activity) == nil && validateLotteryConfigShape(&activity) == nil {
+			activityEnabled = activity.Enabled
+		}
+	}
 
 	return &PublicSettings{
 		RegistrationEnabled:              settings[SettingKeyRegistrationEnabled] == "true",
@@ -346,6 +354,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		CheckinEnabled:   settings[SettingKeyCheckinEnabled] == "true",
 		CheckinMinAmount: checkinMinAmount,
 		CheckinMaxAmount: checkinMaxAmount,
+		ActivityEnabled:  activityEnabled,
 
 		AllowUserViewErrorRequests: settings[SettingKeyAllowUserViewErrorRequests] == "true",
 	}, nil
@@ -510,6 +519,7 @@ type PublicSettingsInjectionPayload struct {
 	CheckinEnabled                       bool    `json:"checkin_enabled"`
 	CheckinMinAmount                     float64 `json:"checkin_min_amount"`
 	CheckinMaxAmount                     float64 `json:"checkin_max_amount"`
+	ActivityEnabled                      bool    `json:"activity_enabled"`
 	AllowUserViewErrorRequests           bool    `json:"allow_user_view_error_requests"`
 }
 
@@ -578,6 +588,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		CheckinEnabled:                       settings.CheckinEnabled,
 		CheckinMinAmount:                     settings.CheckinMinAmount,
 		CheckinMaxAmount:                     settings.CheckinMaxAmount,
+		ActivityEnabled:                      settings.ActivityEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,
 	}, nil
 }

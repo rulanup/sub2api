@@ -664,6 +664,9 @@ func (s *RedeemService) GetUserHistory(ctx context.Context, userID int64, limit 
 
 // reduceOrCancelSubscription 缩短订阅天数，剩余天数 <= 0 时取消订阅
 func (s *RedeemService) reduceOrCancelSubscription(ctx context.Context, userID, groupID int64, reduceDays int, code string) error {
+	if err := s.subscriptionService.lockUserForSubscription(ctx, userID); err != nil {
+		return fmt.Errorf("lock subscription user: %w", err)
+	}
 	sub, err := s.subscriptionService.userSubRepo.GetByUserIDAndGroupID(ctx, userID, groupID)
 	if err != nil {
 		return ErrSubscriptionNotFound
@@ -704,8 +707,9 @@ func (s *RedeemService) reduceOrCancelSubscription(ctx context.Context, userID, 
 		return fmt.Errorf("update subscription notes: %w", err)
 	}
 
-	// 失效缓存
-	s.subscriptionService.InvalidateSubCache(userID, groupID)
+	// The redeem transaction owns the commit; install a post-commit hook so no
+	// pre-commit value can be repopulated into either cache layer.
+	s.subscriptionService.maybeInvalidateAssignmentCaches(ctx, userID, groupID, false)
 
 	return nil
 }

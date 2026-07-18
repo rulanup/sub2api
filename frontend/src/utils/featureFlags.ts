@@ -119,6 +119,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Affiliate',
   }),
+  activity: defineFlag({
+    key: 'activity_enabled',
+    mode: 'opt-in',
+    label: 'Lottery Activity',
+  }),
 } as const
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags

@@ -118,6 +118,13 @@ func RegisterUserRoutes(
 			checkin.POST("", h.Checkin.Checkin)
 		}
 
+		activity := authenticated.Group("/activity")
+		{
+			activity.GET("/status", h.Activity.GetStatus)
+			activity.POST("/draw", h.Activity.Draw)
+			activity.GET("/history", h.Activity.History)
+		}
+
 		// 用户订阅
 		subscriptions := authenticated.Group("/subscriptions")
 		{

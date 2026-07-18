@@ -39,14 +39,32 @@ func TestMaybeInvalidateAssignmentCaches_DefersForOuterTransactionOwner(t *testi
 	require.True(t, cache.Set(key, &UserSubscription{ID: 42}, 1))
 	cache.Wait()
 
-	svc.maybeInvalidateAssignmentCaches(7, 9, true)
+	svc.maybeInvalidateAssignmentCaches(context.Background(), 7, 9, true)
 	_, cachedBeforeCommit := cache.Get(key)
 	require.True(t, cachedBeforeCommit, "outer transaction must retain caches until its owner commits")
 
-	svc.maybeInvalidateAssignmentCaches(7, 9, false)
+	svc.maybeInvalidateAssignmentCaches(context.Background(), 7, 9, false)
 	cache.Wait()
 	_, cachedAfterCommit := cache.Get(key)
 	require.False(t, cachedAfterCommit, "post-commit invalidation must remove the cached subscription")
+}
+
+func TestAssignmentCacheInvalidationIsSynchronousAndDistributed(t *testing.T) {
+	cache, err := ristretto.NewCache(&ristretto.Config{NumCounters: 1_000, MaxCost: 100, BufferItems: 64})
+	require.NoError(t, err)
+	t.Cleanup(cache.Close)
+	billing := &lotteryBillingCacheStub{}
+	svc := &SubscriptionService{subCacheL1: cache, billingCacheService: &BillingCacheService{cache: billing}}
+	key := subCacheKey(7, 9)
+	require.True(t, cache.Set(key, &UserSubscription{ID: 42}, 1))
+	cache.Wait()
+
+	svc.performAssignmentCacheInvalidation(7, 9)
+	cache.Wait()
+	_, found := cache.Get(key)
+	require.False(t, found)
+	require.Equal(t, 1, billing.subscriptionInvalidations)
+	require.Equal(t, 1, billing.publishedInvalidations)
 }
 
 type groupRepoNoop struct{}
@@ -105,6 +123,7 @@ func (s *subscriptionGroupRepoStub) GetByID(context.Context, int64) (*Group, err
 
 type userSubRepoNoop struct{}
 
+func (userSubRepoNoop) LockUserForSubscription(context.Context, int64) error { return nil }
 func (userSubRepoNoop) Create(context.Context, *UserSubscription) error {
 	panic("unexpected Create call")
 }

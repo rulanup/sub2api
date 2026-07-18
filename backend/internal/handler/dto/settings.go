@@ -369,6 +369,7 @@ type PublicSettings struct {
 	CheckinEnabled   bool    `json:"checkin_enabled"`
 	CheckinMinAmount float64 `json:"checkin_min_amount"`
 	CheckinMaxAmount float64 `json:"checkin_max_amount"`
+	ActivityEnabled  bool    `json:"activity_enabled"`
 
 	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
 }
