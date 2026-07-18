@@ -787,6 +787,8 @@ func (s *OpenAIGatewayService) isBetterAccount(candidate, current *Account) bool
 func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*AccountSelectionResult, error) {
 	if apiKey := apiKeyFromContext(ctx); apiKey != nil && len(apiKey.GroupIDs) > 1 {
 		var lastErr error
+		var waitSelection *AccountSelectionResult
+		var waitGroup *Group
 		for _, group := range s.orderedAPIKeyScheduleGroups(ctx, apiKey, PlatformOpenAI) {
 			if group == nil || !group.IsActive() {
 				continue
@@ -794,14 +796,23 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 			gid := group.ID
 			groupCtx := context.WithValue(ctx, ctxkey.Group, group)
 			selection, err := s.selectAccountWithLoadAwareness(s.withOpenAIQuotaAutoPauseContext(groupCtx), &gid, PlatformOpenAI, sessionHash, requestedModel, excludedIDs, false, "")
-			if err == nil && selection != nil {
+			if err == nil && selection != nil && selection.Acquired {
 				apiKey.GroupID = &group.ID
 				apiKey.Group = group
 				return selection, nil
 			}
+			if err == nil && selection != nil && selection.WaitPlan != nil && waitSelection == nil {
+				waitSelection = selection
+				waitGroup = group
+			}
 			if err != nil {
 				lastErr = err
 			}
+		}
+		if waitSelection != nil {
+			apiKey.GroupID = &waitGroup.ID
+			apiKey.Group = waitGroup
+			return waitSelection, nil
 		}
 		if lastErr != nil {
 			return nil, lastErr

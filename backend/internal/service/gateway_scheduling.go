@@ -43,8 +43,8 @@ func orderedGatewayScheduleGroups(apiKey *APIKey) []*Group {
 		}
 	}
 	if apiKey.GroupScheduleStrategy != APIKeyGroupScheduleLowestLatency {
+		now := time.Now()
 		sort.SliceStable(groups, func(i, j int) bool {
-			now := time.Now()
 			left := groups[i].RateMultiplier * groups[i].PeakMultiplierAt(now)
 			right := groups[j].RateMultiplier * groups[j].PeakMultiplierAt(now)
 			if left < 0 {
@@ -124,19 +124,30 @@ func (s *GatewayService) SelectAccountWithLoadAwareness(ctx context.Context, gro
 	if bypass, _ := ctx.Value(gatewayMultiGroupBypassContextKey{}).(bool); !bypass {
 		if apiKey := apiKeyFromContext(ctx); apiKey != nil && len(apiKey.GroupIDs) > 1 {
 			var lastErr error
+			var waitSelection *AccountSelectionResult
+			var waitGroup *Group
 			for _, group := range orderedGatewayScheduleGroups(apiKey) {
 				gid := group.ID
 				groupCtx := context.WithValue(ctx, gatewayMultiGroupBypassContextKey{}, true)
 				groupCtx = context.WithValue(groupCtx, ctxkey.Group, group)
 				selection, err := s.SelectAccountWithLoadAwareness(groupCtx, &gid, sessionHash, requestedModel, excludedIDs, metadataUserID, sub2apiUserID)
-				if err == nil && selection != nil {
+				if err == nil && selection != nil && selection.Acquired {
 					apiKey.GroupID = &group.ID
 					apiKey.Group = group
 					return selection, nil
 				}
+				if err == nil && selection != nil && selection.WaitPlan != nil && waitSelection == nil {
+					waitSelection = selection
+					waitGroup = group
+				}
 				if err != nil {
 					lastErr = err
 				}
+			}
+			if waitSelection != nil {
+				apiKey.GroupID = &waitGroup.ID
+				apiKey.Group = waitGroup
+				return waitSelection, nil
 			}
 			if lastErr != nil {
 				return nil, lastErr

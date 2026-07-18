@@ -1718,6 +1718,9 @@ func (s *OpenAIGatewayService) selectMultiGroupAccountWithScheduler(
 		return nil, OpenAIAccountScheduleDecision{}, nil, ErrNoAvailableAccounts
 	}
 	var lastErr error
+	var waitSelection *AccountSelectionResult
+	var waitDecision OpenAIAccountScheduleDecision
+	var waitGroup *Group
 	for _, group := range groups {
 		if group == nil || !group.IsActive() || group.Platform != platform {
 			continue
@@ -1725,12 +1728,20 @@ func (s *OpenAIGatewayService) selectMultiGroupAccountWithScheduler(
 		gid := group.ID
 		groupCtx := context.WithValue(ctx, openAIMultiGroupBypassContextKey{}, true)
 		selection, decision, err := s.selectAccountWithScheduler(groupCtx, &gid, previousResponseID, sessionHash, requestedModel, excludedIDs, requiredTransport, requiredCapability, requiredImageCapability, requireCompact, platform, false)
-		if err == nil && selection != nil {
+		if err == nil && selection != nil && selection.Acquired {
 			return selection, decision, group, nil
+		}
+		if err == nil && selection != nil && selection.WaitPlan != nil && waitSelection == nil {
+			waitSelection = selection
+			waitDecision = decision
+			waitGroup = group
 		}
 		if err != nil {
 			lastErr = err
 		}
+	}
+	if waitSelection != nil {
+		return waitSelection, waitDecision, waitGroup, nil
 	}
 	if lastErr != nil {
 		return nil, OpenAIAccountScheduleDecision{}, nil, lastErr
@@ -1765,8 +1776,8 @@ func (s *OpenAIGatewayService) orderedAPIKeyScheduleGroups(ctx context.Context, 
 			return s.groupLatencyScore(ctx, groups[i].ID, platform) < s.groupLatencyScore(ctx, groups[j].ID, platform)
 		})
 	default:
+		now := time.Now()
 		sort.SliceStable(groups, func(i, j int) bool {
-			now := time.Now()
 			return groupScheduleCost(groups[i], now) < groupScheduleCost(groups[j], now)
 		})
 	}

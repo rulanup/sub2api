@@ -20,6 +20,21 @@ type fakeDiagnoser struct {
 	resp  service.ModelAvailabilityDiagnosis
 }
 
+type groupedFakeDiagnoser struct {
+	responses map[int64]service.ModelAvailabilityDiagnosis
+}
+
+func (f *groupedFakeDiagnoser) DiagnoseModelAvailabilityForPlatform(
+	_ context.Context,
+	groupID *int64,
+	_, _ string,
+) service.ModelAvailabilityDiagnosis {
+	if groupID == nil {
+		return service.ModelAvailabilityDiagnosis{}
+	}
+	return f.responses[*groupID]
+}
+
 type fakeDiagnoseCall struct {
 	GroupID  *int64
 	Model    string
@@ -185,5 +200,34 @@ func TestClassifyNoAccountError_FromGin_NilContextStillSafe(t *testing.T) {
 	cls := classifyNoAccountErrorFromGin(nil, fd, apiKey, "gpt-5", "gpt-5", service.PlatformOpenAI)
 
 	require.Equal(t, http.StatusNotFound, cls.Status, "even with a nil gin context the classifier must still run and yield a coherent response")
+	require.True(t, cls.ModelNotFound)
+}
+
+func TestClassifyNoAccountError_MultiGroupAggregatesModelSupport(t *testing.T) {
+	c := newTestGinContextWithRequest()
+	groupID := int64(7)
+	diag := &groupedFakeDiagnoser{responses: map[int64]service.ModelAvailabilityDiagnosis{
+		7: {HasAccountsInPool: true, HasModelSupport: false},
+		8: {HasAccountsInPool: true, HasModelSupport: true},
+	}}
+	apiKey := &service.APIKey{GroupID: &groupID, GroupIDs: []int64{7, 8}}
+
+	cls := classifyNoAccountErrorFromGin(c, diag, apiKey, "gpt-5", "gpt-5", service.PlatformOpenAI)
+
+	require.Equal(t, http.StatusServiceUnavailable, cls.Status)
+	require.False(t, cls.ModelNotFound, "support in any configured group keeps the error transient")
+}
+
+func TestClassifyNoAccountError_MultiGroupWithoutSupportReturns404(t *testing.T) {
+	c := newTestGinContextWithRequest()
+	diag := &groupedFakeDiagnoser{responses: map[int64]service.ModelAvailabilityDiagnosis{
+		7: {HasAccountsInPool: true},
+		8: {HasAccountsInPool: true},
+	}}
+	apiKey := &service.APIKey{GroupIDs: []int64{7, 8}}
+
+	cls := classifyNoAccountErrorFromGin(c, diag, apiKey, "gpt-5", "gpt-5", service.PlatformOpenAI)
+
+	require.Equal(t, http.StatusNotFound, cls.Status)
 	require.True(t, cls.ModelNotFound)
 }

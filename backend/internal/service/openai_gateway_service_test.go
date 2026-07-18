@@ -15,6 +15,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/model"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/cespare/xxhash/v2"
 	"github.com/gin-gonic/gin"
@@ -811,6 +812,33 @@ func TestOpenAISelectAccountWithLoadAwareness_NoSlotFallbackWait(t *testing.T) {
 	if selection.Account == nil || selection.Account.ID != 1 {
 		t.Fatalf("expected account 1")
 	}
+}
+
+func TestOpenAISelectAccountWithLoadAwareness_MultiGroupSkipsWaitPlanForLaterGroup(t *testing.T) {
+	cheapID, fallbackID := int64(401), int64(402)
+	groups := []*Group{
+		{ID: cheapID, Platform: PlatformOpenAI, Status: StatusActive, RateMultiplier: 1},
+		{ID: fallbackID, Platform: PlatformOpenAI, Status: StatusActive, RateMultiplier: 2},
+	}
+	repo := groupAwareStubOpenAIAccountRepo{stubOpenAIAccountRepo{accounts: []Account{
+		{ID: 1, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, GroupIDs: []int64{cheapID}},
+		{ID: 2, Platform: PlatformOpenAI, Status: StatusActive, Schedulable: true, Concurrency: 1, GroupIDs: []int64{fallbackID}},
+	}}}
+	concurrencyCache := stubConcurrencyCache{
+		loadMap:        map[int64]*AccountLoadInfo{1: {AccountID: 1, LoadRate: 100}, 2: {AccountID: 2, LoadRate: 0}},
+		acquireResults: map[int64]bool{2: true},
+	}
+	apiKey := &APIKey{GroupIDs: []int64{cheapID, fallbackID}, Groups: groups, GroupScheduleStrategy: APIKeyGroupScheduleCheapest}
+	ctx := context.WithValue(context.Background(), ctxkey.APIKey, apiKey)
+	svc := &OpenAIGatewayService{accountRepo: repo, concurrencyService: NewConcurrencyService(concurrencyCache)}
+
+	selection, err := svc.SelectAccountWithLoadAwareness(ctx, nil, "", "gpt-4", nil)
+
+	require.NoError(t, err)
+	require.NotNil(t, selection)
+	require.Equal(t, int64(2), selection.Account.ID)
+	require.True(t, selection.Acquired)
+	require.Equal(t, fallbackID, *apiKey.GroupID)
 }
 
 func TestOpenAISelectAccountForModelWithExclusions_SetsStickyBinding(t *testing.T) {

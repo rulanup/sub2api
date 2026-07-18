@@ -74,12 +74,37 @@ func classifyNoAccountError(
 	if displayModel == "" {
 		displayModel = routingModel
 	}
-	if diag == nil || apiKey == nil || apiKey.GroupID == nil || routingModel == "" {
+	if diag == nil || apiKey == nil || routingModel == "" {
 		return fallback
 	}
 
-	result := diag.DiagnoseModelAvailabilityForPlatform(ctx, apiKey.GroupID, routingModel, platform)
-	if result.HasAccountsInPool && !result.HasModelSupport {
+	groupIDs := make([]int64, 0, len(apiKey.GroupIDs)+1)
+	seen := make(map[int64]struct{}, len(apiKey.GroupIDs)+1)
+	addGroupID := func(groupID *int64) {
+		if groupID == nil {
+			return
+		}
+		if _, ok := seen[*groupID]; ok {
+			return
+		}
+		seen[*groupID] = struct{}{}
+		groupIDs = append(groupIDs, *groupID)
+	}
+	addGroupID(apiKey.GroupID)
+	for _, groupID := range apiKey.GroupIDs {
+		addGroupID(&groupID)
+	}
+	if len(groupIDs) == 0 {
+		return fallback
+	}
+
+	hasAccounts, hasModelSupport := false, false
+	for _, groupID := range groupIDs {
+		result := diag.DiagnoseModelAvailabilityForPlatform(ctx, &groupID, routingModel, platform)
+		hasAccounts = hasAccounts || result.HasAccountsInPool
+		hasModelSupport = hasModelSupport || result.HasModelSupport
+	}
+	if hasAccounts && !hasModelSupport {
 		return noAccountErrorClassification{
 			Status:        http.StatusNotFound,
 			ErrType:       "model_not_found",
