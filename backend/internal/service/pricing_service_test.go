@@ -97,7 +97,7 @@ func TestBillingService_GPT56CacheWritePricingUsesOfficialMultiplier(t *testing.
 
 			fast, err := svc.CalculateCostWithServiceTier(tt.model, tokens, 1, "fast")
 			require.NoError(t, err)
-			require.InDelta(t, 200*tt.input*1.25*2, fast.CacheCreationCost, 1e-12)
+			require.InDelta(t, 200*tt.input*1.25*2.5, fast.CacheCreationCost, 1e-12)
 		})
 	}
 }
@@ -119,7 +119,7 @@ func TestBillingService_GPT56UsesLongContextPricingAcrossModelsAndTiers(t *testi
 		{name: "standard", priceScale: 1},
 		{name: "priority", priceScale: 2},
 		{name: "flex", priceScale: 0.5},
-		{name: "fast", priceScale: 2},
+		{name: "fast", priceScale: 2.5},
 	}
 	tokens := UsageTokens{
 		InputTokens:         100000,
