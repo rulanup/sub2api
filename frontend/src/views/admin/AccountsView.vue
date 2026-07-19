@@ -742,7 +742,7 @@ const formatSchedulerScoreGroup = (score: AccountSchedulerGroupScore): string =>
 
 const loadSavedColumns = () => {
   if (userMode.value) {
-    ;['select', 'today_stats', 'usage', 'proxy', 'priority', 'scheduler_score', 'rate_multiplier', 'schedulable'].forEach(key => hiddenColumns.add(key))
+    ['select', 'today_stats', 'usage', 'proxy', 'priority', 'scheduler_score', 'rate_multiplier', 'schedulable'].forEach(key => hiddenColumns.add(key))
     return
   }
   try {

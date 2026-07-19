@@ -402,11 +402,6 @@ func appendSubscriptionNotes(existingNotes, newNotes string) string {
 	return existingNotes + "\n" + newNotes
 }
 
-// createSubscription 创建新订阅（内部方法）
-func (s *SubscriptionService) createSubscription(ctx context.Context, input *AssignSubscriptionInput) (*UserSubscription, error) {
-	return s.createSubscriptionAt(ctx, input, time.Now())
-}
-
 func (s *SubscriptionService) createSubscriptionAt(ctx context.Context, input *AssignSubscriptionInput, now time.Time) (*UserSubscription, error) {
 	validityDays := input.ValidityDays
 	if validityDays <= 0 {

@@ -230,6 +230,7 @@ func TestAPIContracts(t *testing.T) {
 					"key": "sk_custom_1234567890",
 					"name": "Key One",
 					"group_id": null,
+					"group_schedule_strategy": "cheapest",
 					"status": "active",
 					"ip_whitelist": null,
 					"ip_blacklist": null,
@@ -354,7 +355,8 @@ func TestAPIContracts(t *testing.T) {
 						"peak_start": "",
 						"peak_end": "",
 						"peak_rate_multiplier": 1,
-						"is_exclusive": false,
+					"is_exclusive": false,
+					"is_private": false,
 						"status": "active",
 						"subscription_type": "standard",
 						"daily_limit_usd": null,
@@ -934,6 +936,9 @@ func TestAPIContracts(t *testing.T) {
 					"balance_low_notify_recharge_url": "",
 					"account_quota_notify_emails": [],
 					"channel_monitor_enabled": true,
+					"checkin_enabled": false,
+					"checkin_max_amount": 0.1,
+					"checkin_min_amount": 0.01,
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
 					"risk_control_enabled": false,
@@ -1204,6 +1209,9 @@ func TestAPIContracts(t *testing.T) {
 					"balance_low_notify_recharge_url": "",
 					"account_quota_notify_emails": [],
 					"channel_monitor_enabled": true,
+					"checkin_enabled": false,
+					"checkin_max_amount": 0.1,
+					"checkin_min_amount": 0.01,
 					"channel_monitor_default_interval_seconds": 60,
 					"available_channels_enabled": false,
 					"risk_control_enabled": false,
@@ -1756,7 +1764,7 @@ func (s *stubAccountRepo) ListAllWithFilters(context.Context, string, string, st
 	return nil, nil
 }
 
-func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string) ([]service.Account, *pagination.PaginationResult, error) {
+func (s *stubAccountRepo) ListWithFilters(ctx context.Context, params pagination.PaginationParams, platform, accountType, status, search string, groupID int64, privacyMode string, _ int64) ([]service.Account, *pagination.PaginationResult, error) {
 	return nil, nil, errors.New("not implemented")
 }
 
@@ -2490,14 +2498,6 @@ func (r *stubUsageLogRepo) GetUserUsageTrend(ctx context.Context, startTime, end
 }
 
 func (r *stubUsageLogRepo) GetUserSpendingRanking(ctx context.Context, startTime, endTime time.Time, limit int) (*usagestats.UserSpendingRankingResponse, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (r *stubUsageLogRepo) GetLeaderboard(ctx context.Context, startTime, endTime time.Time, limit int, callerUserID int64) (*usagestats.LeaderboardResponse, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (r *stubUsageLogRepo) GetLeaderboardMyRank(ctx context.Context, startTime, endTime time.Time, callerUserID int64) (*usagestats.LeaderboardMyRank, error) {
 	return nil, errors.New("not implemented")
 }
 

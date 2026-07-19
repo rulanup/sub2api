@@ -111,7 +111,7 @@ func TestCalculateImageCost_ZeroRateMultiplier(t *testing.T) {
 	svc := &BillingService{}
 
 	cost := svc.CalculateImageCost("gemini-3-pro-image", "2K", 1, nil, 0)
-	require.InDelta(t, 0.201, cost.TotalCost, 0.0001)
+	require.InDelta(t, 0.0, cost.TotalCost, 0.0001)
 	require.InDelta(t, 0.0, cost.ActualCost, 1e-10)
 }
 

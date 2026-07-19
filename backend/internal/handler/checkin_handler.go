@@ -50,11 +50,11 @@ func (h *CheckinHandler) GetStatus(c *gin.Context) {
 	minAmt, maxAmt := h.settingService.GetCheckinAmountRange(c.Request.Context())
 
 	response.Success(c, gin.H{
-		"enabled":     true,
-		"checked_in":  checkedIn,
-		"amount":      amount,
-		"min_amount":  minAmt,
-		"max_amount":  maxAmt,
+		"enabled":    true,
+		"checked_in": checkedIn,
+		"amount":     amount,
+		"min_amount": minAmt,
+		"max_amount": maxAmt,
 	})
 }
 

@@ -507,8 +507,8 @@ func (h *UsageHandler) DashboardModels(c *gin.Context) {
 
 // TestModelLatencyRequest represents the request to test model latency.
 type TestModelLatencyRequest struct {
-	Model  string `json:"model" binding:"required"`
-	KeyID  int64  `json:"key_id" binding:"required"`
+	Model string `json:"model" binding:"required"`
+	KeyID int64  `json:"key_id" binding:"required"`
 }
 
 // TestModelLatency tests the latency of a model by making a minimal request.
@@ -560,7 +560,7 @@ func (h *UsageHandler) TestModelLatency(c *gin.Context) {
 		})
 		return
 	}
-	defer httpResp.Body.Close()
+	defer func() { _ = httpResp.Body.Close() }()
 
 	status := "ok"
 	if httpResp.StatusCode >= 400 {

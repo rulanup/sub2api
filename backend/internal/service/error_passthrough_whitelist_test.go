@@ -142,7 +142,7 @@ func TestErrorPassthroughWhitelistConservativeEmptyAndValidation(t *testing.T) {
 	require.Empty(t, svc.GetWhitelistUserIDs())
 
 	settings.getErr = errors.New("db unavailable")
-	svc.reloadWhitelist(context.Background())
+	require.Error(t, svc.reloadWhitelist(context.Background()))
 	require.Empty(t, svc.GetWhitelistUserIDs())
 
 	_, err := svc.UpdateWhitelistUserIDs(context.Background(), []int64{1, 0})

@@ -673,7 +673,9 @@ function clearActiveChat() {
 function saveConversations() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations.value))
-  } catch {}
+  } catch {
+    // Ignore unavailable or full browser storage.
+  }
 }
 
 function loadConversations() {
@@ -693,7 +695,9 @@ function loadConversations() {
         if (preferred.keyId) selectedKeyId.value = preferred.keyId
       }
     }
-  } catch {}
+  } catch {
+    // Ignore invalid or unavailable persisted conversations.
+  }
   if (conversations.value.length === 0) createConversation()
 }
 
@@ -783,7 +787,9 @@ async function sendMessage() {
             streamingContent.value += delta
             scrollToBottom()
           }
-        } catch {}
+        } catch {
+          // Ignore malformed stream events.
+        }
       }
     }
     if (streamingContent.value) {
