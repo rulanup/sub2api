@@ -169,9 +169,9 @@ func TestForwardAsRawChatCompletions_NonStreamingCapturesCacheWriteUsage(t *test
 			wantWrite: 6,
 		},
 		{
-			name:      "nested zero overrides legacy alias",
+			name:      "nested zero does not hide legacy alias",
 			usageJSON: `{"prompt_tokens":12,"completion_tokens":3,"total_tokens":15,"cache_creation_input_tokens":19,"prompt_tokens_details":{"cached_tokens":4,"cache_write_tokens":0}}`,
-			wantWrite: 0,
+			wantWrite: 19,
 		},
 	}
 

@@ -236,6 +236,24 @@ func firstPositiveGJSONInt(values ...gjson.Result) int {
 	return 0
 }
 
+// maxPositiveGJSONInt keeps a non-zero usage value when an upstream sends both
+// an aggregate compatibility field and an explicit nested field. Some GPT-5.6
+// responses include a zero nested field while reporting cache creation tokens
+// in the aggregate field; treating field presence as authoritative would make
+// the cache creation charge disappear.
+func maxPositiveGJSONInt(values ...gjson.Result) int {
+	maxValue := 0
+	for _, value := range values {
+		if !value.Exists() {
+			continue
+		}
+		if n := int(value.Int()); n > maxValue {
+			maxValue = n
+		}
+	}
+	return maxValue
+}
+
 func buildOpenAIEmbeddingsURL(base string) string {
 	return buildOpenAIEndpointURL(base, "/v1/embeddings")
 }

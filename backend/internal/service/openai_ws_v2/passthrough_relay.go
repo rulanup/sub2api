@@ -811,28 +811,22 @@ func parseUsageIntField(value gjson.Result, required bool) (int, bool) {
 }
 
 func openAICacheCreationTokensFromUsage(value gjson.Result) int {
+	maxTokens := 0
 	for _, field := range []string{
 		"input_tokens_details.cache_write_tokens",
 		"prompt_tokens_details.cache_write_tokens",
 		"input_tokens_details.cache_creation_tokens",
 		"prompt_tokens_details.cache_creation_tokens",
-	} {
-		result := value.Get(field)
-		if result.Exists() {
-			return max(int(result.Int()), 0)
-		}
-	}
-	for _, field := range []string{
 		"cache_write_tokens",
 		"cache_creation_input_tokens",
 		"cache_write_input_tokens",
 		"cache_creation_tokens",
 	} {
-		if tokens := int(value.Get(field).Int()); tokens > 0 {
-			return tokens
+		if tokens := int(value.Get(field).Int()); tokens > maxTokens {
+			maxTokens = tokens
 		}
 	}
-	return 0
+	return maxTokens
 }
 
 func enrichResult(result *RelayResult, state *relayState, duration time.Duration) {
