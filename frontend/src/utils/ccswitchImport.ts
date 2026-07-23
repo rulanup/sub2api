@@ -12,7 +12,8 @@ export const CC_SWITCH_TARGETS_BY_PLATFORM: Readonly<
   openai: ['claude', 'codex', 'opencode'],
   gemini: ['gemini'],
   antigravity: ['claude', 'gemini'],
-  grok: ['grokbuild', 'opencode']
+  grok: ['grokbuild', 'opencode'],
+  composite: []
 }
 
 export interface CcSwitchImportConfig {

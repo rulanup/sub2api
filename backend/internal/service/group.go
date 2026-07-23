@@ -12,6 +12,7 @@ import (
 
 type OpenAIMessagesDispatchModelConfig = domain.OpenAIMessagesDispatchModelConfig
 type GroupModelsListConfig = domain.GroupModelsListConfig
+type ReasoningEffortMapping = domain.ReasoningEffortMapping
 
 type Group struct {
 	ID             int64
@@ -28,6 +29,9 @@ type Group struct {
 	IsExclusive        bool
 	Status             string
 	Hydrated           bool // indicates the group was loaded from a trusted repository source
+	// DuplicateOperationID is internal persistence metadata used only to recover
+	// an already committed one-click copy. It must never be mapped to API DTOs.
+	DuplicateOperationID string
 
 	SubscriptionType    string
 	DailyLimitUSD       *float64
@@ -91,6 +95,12 @@ type Group struct {
 	// 私人号池支持
 	IsPrivate   bool
 	OwnerUserID *int64
+
+	// MaxReasoningEffort limits the effective OpenAI/Codex reasoning effort.
+	// Empty means unlimited; supported values are minimal/low/medium/high/xhigh/max.
+	MaxReasoningEffort string
+	// ReasoningEffortMappings rewrites explicit request values before applying the ceiling.
+	ReasoningEffortMappings []ReasoningEffortMapping
 
 	CreatedAt time.Time
 	UpdatedAt time.Time

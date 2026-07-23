@@ -499,6 +499,7 @@ func (s *SubscriptionService) BulkAssignSubscription(ctx context.Context, input 
 func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, input *AssignSubscriptionInput) (*UserSubscription, bool, error) {
 	var result *UserSubscription
 	var reused bool
+	var changed bool
 	err := s.withSubscriptionUpdateTx(ctx, func(txCtx context.Context) error {
 		if err := s.lockUserForSubscription(txCtx, input.UserID); err != nil {
 			return fmt.Errorf("lock subscription user: %w", err)
@@ -512,6 +513,26 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 		}
 		result, err = s.userSubRepo.GetByUserIDAndGroupID(txCtx, input.UserID, input.GroupID)
 		if err == nil {
+			now := time.Now()
+			if result.Status == SubscriptionStatusExpired ||
+				(result.Status != SubscriptionStatusSuspended && !result.ExpiresAt.After(now)) {
+				validityDays := normalizeAssignValidityDays(input.ValidityDays)
+				newExpiresAt := now.AddDate(0, 0, validityDays)
+				if newExpiresAt.After(MaxExpiresAt) {
+					newExpiresAt = MaxExpiresAt
+				}
+				renewalNotes := input.Notes
+				if strings.TrimSpace(result.Notes) == strings.TrimSpace(input.Notes) {
+					renewalNotes = ""
+				}
+				if err := s.updateExistingSubscriptionTerm(txCtx, result, renewalNotes, now, newExpiresAt, true); err != nil {
+					return err
+				}
+				result, err = s.userSubRepo.GetByID(txCtx, result.ID)
+				reused = true
+				changed = true
+				return err
+			}
 			if conflictReason, conflict := detectAssignSemanticConflict(result, input); conflict {
 				return ErrSubscriptionAssignConflict.WithMetadata(map[string]string{"conflict_reason": conflictReason})
 			}
@@ -522,12 +543,13 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 			return err
 		}
 		result, err = s.createSubscriptionAt(txCtx, input, time.Now())
+		changed = err == nil
 		return err
 	})
 	if err != nil {
 		return nil, false, err
 	}
-	if !reused {
+	if changed {
 		s.maybeInvalidateAssignmentCaches(ctx, input.UserID, input.GroupID, false)
 	}
 	return result, reused, nil
