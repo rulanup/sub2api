@@ -1660,8 +1660,16 @@ const testAPIKey = async (apiKey: ApiKey) => {
   if (testingKeyIds.value.has(apiKey.id)) return
   testingKeyIds.value = new Set(testingKeyIds.value).add(apiKey.id)
   try {
-    const result = await keysAPI.test(apiKey.key)
-    appStore.showSuccess(t('keys.testKeySuccess', { count: result.model_count }))
+    const result = await keysAPI.test(apiKey.key, apiKey.id)
+    if (result.status === 'ok') {
+      appStore.showSuccess(t('keys.testKeySuccess', { model: result.model, latency: result.latency }))
+    } else {
+      appStore.showError(t('keys.testKeyUnavailable', {
+        model: result.model,
+        latency: result.latency,
+        message: result.error || t('common.unknownError')
+      }))
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : t('common.unknownError')
     appStore.showError(t('keys.testKeyFailed', { message }))

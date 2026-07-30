@@ -53,7 +53,8 @@ const messages: Record<string, string> = {
   'keys.importToCcSwitch': 'Import to CC-Switch',
   'keys.testKey': 'Test Key',
   'keys.testingKey': 'Testing',
-  'keys.testKeySuccess': 'Key is valid with access to {count} models',
+  'keys.testKeySuccess': 'Model {model} is available with {latency} ms latency',
+  'keys.testKeyUnavailable': 'Model {model} is unavailable ({latency} ms): {message}',
   'keys.testKeyFailed': 'Key test failed: {message}',
   'keys.ccsClientSelect.title': 'Select Client',
   'keys.ccsClientSelect.description': 'Select a client for this import.',
@@ -326,19 +327,36 @@ describe('user KeysView column settings', () => {
     getDashboardApiKeysUsage.mockResolvedValue({ stats: {} })
     getAvailableGroups.mockResolvedValue([])
     getUserGroupRates.mockResolvedValue({})
-    testKey.mockResolvedValue({ model_count: 3 })
+    testKey.mockResolvedValue({ model: 'gpt-5.5', latency: 128, status: 'ok' })
     isCurrentStep.mockReturnValue(false)
   })
 
-  it('tests a key once through the gateway and reports the model count', async () => {
+  it('tests a model with the key and reports its latency', async () => {
     const wrapper = await mountView()
 
     await wrapper.get('[data-test="test-key-1"]').trigger('click')
     await flushPromises()
 
     expect(testKey).toHaveBeenCalledTimes(1)
-    expect(testKey).toHaveBeenCalledWith('sk-test-key')
-    expect(showSuccess).toHaveBeenCalledWith('Key is valid with access to 3 models')
+    expect(testKey).toHaveBeenCalledWith('sk-test-key', 1)
+    expect(showSuccess).toHaveBeenCalledWith('Model gpt-5.5 is available with 128 ms latency')
+  })
+
+  it('reports the model and latency when the model request is unavailable', async () => {
+    testKey.mockResolvedValueOnce({
+      model: 'gpt-5.5',
+      latency: 245,
+      status: 'error',
+      error: 'upstream unavailable',
+    })
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-test="test-key-1"]').trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith(
+      'Model gpt-5.5 is unavailable (245 ms): upstream unavailable'
+    )
   })
 
   it('reports a gateway rejection when key testing fails', async () => {

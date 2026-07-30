@@ -139,14 +139,17 @@ export async function toggleStatus(id: number, status: 'active' | 'inactive'): P
 }
 
 export interface ApiKeyTestResult {
-  model_count: number
+  model: string
+  latency: number
+  status: 'ok' | 'error'
+  error?: string
 }
 
 /**
- * Test an API key through the real gateway authentication path without
- * starting a billable model request.
+ * Pick a chat-capable model exposed by the key, then make a minimal real
+ * request through the authenticated latency-test endpoint.
  */
-export async function testKey(key: string): Promise<ApiKeyTestResult> {
+export async function testKey(key: string, keyId: number): Promise<ApiKeyTestResult> {
   const response = await fetch('/v1/models', {
     method: 'GET',
     credentials: 'same-origin',
@@ -158,7 +161,7 @@ export async function testKey(key: string): Promise<ApiKeyTestResult> {
   })
 
   const payload = await response.json().catch(() => null) as {
-    data?: unknown[]
+    data?: Array<{ id?: string }>
     message?: string
     error?: { message?: string }
   } | null
@@ -168,7 +171,31 @@ export async function testKey(key: string): Promise<ApiKeyTestResult> {
     throw new Error(message)
   }
 
-  return { model_count: Array.isArray(payload?.data) ? payload.data.length : 0 }
+  const models = (payload?.data ?? [])
+    .map((item) => item.id?.trim() ?? '')
+    .filter(Boolean)
+  const nonChatPattern = /(embedding|moderation|image|video|audio|tts|transcri|realtime|search)/i
+  const model = models.find((item) => !nonChatPattern.test(item)) || models[0]
+  if (!model) {
+    throw new Error('No models available for this API key')
+  }
+
+  const { data } = await apiClient.post<ApiKeyTestResult>('/usage/test-model-latency', {
+    model,
+    key_id: keyId
+  })
+  if (data.status === 'error' && data.error) {
+    try {
+      const errorPayload = JSON.parse(data.error) as {
+        message?: string
+        error?: { message?: string }
+      }
+      data.error = errorPayload.error?.message || errorPayload.message || data.error
+    } catch {
+      // Some gateway errors are already plain text.
+    }
+  }
+  return data
 }
 
 export const keysAPI = {
