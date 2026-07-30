@@ -138,13 +138,47 @@ export async function toggleStatus(id: number, status: 'active' | 'inactive'): P
   return update(id, { status })
 }
 
+export interface ApiKeyTestResult {
+  model_count: number
+}
+
+/**
+ * Test an API key through the real gateway authentication path without
+ * starting a billable model request.
+ */
+export async function testKey(key: string): Promise<ApiKeyTestResult> {
+  const response = await fetch('/v1/models', {
+    method: 'GET',
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      Accept: 'application/json'
+    }
+  })
+
+  const payload = await response.json().catch(() => null) as {
+    data?: unknown[]
+    message?: string
+    error?: { message?: string }
+  } | null
+
+  if (!response.ok) {
+    const message = payload?.error?.message || payload?.message || `HTTP ${response.status}`
+    throw new Error(message)
+  }
+
+  return { model_count: Array.isArray(payload?.data) ? payload.data.length : 0 }
+}
+
 export const keysAPI = {
   list,
   getById,
   create,
   update,
   delete: deleteKey,
-  toggleStatus
+  toggleStatus,
+  test: testKey
 }
 
 export default keysAPI

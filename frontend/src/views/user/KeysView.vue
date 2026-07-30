@@ -397,6 +397,21 @@
                 <Icon name="upload" size="sm" />
                 <span class="text-xs">{{ t('keys.importToCcSwitch') }}</span>
               </button>
+              <!-- Test Key Button -->
+              <button
+                :data-test="`test-key-${row.id}`"
+                :disabled="testingKeyIds.has(row.id)"
+                :aria-label="t('keys.testKey')"
+                @click="testAPIKey(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-cyan-50 hover:text-cyan-600 disabled:cursor-wait disabled:opacity-60 dark:hover:bg-cyan-900/20 dark:hover:text-cyan-400"
+              >
+                <Icon
+                  :name="testingKeyIds.has(row.id) ? 'refresh' : 'play'"
+                  size="sm"
+                  :class="testingKeyIds.has(row.id) ? 'animate-spin' : ''"
+                />
+                <span class="text-xs">{{ testingKeyIds.has(row.id) ? t('keys.testingKey') : t('keys.testKey') }}</span>
+              </button>
               <!-- Toggle Status Button -->
               <button
                 @click="toggleKeyStatus(row)"
@@ -1379,6 +1394,7 @@ const showColumnDropdown = ref(false)
 const pendingCcsRow = ref<ApiKey | null>(null)
 const selectedKey = ref<ApiKey | null>(null)
 const copiedKeyId = ref<number | null>(null)
+const testingKeyIds = ref(new Set<number>())
 const groupSelectorKeyId = ref<number | null>(null)
 const groupSelectorGroupIds = ref<number[]>([])
 const groupSelectorPrimaryGroupId = ref<number | null>(null)
@@ -1637,6 +1653,22 @@ const copyToClipboard = async (text: string, keyId: number) => {
     setTimeout(() => {
       copiedKeyId.value = null
     }, 800)
+  }
+}
+
+const testAPIKey = async (apiKey: ApiKey) => {
+  if (testingKeyIds.value.has(apiKey.id)) return
+  testingKeyIds.value = new Set(testingKeyIds.value).add(apiKey.id)
+  try {
+    const result = await keysAPI.test(apiKey.key)
+    appStore.showSuccess(t('keys.testKeySuccess', { count: result.model_count }))
+  } catch (error) {
+    const message = error instanceof Error ? error.message : t('common.unknownError')
+    appStore.showError(t('keys.testKeyFailed', { message }))
+  } finally {
+    const next = new Set(testingKeyIds.value)
+    next.delete(apiKey.id)
+    testingKeyIds.value = next
   }
 }
 

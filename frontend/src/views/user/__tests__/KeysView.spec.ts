@@ -7,6 +7,7 @@ import KeysView from '../KeysView.vue'
 
 const {
   listKeys,
+  testKey,
   getPublicSettings,
   getDashboardApiKeysUsage,
   getAvailableGroups,
@@ -18,6 +19,7 @@ const {
   nextStep,
 } = vi.hoisted(() => ({
   listKeys: vi.fn(),
+  testKey: vi.fn(),
   getPublicSettings: vi.fn(),
   getDashboardApiKeysUsage: vi.fn(),
   getAvailableGroups: vi.fn(),
@@ -49,6 +51,10 @@ const messages: Record<string, string> = {
   'keys.rateLimitColumn': 'Rate Limit',
   'keys.searchPlaceholder': 'Search name or key...',
   'keys.importToCcSwitch': 'Import to CC-Switch',
+  'keys.testKey': 'Test Key',
+  'keys.testingKey': 'Testing',
+  'keys.testKeySuccess': 'Key is valid with access to {count} models',
+  'keys.testKeyFailed': 'Key test failed: {message}',
   'keys.ccsClientSelect.title': 'Select Client',
   'keys.ccsClientSelect.description': 'Select a client for this import.',
   'keys.ccsClientSelect.clients.codex.label': 'Codex',
@@ -68,6 +74,7 @@ const messages: Record<string, string> = {
 vi.mock('@/api', () => ({
   keysAPI: {
     list: listKeys,
+    test: testKey,
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
@@ -110,7 +117,13 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => messages[key] ?? key,
+      t: (key: string, params?: Record<string, string | number>) => {
+        let message = messages[key] ?? key
+        for (const [name, value] of Object.entries(params ?? {})) {
+          message = message.replace(`{${name}}`, String(value))
+        }
+        return message
+      },
     }),
   }
 })
@@ -291,6 +304,7 @@ describe('user KeysView column settings', () => {
     localStorage.clear()
 
     listKeys.mockReset()
+    testKey.mockReset()
     getPublicSettings.mockReset()
     getDashboardApiKeysUsage.mockReset()
     getAvailableGroups.mockReset()
@@ -312,7 +326,29 @@ describe('user KeysView column settings', () => {
     getDashboardApiKeysUsage.mockResolvedValue({ stats: {} })
     getAvailableGroups.mockResolvedValue([])
     getUserGroupRates.mockResolvedValue({})
+    testKey.mockResolvedValue({ model_count: 3 })
     isCurrentStep.mockReturnValue(false)
+  })
+
+  it('tests a key once through the gateway and reports the model count', async () => {
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-test="test-key-1"]').trigger('click')
+    await flushPromises()
+
+    expect(testKey).toHaveBeenCalledTimes(1)
+    expect(testKey).toHaveBeenCalledWith('sk-test-key')
+    expect(showSuccess).toHaveBeenCalledWith('Key is valid with access to 3 models')
+  })
+
+  it('reports a gateway rejection when key testing fails', async () => {
+    testKey.mockRejectedValueOnce(new Error('API key is inactive'))
+    const wrapper = await mountView()
+
+    await wrapper.get('[data-test="test-key-1"]').trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith('Key test failed: API key is inactive')
   })
 
   it('opens the generic selector for OpenAI and launches each selected target separately', async () => {
