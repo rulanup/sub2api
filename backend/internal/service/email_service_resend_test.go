@@ -149,11 +149,13 @@ func TestEmailService_SendEmailViaResend_Success(t *testing.T) {
 func TestEmailService_SendEmailViaResend_FromNameFormatting(t *testing.T) {
 	var mu sync.Mutex
 	var from string
+	fromOK := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var payload map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&payload)
 		mu.Lock()
-		from = payload["from"].(string)
+		from, fromOK = payload["from"].(string)
+		require.True(t, fromOK)
 		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"id":"email-id-2"}`))
