@@ -9,13 +9,13 @@ import (
 
 func TestSettingService_ExportEmailConfig_ExcludesSecretsByDefault(t *testing.T) {
 	repo := newResendTestSettingRepo(map[string]string{
-		SettingKeyMailProvider:      MailProviderResend,
-		SettingKeySMTPHost:          "smtp.example.com",
-		SettingKeySMTPPassword:      "smtp-secret",
-		SettingKeyResendAPIKey:      "re_secret",
-		SettingKeyResendFromEmail:   "noreply@example.com",
-		SettingKeyFrontendURL:       "https://example.com",
-		SettingKeyDefaultBalance:    "1.5",
+		SettingKeyMailProvider:    MailProviderResend,
+		SettingKeySMTPHost:        "smtp.example.com",
+		SettingKeySMTPPassword:    "smtp-secret",
+		SettingKeyResendAPIKey:    "re_secret",
+		SettingKeyResendFromEmail: "noreply@example.com",
+		SettingKeyFrontendURL:     "https://example.com",
+		SettingKeyDefaultBalance:  "1.5",
 	})
 	svc := NewSettingService(repo, nil)
 

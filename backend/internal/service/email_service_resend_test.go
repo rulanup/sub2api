@@ -90,11 +90,11 @@ func (r *resendTestSettingRepo) Delete(_ context.Context, key string) error {
 func TestEmailService_SendEmailViaResend_Success(t *testing.T) {
 	var mu sync.Mutex
 	var captured struct {
-		auth   string
-		from   string
-		to     string
+		auth    string
+		from    string
+		to      string
 		subject string
-		html   string
+		html    string
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, http.MethodPost, r.Method)
@@ -106,10 +106,19 @@ func TestEmailService_SendEmailViaResend_Success(t *testing.T) {
 		var payload map[string]any
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 		mu.Lock()
-		captured.from = payload["from"].(string)
-		captured.to = payload["to"].([]any)[0].(string)
-		captured.subject = payload["subject"].(string)
-		captured.html = payload["html"].(string)
+		from, fromOK := payload["from"].(string)
+		toList, toOK := payload["to"].([]any)
+		subject, subjectOK := payload["subject"].(string)
+		html, htmlOK := payload["html"].(string)
+		to := ""
+		if toOK && len(toList) > 0 {
+			to, toOK = toList[0].(string)
+		}
+		captured.from = from
+		captured.to = to
+		captured.subject = subject
+		captured.html = html
+		require.True(t, fromOK && toOK && subjectOK && htmlOK)
 		mu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
@@ -120,9 +129,9 @@ func TestEmailService_SendEmailViaResend_Success(t *testing.T) {
 
 	svc := NewEmailService(newResendTestSettingRepo(nil), nil)
 	config := &ResendConfig{
-		APIKey:   "re_test_key",
-		From:     "Sub2API <noreply@example.com>",
-		BaseURL:  server.URL,
+		APIKey:  "re_test_key",
+		From:    "Sub2API <noreply@example.com>",
+		BaseURL: server.URL,
 	}
 
 	err := svc.SendEmailViaResend(context.Background(), config, "user@example.com", "Subject Line", "<p>body</p>")
