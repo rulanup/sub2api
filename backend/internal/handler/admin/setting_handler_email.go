@@ -76,6 +76,39 @@ func (h *SettingHandler) TestSMTPConnection(c *gin.Context) {
 	response.Success(c, gin.H{"message": "SMTP connection successful"})
 }
 
+// TestResendConnectionRequest 测试 Resend 连接请求
+type TestResendConnectionRequest struct {
+	APIKey string `json:"api_key"`
+}
+
+// TestResendConnection 测试 Resend API Key 是否有效
+// POST /api/v1/admin/settings/test-resend
+func (h *SettingHandler) TestResendConnection(c *gin.Context) {
+	var req TestResendConnectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	apiKey := strings.TrimSpace(req.APIKey)
+	if apiKey == "" {
+		if cfg, err := h.emailService.GetResendConfig(c.Request.Context()); err == nil && cfg != nil {
+			apiKey = cfg.APIKey
+		}
+	}
+	if apiKey == "" {
+		response.BadRequest(c, "Resend API Key is required")
+		return
+	}
+
+	if err := h.emailService.TestResendConnectionWithConfig(c.Request.Context(), apiKey); err != nil {
+		response.BadRequest(c, "Resend connection test failed: "+err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{"message": "Resend connection successful"})
+}
+
 // SendTestEmailRequest 发送测试邮件请求
 type SendTestEmailRequest struct {
 	Email        string `json:"email" binding:"required,email"`
@@ -86,6 +119,12 @@ type SendTestEmailRequest struct {
 	SMTPFrom     string `json:"smtp_from_email"`
 	SMTPFromName string `json:"smtp_from_name"`
 	SMTPUseTLS   bool   `json:"smtp_use_tls"`
+
+	// Resend 发送通道（仅 mail_provider=resend 时使用）
+	MailProvider    string `json:"mail_provider"`
+	ResendAPIKey    string `json:"resend_api_key"`
+	ResendFromEmail string `json:"resend_from_email"`
+	ResendFromName  string `json:"resend_from_name"`
 }
 
 // SendTestEmail 发送测试邮件
@@ -94,6 +133,15 @@ func (h *SettingHandler) SendTestEmail(c *gin.Context) {
 	var req SendTestEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	provider := strings.TrimSpace(req.MailProvider)
+	if provider == "" {
+		provider = h.emailService.GetMailProvider(c.Request.Context())
+	}
+	if provider == service.MailProviderResend {
+		h.sendTestEmailViaResend(c, req)
 		return
 	}
 
@@ -169,7 +217,7 @@ func (h *SettingHandler) SendTestEmail(c *gin.Context) {
         <div class="content">
             <div class="success">✓</div>
             <h2>Email Configuration Successful!</h2>
-            <p>This is a test email to verify your SMTP settings are working correctly.</p>
+            <p>This is a test email to verify your email configuration is working correctly.</p>
         </div>
         <div class="footer">
             <p>This is an automated test message.</p>
@@ -180,6 +228,85 @@ func (h *SettingHandler) SendTestEmail(c *gin.Context) {
 `
 
 	if err := h.emailService.SendEmailWithConfig(config, req.Email, subject, body); err != nil {
+		response.BadRequest(c, "Failed to send test email: "+err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{"message": "Test email sent successfully"})
+}
+
+// sendTestEmailViaResend 通过 Resend HTTPS API 发送测试邮件
+func (h *SettingHandler) sendTestEmailViaResend(c *gin.Context, req SendTestEmailRequest) {
+	req.ResendFromEmail = strings.TrimSpace(req.ResendFromEmail)
+	req.ResendFromName = strings.TrimSpace(req.ResendFromName)
+
+	var savedConfig *service.ResendConfig
+	if cfg, err := h.emailService.GetResendConfig(c.Request.Context()); err == nil && cfg != nil {
+		savedConfig = cfg
+	}
+
+	apiKey := strings.TrimSpace(req.ResendAPIKey)
+	if apiKey == "" && savedConfig != nil {
+		apiKey = savedConfig.APIKey
+	}
+	from := req.ResendFromEmail
+	if from == "" && savedConfig != nil {
+		from = savedConfig.From
+	}
+	fromName := req.ResendFromName
+	if fromName == "" && savedConfig != nil {
+		fromName = savedConfig.FromName
+	}
+	if apiKey == "" {
+		response.BadRequest(c, "Resend API Key is required")
+		return
+	}
+	if from == "" {
+		response.BadRequest(c, "Resend from email is required")
+		return
+	}
+
+	config := &service.ResendConfig{
+		APIKey:   apiKey,
+		From:     from,
+		FromName: fromName,
+	}
+
+	siteName := h.settingService.GetSiteName(c.Request.Context())
+	subject := "[" + siteName + "] Test Email"
+	body := `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .content { padding: 40px 30px; text-align: center; }
+        .success { color: #10b981; font-size: 48px; margin-bottom: 20px; }
+        .footer { background-color: #f8f9fa; padding: 20px; text-align: center; color: #999; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>` + html.EscapeString(siteName) + `</h1>
+        </div>
+        <div class="content">
+            <div class="success">✓</div>
+            <h2>Email Configuration Successful!</h2>
+            <p>This is a test email to verify your email configuration is working correctly.</p>
+        </div>
+        <div class="footer">
+            <p>This is an automated test message.</p>
+        </div>
+    </div>
+</body>
+</html>
+`
+
+	if err := h.emailService.SendEmailViaResend(c.Request.Context(), config, req.Email, subject, body); err != nil {
 		response.BadRequest(c, "Failed to send test email: "+err.Error())
 		return
 	}

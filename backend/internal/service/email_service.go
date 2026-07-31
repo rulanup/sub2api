@@ -1,16 +1,20 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"crypto/tls"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"log/slog"
 	"math/big"
 	"net"
+	"net/http"
 	"net/smtp"
 	"net/url"
 	"strconv"
@@ -93,6 +97,31 @@ type SMTPConfig struct {
 	UseTLS   bool
 }
 
+// MailProvider 常量：邮件发送通道
+const (
+	MailProviderSMTP   = "smtp"
+	MailProviderResend = "resend"
+)
+
+// Resend HTTP API 默认地址（测试中可覆盖）
+var resendAPIBaseURL = "https://api.resend.com"
+
+// ResendConfig Resend HTTP API 配置
+type ResendConfig struct {
+	APIKey   string
+	From     string
+	FromName string
+	BaseURL  string
+}
+
+// normalizeMailProvider 归一化邮件发送通道配置，未知值回退到 SMTP。
+func normalizeMailProvider(provider string) string {
+	if strings.TrimSpace(provider) == MailProviderResend {
+		return MailProviderResend
+	}
+	return MailProviderSMTP
+}
+
 // EmailService 邮件服务
 type EmailService struct {
 	settingRepo              SettingRepository
@@ -172,8 +201,62 @@ func (s *EmailService) GetSMTPConfig(ctx context.Context) (*SMTPConfig, error) {
 	}, nil
 }
 
+// GetMailProvider 返回当前配置的邮件发送通道（"smtp" 或 "resend"），默认 "smtp"。
+func (s *EmailService) GetMailProvider(ctx context.Context) string {
+	settings, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeyMailProvider})
+	if err != nil {
+		return MailProviderSMTP
+	}
+	return normalizeMailProvider(settings[SettingKeyMailProvider])
+}
+
+// GetResendConfig 从数据库获取 Resend 配置
+func (s *EmailService) GetResendConfig(ctx context.Context) (*ResendConfig, error) {
+	keys := []string{
+		SettingKeyResendAPIKey,
+		SettingKeyResendFromEmail,
+		SettingKeyResendFromName,
+		SettingKeyResendBaseURL,
+	}
+
+	settings, err := s.settingRepo.GetMultiple(ctx, keys)
+	if err != nil {
+		return nil, fmt.Errorf("get resend settings: %w", err)
+	}
+
+	apiKey := strings.TrimSpace(settings[SettingKeyResendAPIKey])
+	if apiKey == "" {
+		return nil, ErrEmailNotConfigured
+	}
+
+	from := strings.TrimSpace(settings[SettingKeyResendFromEmail])
+	if from == "" {
+		return nil, ErrEmailNotConfigured
+	}
+
+	baseURL := strings.TrimSpace(settings[SettingKeyResendBaseURL])
+	if baseURL == "" {
+		baseURL = resendAPIBaseURL
+	}
+
+	return &ResendConfig{
+		APIKey:   apiKey,
+		From:     from,
+		FromName: strings.TrimSpace(settings[SettingKeyResendFromName]),
+		BaseURL:  baseURL,
+	}, nil
+}
+
 // SendEmail 发送邮件（使用数据库中保存的配置）
 func (s *EmailService) SendEmail(ctx context.Context, to, subject, body string) error {
+	if s.GetMailProvider(ctx) == MailProviderResend {
+		config, err := s.GetResendConfig(ctx)
+		if err != nil {
+			return err
+		}
+		return s.SendEmailViaResend(ctx, config, to, subject, body)
+	}
+
 	config, err := s.GetSMTPConfig(ctx)
 	if err != nil {
 		return err
@@ -183,6 +266,101 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, body string) 
 
 const smtpDialTimeout = 10 * time.Second
 const smtpIOTimeout = 20 * time.Second
+const resendRequestTimeout = 20 * time.Second
+
+// SendEmailViaResend 通过 Resend HTTPS API 发送邮件
+// POST {base}/emails，使用 Authorization: Bearer <API Key> 认证。
+func (s *EmailService) SendEmailViaResend(ctx context.Context, config *ResendConfig, to, subject, body string) error {
+	to = sanitizeEmailHeader(to)
+	subject = sanitizeEmailHeader(subject)
+
+	from := sanitizeEmailHeader(config.From)
+	if config.FromName != "" {
+		from = fmt.Sprintf("%s <%s>", sanitizeEmailHeader(config.FromName), sanitizeEmailHeader(config.From))
+	}
+
+	payload, err := json.Marshal(map[string]any{
+		"from":    from,
+		"to":      []string{to},
+		"subject": subject,
+		"html":    body,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal resend payload: %w", err)
+	}
+
+	baseURL := strings.TrimRight(config.BaseURL, "/")
+	if baseURL == "" {
+		baseURL = resendAPIBaseURL
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/emails", bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("build resend request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+strings.TrimSpace(config.APIKey))
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: resendRequestTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("resend request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	return fmt.Errorf("resend api error (status %d): %s", resp.StatusCode, resendErrorMessage(respBody))
+}
+
+// TestResendConnectionWithConfig 使用 GET {base}/domains 验证 Resend API Key 是否有效。
+// 不会发送真实邮件，也不产生计费。
+func (s *EmailService) TestResendConnectionWithConfig(ctx context.Context, apiKey string) error {
+	apiKey = strings.TrimSpace(apiKey)
+	if apiKey == "" {
+		return ErrEmailNotConfigured
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, resendAPIBaseURL+"/domains", nil)
+	if err != nil {
+		return fmt.Errorf("build resend request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{Timeout: resendRequestTimeout}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("resend request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("resend authentication failed (status %d)", resp.StatusCode)
+	}
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	return fmt.Errorf("resend api error (status %d): %s", resp.StatusCode, resendErrorMessage(respBody))
+}
+
+// resendErrorMessage 提取 Resend 错误响应中的 message 字段，失败时回退到原始响应文本。
+func resendErrorMessage(body []byte) string {
+	var apiErr struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &apiErr); err == nil && strings.TrimSpace(apiErr.Message) != "" {
+		return strings.TrimSpace(apiErr.Message)
+	}
+	msg := strings.TrimSpace(string(body))
+	if msg == "" {
+		return "unknown error"
+	}
+	return msg
+}
 
 // SendEmailWithConfig 使用指定配置发送邮件
 func (s *EmailService) SendEmailWithConfig(config *SMTPConfig, to, subject, body string) error {

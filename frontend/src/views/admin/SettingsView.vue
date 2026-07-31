@@ -7250,8 +7250,139 @@
             </div>
           </div>
 
-          <!-- SMTP Settings - Only show when email verification is enabled -->
+          <!-- Mail Provider - Only show when email verification is enabled -->
           <div v-if="form.email_verify_enabled" class="card">
+            <div class="px-6 py-4">
+              <div
+                class="flex flex-wrap items-center justify-between gap-3"
+              >
+                <div>
+                  <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    {{ t("admin.settings.mailProvider.title") }}
+                  </h2>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.mailProvider.description") }}
+                  </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                  <label
+                    class="flex cursor-pointer items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400"
+                    :title="t('admin.settings.emailConfig.includeSecretsHint')"
+                  >
+                    <input
+                      v-model="emailConfigIncludeSecrets"
+                      type="checkbox"
+                      class="h-3.5 w-3.5 text-primary-600"
+                    />
+                    {{ t("admin.settings.emailConfig.includeSecrets") }}
+                  </label>
+                  <button
+                    type="button"
+                    @click="handleEmailConfigExport"
+                    :disabled="loadFailed"
+                    class="btn btn-secondary btn-sm"
+                  >
+                    <svg
+                      class="mr-1 h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      ></path>
+                    </svg>
+                    {{ t("admin.settings.emailConfig.export") }}
+                  </button>
+                  <button
+                    type="button"
+                    @click="emailConfigFileInput?.click()"
+                    :disabled="loadFailed"
+                    class="btn btn-secondary btn-sm"
+                  >
+                    <svg
+                      class="mr-1 h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                      ></path>
+                    </svg>
+                    {{ t("admin.settings.emailConfig.import") }}
+                  </button>
+                  <input
+                    ref="emailConfigFileInput"
+                    type="file"
+                    accept=".json,application/json"
+                    class="hidden"
+                    @change="handleEmailConfigImport"
+                  />
+                </div>
+              </div>
+              <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label
+                  class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors"
+                  :class="
+                    form.mail_provider === 'smtp'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10'
+                      : 'border-gray-200 dark:border-dark-700'
+                  "
+                >
+                  <input
+                    v-model="form.mail_provider"
+                    type="radio"
+                    value="smtp"
+                    class="mt-1 h-4 w-4 text-primary-600"
+                  />
+                  <span>
+                    <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                      {{ t("admin.settings.mailProvider.smtp") }}
+                    </span>
+                    <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.mailProvider.smtpHint") }}
+                    </span>
+                  </span>
+                </label>
+                <label
+                  class="flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors"
+                  :class="
+                    form.mail_provider === 'resend'
+                      ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10'
+                      : 'border-gray-200 dark:border-dark-700'
+                  "
+                >
+                  <input
+                    v-model="form.mail_provider"
+                    type="radio"
+                    value="resend"
+                    class="mt-1 h-4 w-4 text-primary-600"
+                  />
+                  <span>
+                    <span class="block text-sm font-medium text-gray-900 dark:text-white">
+                      {{ t("admin.settings.mailProvider.resend") }}
+                    </span>
+                    <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.mailProvider.resendHint") }}
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- SMTP Settings - Only show when email verification is enabled -->
+          <div
+            v-if="form.email_verify_enabled && form.mail_provider === 'smtp'"
+            class="card"
+          >
             <div
               class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-dark-700"
             >
@@ -7409,6 +7540,119 @@
                   </p>
                 </div>
                 <Toggle v-model="form.smtp_use_tls" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Resend Settings - Only show when email verification is enabled -->
+          <div
+            v-if="form.email_verify_enabled && form.mail_provider === 'resend'"
+            class="card"
+          >
+            <div
+              class="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+            >
+              <div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                  {{ t("admin.settings.resend.title") }}
+                </h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {{ t("admin.settings.resend.description") }}
+                </p>
+              </div>
+              <button
+                type="button"
+                @click="testResendConnection"
+                :disabled="testingResend || loadFailed"
+                class="btn btn-secondary btn-sm"
+              >
+                <svg
+                  v-if="testingResend"
+                  class="h-4 w-4 animate-spin"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                {{
+                  testingResend
+                    ? t("admin.settings.resend.testing")
+                    : t("admin.settings.resend.testConnection")
+                }}
+              </button>
+            </div>
+            <div class="space-y-6 p-6">
+              <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.resend.apiKey") }}
+                  </label>
+                  <input
+                    v-model="form.resend_api_key"
+                    type="password"
+                    class="input"
+                    autocomplete="new-password"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    @keydown="resendKeyManuallyEdited = true"
+                    @paste="resendKeyManuallyEdited = true"
+                    :placeholder="
+                      form.resend_api_key_configured
+                        ? t('admin.settings.resend.apiKeyConfiguredPlaceholder')
+                        : t('admin.settings.resend.apiKeyPlaceholder')
+                    "
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{
+                      form.resend_api_key_configured
+                        ? t("admin.settings.resend.apiKeyConfiguredHint")
+                        : t("admin.settings.resend.apiKeyHint")
+                    }}
+                  </p>
+                </div>
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.resend.fromEmail") }}
+                  </label>
+                  <input
+                    v-model="form.resend_from_email"
+                    type="email"
+                    class="input"
+                    :placeholder="t('admin.settings.resend.fromEmailPlaceholder')"
+                  />
+                  <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.resend.fromEmailHint") }}
+                  </p>
+                </div>
+                <div>
+                  <label
+                    class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.resend.fromName") }}
+                  </label>
+                  <input
+                    v-model="form.resend_from_name"
+                    type="text"
+                    class="input"
+                    :placeholder="t('admin.settings.resend.fromNamePlaceholder')"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -7921,8 +8165,12 @@ const loading = ref(true);
 const loadFailed = ref(false);
 const saving = ref(false);
 const testingSmtp = ref(false);
+const testingResend = ref(false);
 const sendingTestEmail = ref(false);
 const smtpPasswordManuallyEdited = ref(false);
+const resendKeyManuallyEdited = ref(false);
+const emailConfigIncludeSecrets = ref(false);
+const emailConfigFileInput = ref<HTMLInputElement | null>(null);
 const testEmailAddress = ref("");
 const registrationEmailSuffixWhitelistTags = ref<string[]>([]);
 const registrationEmailSuffixWhitelistDraft = ref("");
@@ -8443,6 +8691,7 @@ type SettingsForm = Omit<
 > & {
   smtp_password: string;
   turnstile_secret_key: string;
+  resend_api_key: string;
   linuxdo_connect_client_secret: string;
   dingtalk_connect_client_secret: string;
   wechat_connect_app_secret: string;
@@ -8564,6 +8813,11 @@ const form = reactive<SettingsForm>({
   smtp_from_email: "",
   smtp_from_name: "",
   smtp_use_tls: true,
+  mail_provider: "smtp",
+  resend_api_key: "",
+  resend_api_key_configured: false,
+  resend_from_email: "",
+  resend_from_name: "",
   // Cloudflare Turnstile
   turnstile_enabled: false,
   turnstile_site_key: "",
@@ -9680,6 +9934,8 @@ async function loadSettings() {
     registrationEmailSuffixWhitelistDraft.value = "";
     form.smtp_password = "";
     smtpPasswordManuallyEdited.value = false;
+    form.resend_api_key = "";
+    resendKeyManuallyEdited.value = false;
     form.turnstile_secret_key = "";
     form.linuxdo_connect_client_secret = "";
     form.dingtalk_connect_client_secret = "";
@@ -10062,6 +10318,10 @@ async function saveSettings() {
       smtp_from_email: form.smtp_from_email,
       smtp_from_name: form.smtp_from_name,
       smtp_use_tls: form.smtp_use_tls,
+      mail_provider: form.mail_provider,
+      resend_api_key: form.resend_api_key || undefined,
+      resend_from_email: form.resend_from_email,
+      resend_from_name: form.resend_from_name,
       turnstile_enabled: form.turnstile_enabled,
       turnstile_site_key: form.turnstile_site_key,
       turnstile_secret_key: form.turnstile_secret_key || undefined,
@@ -10347,6 +10607,8 @@ async function saveSettings() {
     registrationEmailSuffixWhitelistDraft.value = "";
     form.smtp_password = "";
     smtpPasswordManuallyEdited.value = false;
+    form.resend_api_key = "";
+    resendKeyManuallyEdited.value = false;
     form.turnstile_secret_key = "";
     form.linuxdo_connect_client_secret = "";
     form.dingtalk_connect_client_secret = "";
@@ -10453,6 +10715,28 @@ async function testSmtpConnection() {
   }
 }
 
+async function testResendConnection() {
+  testingResend.value = true;
+  try {
+    const resendApiKeyForTest = resendKeyManuallyEdited.value
+      ? form.resend_api_key
+      : "";
+    const result = await adminAPI.settings.testResendConnection({
+      api_key: resendApiKeyForTest,
+    });
+    // API returns { message: "..." } on success, errors are thrown as exceptions
+    appStore.showSuccess(
+      result.message || t("admin.settings.resendConnectionSuccess"),
+    );
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(error, t("admin.settings.resendConnectionFailed")),
+    );
+  } finally {
+    testingResend.value = false;
+  }
+}
+
 async function sendTestEmail() {
   if (!testEmailAddress.value) {
     appStore.showError(t("admin.settings.testEmail.enterRecipientHint"));
@@ -10464,6 +10748,9 @@ async function sendTestEmail() {
     const smtpPasswordForSend = smtpPasswordManuallyEdited.value
       ? form.smtp_password
       : "";
+    const resendApiKeyForSend = resendKeyManuallyEdited.value
+      ? form.resend_api_key
+      : "";
     const result = await adminAPI.settings.sendTestEmail({
       email: testEmailAddress.value,
       smtp_host: form.smtp_host,
@@ -10473,6 +10760,10 @@ async function sendTestEmail() {
       smtp_from_email: form.smtp_from_email,
       smtp_from_name: form.smtp_from_name,
       smtp_use_tls: form.smtp_use_tls,
+      mail_provider: form.mail_provider,
+      resend_api_key: resendApiKeyForSend,
+      resend_from_email: form.resend_from_email,
+      resend_from_name: form.resend_from_name,
     });
     // API returns { message: "..." } on success, errors are thrown as exceptions
     appStore.showSuccess(result.message || t("admin.settings.testEmailSent"));
@@ -10482,6 +10773,68 @@ async function sendTestEmail() {
     );
   } finally {
     sendingTestEmail.value = false;
+  }
+}
+
+async function handleEmailConfigExport() {
+  try {
+    const payload = await adminAPI.settings.exportEmailConfig(
+      emailConfigIncludeSecrets.value,
+    );
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `sub2api-email-config-${payload.exported_at.slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    appStore.showSuccess(t("admin.settings.emailConfig.exportSuccess"));
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(error, t("admin.settings.emailConfig.exportFailed")),
+    );
+  }
+}
+
+async function handleEmailConfigImport(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) {
+    return;
+  }
+  try {
+    const text = await file.text();
+    const payload = JSON.parse(text) as {
+      settings?: Record<string, string>;
+    };
+    if (!payload.settings || typeof payload.settings !== "object") {
+      throw new Error(t("admin.settings.emailConfig.invalidFile"));
+    }
+    const count = Object.keys(payload.settings).length;
+    const confirmed = window.confirm(
+      t("admin.settings.emailConfig.importConfirm", { count }),
+    );
+    if (!confirmed) {
+      appStore.showSuccess(t("admin.settings.emailConfig.importCancel"));
+      return;
+    }
+    const result = await adminAPI.settings.importEmailConfig(payload.settings);
+    appStore.showSuccess(
+      t("admin.settings.emailConfig.importSuccess", {
+        count: result.applied,
+      }),
+    );
+    await loadSettings();
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(error, t("admin.settings.emailConfig.importFailed")),
+    );
+  } finally {
+    input.value = "";
   }
 }
 

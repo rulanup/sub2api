@@ -45,6 +45,12 @@ type UpdateSettingsRequest struct {
 	SMTPFromName string `json:"smtp_from_name"`
 	SMTPUseTLS   bool   `json:"smtp_use_tls"`
 
+	// Resend HTTP API 邮件服务设置
+	MailProvider    string `json:"mail_provider"`
+	ResendAPIKey    string `json:"resend_api_key"`
+	ResendFromEmail string `json:"resend_from_email"`
+	ResendFromName  string `json:"resend_from_name"`
+
 	// Cloudflare Turnstile 设置
 	TurnstileEnabled   bool   `json:"turnstile_enabled"`
 	TurnstileSiteKey   string `json:"turnstile_site_key"`
@@ -1276,6 +1282,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SMTPFrom:                         req.SMTPFrom,
 		SMTPFromName:                     req.SMTPFromName,
 		SMTPUseTLS:                       req.SMTPUseTLS,
+		MailProvider:                     req.MailProvider,
+		ResendAPIKey:                     req.ResendAPIKey,
+		ResendFromEmail:                  req.ResendFromEmail,
+		ResendFromName:                   req.ResendFromName,
 		TurnstileEnabled:                 req.TurnstileEnabled,
 		TurnstileSiteKey:                 req.TurnstileSiteKey,
 		TurnstileSecretKey:               req.TurnstileSecretKey,
@@ -1812,6 +1822,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		SMTPFrom:                                               updatedSettings.SMTPFrom,
 		SMTPFromName:                                           updatedSettings.SMTPFromName,
 		SMTPUseTLS:                                             updatedSettings.SMTPUseTLS,
+		MailProvider:                                           updatedSettings.MailProvider,
+		ResendAPIKeyConfigured:                                 updatedSettings.ResendAPIKeyConfigured,
+		ResendFromEmail:                                        updatedSettings.ResendFromEmail,
+		ResendFromName:                                         updatedSettings.ResendFromName,
 		TurnstileEnabled:                                       updatedSettings.TurnstileEnabled,
 		TurnstileSiteKey:                                       updatedSettings.TurnstileSiteKey,
 		TurnstileSecretKeyConfigured:                           updatedSettings.TurnstileSecretKeyConfigured,

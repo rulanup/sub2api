@@ -450,6 +450,11 @@ export interface SystemSettings {
   smtp_from_email: string;
   smtp_from_name: string;
   smtp_use_tls: boolean;
+  // Resend HTTPS API settings
+  mail_provider: string;
+  resend_api_key_configured: boolean;
+  resend_from_email: string;
+  resend_from_name: string;
   // Cloudflare Turnstile settings
   turnstile_enabled: boolean;
   turnstile_site_key: string;
@@ -756,6 +761,10 @@ export interface UpdateSettingsRequest {
   smtp_from_email?: string;
   smtp_from_name?: string;
   smtp_use_tls?: boolean;
+  mail_provider?: string;
+  resend_api_key?: string;
+  resend_from_email?: string;
+  resend_from_name?: string;
   turnstile_enabled?: boolean;
   turnstile_site_key?: string;
   turnstile_secret_key?: string;
@@ -987,6 +996,28 @@ export async function testSmtpConnection(
 }
 
 /**
+ * Test Resend connection request
+ */
+export interface TestResendRequest {
+  api_key: string;
+}
+
+/**
+ * Test Resend API Key with the Resend API
+ * @param config - Resend configuration to test
+ * @returns Test result message
+ */
+export async function testResendConnection(
+  config: TestResendRequest,
+): Promise<{ message: string }> {
+  const { data } = await apiClient.post<{ message: string }>(
+    "/admin/settings/test-resend",
+    config,
+  );
+  return data;
+}
+
+/**
  * Send test email request
  */
 export interface SendTestEmailRequest {
@@ -998,6 +1029,10 @@ export interface SendTestEmailRequest {
   smtp_from_email: string;
   smtp_from_name: string;
   smtp_use_tls: boolean;
+  mail_provider?: string;
+  resend_api_key?: string;
+  resend_from_email?: string;
+  resend_from_name?: string;
 }
 
 /**
@@ -1011,6 +1046,45 @@ export async function sendTestEmail(
   const { data } = await apiClient.post<{ message: string }>(
     "/admin/settings/send-test-email",
     request,
+  );
+  return data;
+}
+
+/**
+ * Exported email configuration payload
+ */
+export interface EmailConfigExport {
+  version: number;
+  exported_at: string;
+  settings: Record<string, string>;
+}
+
+/**
+ * Export email configuration (SMTP / Resend settings only)
+ * @param includeSecrets - include sensitive values (SMTP password, Resend API Key)
+ * @returns Exported email settings
+ */
+export async function exportEmailConfig(
+  includeSecrets = false,
+): Promise<EmailConfigExport> {
+  const { data } = await apiClient.get<EmailConfigExport>(
+    "/admin/settings/email-config/export",
+    { params: { include_secrets: includeSecrets ? "true" : "false" } },
+  );
+  return data;
+}
+
+/**
+ * Import email configuration (SMTP / Resend settings only)
+ * @param settings - email settings key-value map
+ * @returns Number of applied settings
+ */
+export async function importEmailConfig(
+  settings: Record<string, string>,
+): Promise<{ applied: number; message: string }> {
+  const { data } = await apiClient.post<{ applied: number; message: string }>(
+    "/admin/settings/email-config/import",
+    { settings },
   );
   return data;
 }
@@ -1422,7 +1496,10 @@ export const settingsAPI = {
   getSettings,
   updateSettings,
   testSmtpConnection,
+  testResendConnection,
   sendTestEmail,
+  exportEmailConfig,
+  importEmailConfig,
   getEmailTemplates,
   getEmailTemplate,
   updateEmailTemplate,

@@ -44,6 +44,8 @@ Please read the following carefully before using this project:
 - **CC-Switch Integration** - Import API Keys directly into Claude Code, Codex, OpenCode, Gemini CLI, or Grok Build and query balance, quota, and subscription allowance through `/v1/usage`
 - **Automated Abuse Detection** - Detect sustained synchronous relay traffic and repeated `cyber_policy` usage, then apply configurable RPM/concurrency penalties or disable users, with separate searchable user allowlists
 - **Error Customization** - Customize upstream error status codes and client-facing messages by HTTP status, keyword, and platform, with presets for 401, 429, and security-policy errors plus a global user allowlist
+- **Resend Email Delivery** - Send verification and notification emails through the Resend HTTPS API (resend.com) instead of SMTP, with connection testing against `GET /domains`
+- **Email Config Transfer** - One-click export/import of the full email configuration (SMTP + Resend) as a JSON file; secrets are excluded by default and import only touches email-related keys
 
 ### Risk Control and Error Customization
 
@@ -62,6 +64,13 @@ Please read the following carefully before using this project:
 - Weighted prizes can grant balance or fixed-term access to subscription groups. Group prizes already active for a user are removed from that user's eligible pool.
 - Click **Import to CCS** on the **API Keys** page. OpenAI groups can be imported into Claude Code, Codex, or OpenCode; other platforms show only compatible clients. CC-Switch imports one client per action, so run the import separately for each required client.
 - Imported providers enable CC-Switch usage queries against `GET /v1/usage`, covering wallet balance, API Key quota, subscription allowance, and rate limits. OpenCode receives a separate usage root URL to avoid an invalid `/v1/v1/usage` request.
+
+### Resend Email and Config Transfer
+
+- Open **System Settings > Email** to pick the delivery provider: **SMTP** or **Resend API**. Resend needs a domain API Key created in the Resend dashboard; the sending domain must be verified with sending enabled.
+- **Test Connection** on the Resend card validates the API Key against `GET /domains` without sending anything; a verification email can still be sent with **Send Test Email**.
+- **Export Config** in the Email Sending Provider card downloads the email configuration (SMTP + Resend keys) as a JSON file. SMTP password and Resend API Key are excluded by default; tick **Include secrets** only when migrating to another deployment.
+- **Import Config** restores from such a file: only email-related keys are applied, non-email keys are ignored, and blank secret fields keep the existing value.
 
 ## ❤️ Sponsors
 

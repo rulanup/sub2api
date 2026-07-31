@@ -162,6 +162,13 @@ const (
 	SettingKeySMTPFromName = "smtp_from_name" // 发件人名称
 	SettingKeySMTPUseTLS   = "smtp_use_tls"   // 是否使用TLS
 
+	// Resend HTTP API 邮件服务设置
+	SettingKeyMailProvider    = "mail_provider"     // 邮件发送通道："smtp"（默认）或 "resend"
+	SettingKeyResendAPIKey    = "resend_api_key"    // Resend API Key（re_...）
+	SettingKeyResendFromEmail = "resend_from_email" // Resend 发件人地址（需在 Resend 验证域名）
+	SettingKeyResendFromName  = "resend_from_name"  // Resend 发件人名称
+	SettingKeyResendBaseURL   = "resend_base_url"   // Resend API Base URL（默认 https://api.resend.com）
+
 	// Cloudflare Turnstile 设置
 	SettingKeyTurnstileEnabled   = "turnstile_enabled"    // 是否启用 Turnstile 验证
 	SettingKeyTurnstileSiteKey   = "turnstile_site_key"   // Turnstile Site Key

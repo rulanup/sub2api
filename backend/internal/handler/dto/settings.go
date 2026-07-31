@@ -52,6 +52,11 @@ type SystemSettings struct {
 	SMTPFromName           string `json:"smtp_from_name"`
 	SMTPUseTLS             bool   `json:"smtp_use_tls"`
 
+	MailProvider           string `json:"mail_provider"`
+	ResendAPIKeyConfigured bool   `json:"resend_api_key_configured"`
+	ResendFromEmail        string `json:"resend_from_email"`
+	ResendFromName         string `json:"resend_from_name"`
+
 	TurnstileEnabled             bool     `json:"turnstile_enabled"`
 	TurnstileSiteKey             string   `json:"turnstile_site_key"`
 	TurnstileSecretKeyConfigured bool     `json:"turnstile_secret_key_configured"`
@@ -508,6 +513,13 @@ type PreviewEmailTemplateRequest struct {
 type EmailTemplatePreviewResponse struct {
 	Subject string `json:"subject"`
 	HTML    string `json:"html"`
+}
+
+// EmailConfigExport 邮件配置一键导出负载。
+type EmailConfigExport struct {
+	Version    int               `json:"version"`
+	ExportedAt string            `json:"exported_at"`
+	Settings   map[string]string `json:"settings"`
 }
 
 // ParseCustomMenuItems parses a JSON string into a slice of CustomMenuItem.
