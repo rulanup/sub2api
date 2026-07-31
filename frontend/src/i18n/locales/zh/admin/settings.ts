@@ -796,6 +796,12 @@ export default {
         enabled: '启用订阅到期提醒',
         enabledHint: '开启后，系统会在订阅到期前 7 天、3 天、1 天各发送一次提醒。'
       },
+      dailyUsageSummary: {
+        title: '每日用量总结',
+        description: '控制是否在每天 0 点向用户发送前一日用量总结邮件。',
+        enabled: '启用每日用量总结',
+        enabledHint: '开启后，前一天有调用记录的用户会收到包含请求数、Token、消费金额和余额的总结邮件。'
+      },
       smtp: {
         title: 'SMTP 设置',
         description: '配置用于发送验证码的邮件服务',
@@ -835,11 +841,11 @@ export default {
         includeSecrets: '包含敏感信息（密码 / API Key）',
         includeSecretsHint: '警告：导出文件将明文包含 SMTP 密码与 Resend API Key',
         exportSuccess: '邮件配置已导出',
-        importSuccess: '已导入 {{count}} 项邮件设置',
+        importSuccess: '已导入 {count} 项邮件设置',
         importFailed: '导入失败',
         exportFailed: '导出失败',
-        invalidFile: '配置文件无效：应为 {"settings": {...}} 结构',
-        importConfirm: '确定导入 {{count}} 项邮件设置？将覆盖当前邮件配置。',
+        invalidFile: '配置文件无效：应为包含 settings 字段的 JSON 结构',
+        importConfirm: '确定导入 {count} 项邮件设置？将覆盖当前邮件配置。',
         importCancel: '已取消导入'
       },
       resend: {

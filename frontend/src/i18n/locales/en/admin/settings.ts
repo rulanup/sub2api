@@ -801,6 +801,12 @@ export default {
         enabled: 'Enable Subscription Expiry Reminder',
         enabledHint: 'When enabled, the system sends reminders 7, 3, and 1 day before expiry.'
       },
+      dailyUsageSummary: {
+        title: 'Daily Usage Summary',
+        description: 'Control whether users receive a daily usage summary email at 00:00.',
+        enabled: 'Enable Daily Usage Summary',
+        enabledHint: 'When enabled, users with activity on the previous day receive a summary of requests, tokens, spend and balance.'
+      },
       smtp: {
         title: 'SMTP Settings',
         description: 'Configure email sending for verification codes',
@@ -840,11 +846,11 @@ export default {
         includeSecrets: 'Include secrets (password / API Key)',
         includeSecretsHint: 'WARNING: the exported file will contain SMTP password and Resend API Key in plain text',
         exportSuccess: 'Email configuration exported',
-        importSuccess: 'Imported {{count}} email settings',
+        importSuccess: 'Imported {count} email settings',
         importFailed: 'Import failed',
         exportFailed: 'Export failed',
-        invalidFile: 'Invalid config file: expected {"settings": {...}}',
-        importConfirm: 'Import {{count}} email settings? This will overwrite current email configuration.',
+        invalidFile: 'Invalid config file: expected a JSON object containing a settings field',
+        importConfirm: 'Import {count} email settings? This will overwrite current email configuration.',
         importCancel: 'Import cancelled'
       },
       resend: {

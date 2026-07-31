@@ -1125,6 +1125,61 @@ func (s *UsageLogRepoSuite) TestGetBatchUserUsageStats_Empty() {
 	s.Require().Empty(stats)
 }
 
+// --- GetBatchUserRequestSummary ---
+
+func (s *UsageLogRepoSuite) TestGetBatchUserRequestSummary() {
+	user1 := mustCreateUser(s.T(), s.client, &service.User{Email: "batchreq1@test.com"})
+	user2 := mustCreateUser(s.T(), s.client, &service.User{Email: "batchreq2@test.com"})
+	apiKey1 := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user1.ID, Key: "sk-batchreq1", Name: "k"})
+	apiKey2 := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user2.ID, Key: "sk-batchreq2", Name: "k"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-batchreq"})
+
+	base := time.Now()
+	// Two successful (actual_cost > 0) logs for user1, one for user2, and a
+	// zero-cost failure placeholder row that must be excluded.
+	s.createUsageLog(user1, apiKey1, account, 10, 20, 0.3, base.Add(-30*time.Minute))
+	s.createUsageLog(user1, apiKey1, account, 15, 25, 0.4, base)
+	s.createUsageLog(user2, apiKey2, account, 15, 25, 0.6, base.Add(-30*time.Minute))
+	s.createUsageLog(user2, apiKey2, account, 1, 1, 0.0, base.Add(-30*time.Minute)) // failure placeholder
+
+	summaries, err := s.repo.GetBatchUserRequestSummary(s.ctx, []int64{user1.ID, user2.ID}, time.Time{}, time.Time{})
+	s.Require().NoError(err, "GetBatchUserRequestSummary")
+	s.Require().Len(summaries, 2)
+	s.Require().NotNil(summaries[user1.ID])
+	s.Require().Equal(int64(2), summaries[user1.ID].Requests)
+	s.Require().Equal(int64(70), summaries[user1.ID].Tokens)
+	s.Require().InDelta(0.7, summaries[user1.ID].Cost, 1e-9)
+	s.Require().NotNil(summaries[user2.ID])
+	s.Require().Equal(int64(1), summaries[user2.ID].Requests)
+	s.Require().Equal(int64(40), summaries[user2.ID].Tokens)
+	s.Require().InDelta(0.6, summaries[user2.ID].Cost, 1e-9)
+}
+
+func (s *UsageLogRepoSuite) TestGetBatchUserRequestSummary_RangeExcludesOutsideLogs() {
+	user := mustCreateUser(s.T(), s.client, &service.User{Email: "batchreqrange@test.com"})
+	apiKey := mustCreateApiKey(s.T(), s.client, &service.APIKey{UserID: user.ID, Key: "sk-batchreqrange", Name: "k"})
+	account := mustCreateAccount(s.T(), s.client, &service.Account{Name: "acc-batchreqrange"})
+
+	base := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
+	s.createUsageLog(user, apiKey, account, 10, 20, 0.3, base)
+	s.createUsageLog(user, apiKey, account, 15, 25, 0.4, base.Add(1*time.Hour))
+	s.createUsageLog(user, apiKey, account, 20, 30, 0.5, base.Add(-24*time.Hour)) // outside range
+
+	startTime := base.Add(-1 * time.Hour)
+	endTime := base.Add(2 * time.Hour)
+	summaries, err := s.repo.GetBatchUserRequestSummary(s.ctx, []int64{user.ID}, startTime, endTime)
+	s.Require().NoError(err)
+	s.Require().Len(summaries, 1)
+	s.Require().Equal(int64(2), summaries[user.ID].Requests)
+	s.Require().Equal(int64(70), summaries[user.ID].Tokens)
+}
+
+func (s *UsageLogRepoSuite) TestGetBatchUserRequestSummary_Empty() {
+	summaries, err := s.repo.GetBatchUserRequestSummary(s.ctx, []int64{}, time.Time{}, time.Time{})
+	s.Require().NoError(err)
+	s.Require().Empty(summaries)
+}
+
 // --- GetBatchAPIKeyUsageStats ---
 
 func (s *UsageLogRepoSuite) TestGetBatchApiKeyUsageStats() {

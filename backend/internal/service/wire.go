@@ -307,6 +307,16 @@ func ProvideSubscriptionExpiryService(userSubRepo UserSubscriptionRepository, se
 	return svc
 }
 
+// ProvideUserDailySummaryService creates and starts UserDailySummaryService.
+func ProvideUserDailySummaryService(userRepo UserRepository, usageLogRepo UsageLogRepository, settingRepo SettingRepository, notificationEmailService *NotificationEmailService, lockCache LeaderLockCache, db *sql.DB) *UserDailySummaryService {
+	svc := NewUserDailySummaryService(userRepo, usageLogRepo, time.Minute)
+	svc.SetSettingRepository(settingRepo)
+	svc.SetNotificationEmailService(notificationEmailService)
+	svc.SetLeaderLock(lockCache, db)
+	svc.Start()
+	return svc
+}
+
 func ProvideErrorPassthroughService(repo ErrorPassthroughRepository, cache ErrorPassthroughCache, settingRepo SettingRepository) *ErrorPassthroughService {
 	svc := NewErrorPassthroughService(repo, cache)
 	svc.SetSettingRepository(settingRepo)
@@ -785,6 +795,7 @@ var ProviderSet = wire.NewSet(
 	ProvideAccountExpiryService,
 	ProvideProxyExpiryService,
 	ProvideSubscriptionExpiryService,
+	ProvideUserDailySummaryService,
 	ProvideTimingWheelService,
 	ProvideDashboardAggregationService,
 	ProvideUsageCleanupService,

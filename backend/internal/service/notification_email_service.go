@@ -33,6 +33,7 @@ const (
 	NotificationEmailEventCyberPolicyNotice           = "content_moderation.cyber_policy_notice"
 	NotificationEmailEventOpsAlert                    = "ops.alert"
 	NotificationEmailEventOpsScheduledReport          = "ops.scheduled_report"
+	NotificationEmailEventUserDailySummary            = "user.daily_summary"
 
 	notificationEmailTemplateKeyPrefix    = "notification_email_template:"
 	notificationEmailPreferenceKeyPrefix  = "notification_email_preference:"
@@ -764,7 +765,8 @@ func renderNotificationEmailString(event, raw string, variables map[string]strin
 }
 
 func notificationEmailRawHTMLAllowed(event, placeholder string) bool {
-	return event == NotificationEmailEventOpsScheduledReport && placeholder == "report_html"
+	return (event == NotificationEmailEventOpsScheduledReport && placeholder == "report_html") ||
+		(event == NotificationEmailEventUserDailySummary && placeholder == "platform_breakdown")
 }
 
 func notificationEmailAllowedPlaceholderSet(event string) map[string]struct{} {
@@ -941,6 +943,11 @@ func notificationEmailSampleVariables(locale string) map[string]string {
 			"report_start_time":   "2026-07-18T01:00:26Z",
 			"report_end_time":     "2026-07-19T01:00:26Z",
 			"report_html":         "<h2>日报</h2><p>请求量：2,374</p>",
+			"summary_date":        "2026-07-30",
+			"summary_requests":    "128",
+			"summary_tokens":      "86,421",
+			"summary_cost":        "0.42",
+			"platform_breakdown":  "<p style=\"margin-top:12px;padding:10px 12px;background:#f8fafc;border-radius:8px;font-size:13px;color:#52525b;\">OpenAI：$0.30 · Claude：$0.12</p>",
 		}
 		addNotificationEmailOpsSummarySampleVariables(variables)
 		return variables
@@ -989,6 +996,11 @@ func notificationEmailSampleVariables(locale string) map[string]string {
 		"report_start_time":   "2026-07-18T01:00:26Z",
 		"report_end_time":     "2026-07-19T01:00:26Z",
 		"report_html":         "<h2>Daily summary</h2><p>Requests: 2,374</p>",
+		"summary_date":        "2026-07-30",
+		"summary_requests":    "128",
+		"summary_tokens":      "86,421",
+		"summary_cost":        "0.42",
+		"platform_breakdown":  "<p style=\"margin-top:12px;padding:10px 12px;background:#f8fafc;border-radius:8px;font-size:13px;color:#52525b;\">OpenAI: $0.30 · Claude: $0.12</p>",
 	}
 	addNotificationEmailOpsSummarySampleVariables(variables)
 	return variables
@@ -1034,6 +1046,7 @@ var notificationEmailEventOrder = []string{
 	NotificationEmailEventCyberPolicyNotice,
 	NotificationEmailEventOpsAlert,
 	NotificationEmailEventOpsScheduledReport,
+	NotificationEmailEventUserDailySummary,
 }
 
 var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
@@ -1151,6 +1164,15 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 			),
 			append(append([]string{}, notificationEmailOpsSummaryPlaceholders...), "report_detail_display", "report_html")...,
 		),
+	},
+	NotificationEmailEventUserDailySummary: {
+		Event:       NotificationEmailEventUserDailySummary,
+		Label:       "Daily usage summary",
+		Description: "Optional daily summary of a user's requests, tokens, spend and balance, sent at 00:00 to users with activity the previous day.",
+		Category:    "user",
+		Optional:    true,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...),
+			"summary_date", "summary_requests", "summary_tokens", "summary_cost", "current_balance", "platform_breakdown", "unsubscribe_url"),
 	},
 }
 
@@ -1434,6 +1456,38 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 		notificationEmailLocaleChinese: {
 			Subject: "[运维报表] {{report_name}}",
 			HTML:    notificationEmailOpsScheduledReportTemplate(notificationEmailLocaleChinese),
+		},
+	},
+	NotificationEmailEventUserDailySummary: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] Daily usage summary - {{summary_date}}",
+			HTML: notificationEmailCard("#4f46e5", "Daily usage summary", `
+<p>Hello {{recipient_name}},</p>
+<p>Here is your usage summary for <strong>{{summary_date}}</strong>:</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td style="padding:8px 0;color:#71717a;">Requests</td><td style="padding:8px 0;text-align:right;font-weight:600;">{{summary_requests}}</td></tr>
+  <tr><td style="padding:8px 0;color:#71717a;">Tokens</td><td style="padding:8px 0;text-align:right;font-weight:600;">{{summary_tokens}}</td></tr>
+  <tr><td style="padding:8px 0;color:#71717a;">Spent</td><td style="padding:8px 0;text-align:right;font-weight:600;">${{summary_cost}}</td></tr>
+  <tr><td style="padding:8px 0;color:#71717a;">Current balance</td><td style="padding:8px 0;text-align:right;font-weight:600;">${{current_balance}}</td></tr>
+</table>
+{{platform_breakdown}}
+<p>You can view the full breakdown on your dashboard.</p>
+<p class="muted"><a href="{{unsubscribe_url}}">Unsubscribe from daily usage summaries</a></p>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] {{summary_date}} 使用情况总结",
+			HTML: notificationEmailCard("#4f46e5", "使用情况总结", `
+<p>{{recipient_name}}，您好：</p>
+<p>以下是您 <strong>{{summary_date}}</strong> 的使用情况总结：</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td style="padding:8px 0;color:#71717a;">请求次数</td><td style="padding:8px 0;text-align:right;font-weight:600;">{{summary_requests}}</td></tr>
+  <tr><td style="padding:8px 0;color:#71717a;">Token 数</td><td style="padding:8px 0;text-align:right;font-weight:600;">{{summary_tokens}}</td></tr>
+  <tr><td style="padding:8px 0;color:#71717a;">消费金额</td><td style="padding:8px 0;text-align:right;font-weight:600;">${{summary_cost}}</td></tr>
+  <tr><td style="padding:8px 0;color:#71717a;">当前余额</td><td style="padding:8px 0;text-align:right;font-weight:600;">${{current_balance}}</td></tr>
+</table>
+{{platform_breakdown}}
+<p>您可以在控制台查看完整明细。</p>
+<p class="muted"><a href="{{unsubscribe_url}}">退订每日用量总结邮件</a></p>`),
 		},
 	},
 }

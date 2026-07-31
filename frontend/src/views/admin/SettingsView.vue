@@ -7753,6 +7753,35 @@
             </div>
           </div>
 
+          <!-- 每日用量总结 -->
+          <div class="card">
+            <div
+              class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
+            >
+              <h3 class="text-base font-medium text-gray-900 dark:text-white">
+                {{ t("admin.settings.dailyUsageSummary.title") }}
+              </h3>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.dailyUsageSummary.description") }}
+              </p>
+            </div>
+            <div class="px-6 py-6">
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <label
+                    class="mb-0 block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
+                    {{ t("admin.settings.dailyUsageSummary.enabled") }}
+                  </label>
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.dailyUsageSummary.enabledHint") }}
+                  </p>
+                </div>
+                <Toggle v-model="form.daily_usage_summary_enabled" />
+              </div>
+            </div>
+          </div>
+
           <EmailTemplateEditor />
 
           <!-- Balance Low Notification -->
@@ -8965,6 +8994,7 @@ const form = reactive<SettingsForm>({
   balance_low_notify_threshold: 0,
   balance_low_notify_recharge_url: "",
   subscription_expiry_notify_enabled: true,
+  daily_usage_summary_enabled: true,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [] as NotifyEmailEntry[],
   // Channel Monitor feature switch
@@ -10530,6 +10560,7 @@ async function saveSettings() {
         form.balance_low_notify_recharge_url || currentOrigin),
       subscription_expiry_notify_enabled:
         form.subscription_expiry_notify_enabled,
+      daily_usage_summary_enabled: form.daily_usage_summary_enabled,
       account_quota_notify_enabled: form.account_quota_notify_enabled,
       account_quota_notify_emails: (
         form.account_quota_notify_emails || []

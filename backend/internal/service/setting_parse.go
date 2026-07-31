@@ -885,6 +885,9 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.BalanceLowNotifyRechargeURL = settings[SettingKeyBalanceLowNotifyRechargeURL]
 	result.SubscriptionExpiryNotifyEnabled = !isFalseSettingValue(settings[SettingKeySubscriptionExpiryNotifyEnabled])
 
+	// 每日用量总结邮件
+	result.DailyUsageSummaryEnabled = !isFalseSettingValue(settings[SettingKeyDailyUsageSummaryEnabled])
+
 	// 账号限额通知
 	result.AccountQuotaNotifyEnabled = settings[SettingKeyAccountQuotaNotifyEnabled] == "true"
 	if raw := strings.TrimSpace(settings[SettingKeyAccountQuotaNotifyEmails]); raw != "" {

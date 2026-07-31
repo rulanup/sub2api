@@ -549,6 +549,60 @@ func (r *usageLogRepository) GetBatchUserUsageStats(ctx context.Context, userIDs
 // BatchAPIKeyUsageStats represents usage stats for a single API key
 type BatchAPIKeyUsageStats = usagestats.BatchAPIKeyUsageStats
 
+// GetBatchUserRequestSummary gets request count, token count and actual cost for
+// multiple users within [startTime, endTime). Users without any successful request
+// in the range are absent from the result map.
+func (r *usageLogRepository) GetBatchUserRequestSummary(ctx context.Context, userIDs []int64, startTime, endTime time.Time) (map[int64]*usagestats.BatchUserRequestSummary, error) {
+	result := make(map[int64]*usagestats.BatchUserRequestSummary)
+	normalizedUserIDs := normalizePositiveInt64IDs(userIDs)
+	if len(normalizedUserIDs) == 0 {
+		return result, nil
+	}
+	if endTime.IsZero() {
+		endTime = time.Now()
+	}
+
+	query := `
+		SELECT
+			ul.user_id,
+			COUNT(*) as requests,
+			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) as tokens,
+			COALESCE(SUM(ul.actual_cost), 0) as cost
+		FROM usage_logs ul
+		WHERE ul.user_id = ANY($1)
+		  AND ul.created_at >= $2 AND ul.created_at < $3
+		  AND ` + usageLogSuccessFilterUL + `
+		GROUP BY ul.user_id
+	`
+	rows, err := r.sql.QueryContext(ctx, query, pq.Array(normalizedUserIDs), startTime, endTime)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var userID int64
+		var requests int64
+		var tokens int64
+		var cost float64
+		if err := rows.Scan(&userID, &requests, &tokens, &cost); err != nil {
+			_ = rows.Close()
+			return nil, err
+		}
+		result[userID] = &usagestats.BatchUserRequestSummary{
+			UserID:   userID,
+			Requests: requests,
+			Tokens:   tokens,
+			Cost:     cost,
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // GetBatchAPIKeyUsageStats gets today and total actual_cost for multiple API keys within a time range.
 // If startTime is zero, defaults to 30 days ago.
 func (r *usageLogRepository) GetBatchAPIKeyUsageStats(ctx context.Context, apiKeyIDs []int64, startTime, endTime time.Time) (map[int64]*BatchAPIKeyUsageStats, error) {

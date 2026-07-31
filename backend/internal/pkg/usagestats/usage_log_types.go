@@ -317,6 +317,15 @@ type BatchUserUsageStats struct {
 	ByPlatform      []PlatformUsage `json:"by_platform,omitempty"`
 }
 
+// BatchUserRequestSummary represents request/token/cost totals for a single user
+// within a time range (used by the daily usage summary email).
+type BatchUserRequestSummary struct {
+	UserID   int64   `json:"user_id"`
+	Requests int64   `json:"requests"`
+	Tokens   int64   `json:"tokens"`
+	Cost     float64 `json:"cost"`
+}
+
 // BatchAPIKeyUsageStats represents usage stats for a single API key
 type BatchAPIKeyUsageStats struct {
 	APIKeyID        int64   `json:"api_key_id"`

@@ -952,6 +952,7 @@ func TestAPIContracts(t *testing.T) {
 					"balance_low_notify_enabled": false,
 					"account_quota_notify_enabled": false,
 					"subscription_expiry_notify_enabled": true,
+					"daily_usage_summary_enabled": true,
 					"balance_low_notify_threshold": 0,
 					"balance_low_notify_recharge_url": "",
 					"account_quota_notify_emails": [],
@@ -1238,6 +1239,7 @@ func TestAPIContracts(t *testing.T) {
 					"balance_low_notify_enabled": false,
 					"account_quota_notify_enabled": false,
 					"subscription_expiry_notify_enabled": true,
+					"daily_usage_summary_enabled": true,
 					"balance_low_notify_threshold": 0,
 					"balance_low_notify_recharge_url": "",
 					"account_quota_notify_emails": [],
@@ -2621,6 +2623,10 @@ func (r *stubUsageLogRepo) GetDailyStatsAggregated(ctx context.Context, userID i
 }
 
 func (r *stubUsageLogRepo) GetBatchUserUsageStats(ctx context.Context, userIDs []int64, startTime, endTime time.Time) (map[int64]*usagestats.BatchUserUsageStats, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (r *stubUsageLogRepo) GetBatchUserRequestSummary(ctx context.Context, userIDs []int64, startTime, endTime time.Time) (map[int64]*usagestats.BatchUserRequestSummary, error) {
 	return nil, errors.New("not implemented")
 }
 
