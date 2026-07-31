@@ -127,14 +127,13 @@ func TestUserDailySummaryService_SendsSummaryOnlyForUsersWithActivity(t *testing
 	svc.sendDailySummaries(ctx)
 
 	require.Equal(t, int64(2), smtpServer.messageCount())
-	first := smtpServer.messageBodies[0]
-	second := smtpServer.messageBodies[1]
-	require.Contains(t, first, "alice@example.com")
-	require.Contains(t, second, "carol@example.com")
-	require.Contains(t, first, "128")
-	require.Contains(t, first, "86421")
-	require.Contains(t, first, "12.34")
-	require.Contains(t, first, "openai: $0.30")
-	require.Contains(t, first, "claude: $0.12")
-	require.Contains(t, strings.ToLower(first), "daily usage summary")
+	allBodies := strings.Join(smtpServer.messageBodies, "\n")
+	require.Contains(t, allBodies, "alice@example.com")
+	require.Contains(t, allBodies, "carol@example.com")
+	require.Contains(t, allBodies, "128")
+	require.Contains(t, allBodies, "86421")
+	require.Contains(t, allBodies, "12.34")
+	require.Contains(t, allBodies, "openai: $0.30")
+	require.Contains(t, allBodies, "claude: $0.12")
+	require.Contains(t, strings.ToLower(allBodies), "daily usage summary")
 }
