@@ -163,6 +163,9 @@
         }}</span>
       </button>
 
+      <!-- Theme Picker (presets + custom color) -->
+      <ThemePicker :collapsed="sidebarCollapsed" />
+
       <!-- Collapse Button -->
       <button
         @click="toggleSidebar"
@@ -193,6 +196,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import VersionBadge from '@/components/common/VersionBadge.vue'
+import ThemePicker from '@/components/layout/ThemePicker.vue'
 import { sanitizeSvg } from '@/utils/sanitize'
 import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
