@@ -152,7 +152,20 @@
                   @select="selectedMethod = $event"
                 />
               </div>
-              <div v-if="feeRate > 0 && selectedPlan.price > 0" class="card p-6">
+               <div v-if="selectedMethod === 'balance'" class="card p-6">
+                 <div class="flex items-center justify-between text-sm">
+                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.currentBalance') }}</span>
+                   <span class="font-semibold text-gray-900 dark:text-white">${{ Number(user?.balance || 0).toFixed(2) }}</span>
+                 </div>
+                 <div class="mt-2 flex items-center justify-between border-t border-gray-200 pt-2 text-sm dark:border-dark-600">
+                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.balanceRequired') }}</span>
+                   <span class="font-semibold text-primary-600 dark:text-primary-400">${{ selectedPlan.price.toFixed(2) }}</span>
+                 </div>
+                 <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                   {{ t('payment.balanceFallbackHint') }}
+                 </p>
+               </div>
+               <div v-else-if="feeRate > 0 && selectedPlan.price > 0" class="card p-6">
                 <div class="space-y-2 text-sm">
                   <div class="flex justify-between">
                     <span class="text-gray-500 dark:text-gray-400">{{ t('payment.amountLabel') }}</span>
@@ -173,7 +186,8 @@
                   <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
                   {{ t('common.processing') }}
                 </span>
-                <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(subTotalAmount) }}</span>
+               <span v-else-if="selectedMethod === 'balance'">{{ t('payment.buyWithBalance') }} {{ formatSelectedSubscriptionPaymentAmount(subTotalAmount) }}</span>
+               <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(subTotalAmount) }}</span>
               </button>
               <button class="btn btn-secondary w-full" @click="selectedPlan = null">{{ t('common.cancel') }}</button>
             </template>
@@ -552,7 +566,9 @@ const globalMaxAmount = computed(() => {
 
 // Selected method's limits (for validation and error messages)
 const selectedLimit = computed(() => visibleMethods.value[selectedMethod.value])
-const selectedCurrency = computed(() => normalizePaymentCurrency(selectedLimit.value?.currency))
+const selectedCurrency = computed(() => selectedMethod.value === 'balance'
+  ? 'USD'
+  : normalizePaymentCurrency(selectedLimit.value?.currency))
 const localeCode = computed(() => {
   const raw = i18n.locale as unknown
   if (typeof raw === 'string') return raw
@@ -646,6 +662,7 @@ const canSubmit = computed(() =>
 
 const subPaymentAmount = computed(() => {
   const price = selectedPlan.value?.price ?? 0
+  if (selectedMethod.value === 'balance') return roundPaymentAmount(price, 'USD')
   return subscriptionPaymentAmountForCurrency(price, selectedCurrency.value)
 })
 
@@ -669,7 +686,7 @@ function subscriptionTotalAmountForCurrency(value: number, currency: string): nu
 // Subscription-specific: method options based on gateway pay amount
 const subMethodOptions = computed<PaymentMethodOption[]>(() => {
   const price = selectedPlan.value?.price ?? 0
-  return enabledMethods.value.map((type) => {
+  const externalMethods = enabledMethods.value.map((type) => {
     const ml = visibleMethods.value[type]
     const currency = normalizePaymentCurrency(ml?.currency)
     return {
@@ -679,12 +696,23 @@ const subMethodOptions = computed<PaymentMethodOption[]>(() => {
       available: ml?.available !== false && amountFitsMethod(subscriptionTotalAmountForCurrency(price, currency), type),
     }
   })
+  if (!selectedPlan.value) return externalMethods
+  return [
+    {
+      type: 'balance',
+      display_name: t('payment.methods.balance'),
+      fee_rate: 0,
+      available: true,
+    },
+    ...externalMethods,
+  ]
 })
 
 const canSubmitSubscription = computed(() =>
   selectedPlan.value !== null
-    && amountFitsMethod(subTotalAmount.value, selectedMethod.value)
-    && selectedLimit.value?.available !== false
+    && (selectedMethod.value === 'balance'
+      || (amountFitsMethod(subTotalAmount.value, selectedMethod.value)
+        && selectedLimit.value?.available !== false))
 )
 
 // Auto-switch to first available method when current selection can't handle the amount
@@ -781,6 +809,14 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     }
 
     const result = await paymentStore.createOrder(payload) as CreateOrderResult & { resume_token?: string }
+    if (result.result_type === 'balance_done' || (requestType === 'balance' && result.status === 'COMPLETED')) {
+      resetPayment()
+      selectedPlan.value = null
+      authStore.refreshUser()
+      subscriptionStore.fetchActiveSubscriptions(true).catch(() => {})
+      appStore.showSuccess(t('payment.balancePurchaseSuccess'))
+      return
+    }
     const openWindow = (url: string) => {
       const win = window.open(url, 'paymentPopup', getPaymentPopupFeatures())
       if (!win || win.closed) {
@@ -907,7 +943,17 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     }
   } catch (err: unknown) {
     const apiErr = err as Record<string, unknown>
-    if (apiErr.reason === 'TOO_MANY_PENDING') {
+    if (requestType === 'balance' && apiErr.reason === 'INSUFFICIENT_BALANCE') {
+      const fallback = subMethodOptions.value.find((method) => method.type !== 'balance' && method.available)
+      if (fallback && selectedPlan.value) {
+        selectedMethod.value = fallback.type
+        appStore.showInfo(t('payment.balanceFallbackToPayment'))
+        await createOrder(selectedPlan.value.price, 'subscription', selectedPlan.value.id, { paymentType: fallback.type })
+        return
+      }
+      errorMessage.value = t('payment.errors.insufficientBalance')
+      errorHintMessage.value = ''
+    } else if (apiErr.reason === 'TOO_MANY_PENDING') {
       const metadata = apiErr.metadata as Record<string, unknown> | undefined
       errorMessage.value = t('payment.errors.tooManyPending', { max: metadata?.max || '' })
       errorHintMessage.value = ''

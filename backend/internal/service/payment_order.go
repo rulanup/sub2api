@@ -13,6 +13,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
+	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/payment/provider"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -52,6 +53,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	if s.notificationEmailService != nil {
 		s.notificationEmailService.RememberRecipientLocale(ctx, req.UserID, user.Email, req.Locale)
+	}
+	if req.OrderType == payment.OrderTypeSubscription && req.PaymentType == payment.TypeBalance {
+		return s.createBalanceSubscriptionOrder(ctx, req, user, plan, cfg)
 	}
 	orderAmount := req.Amount
 	limitAmount := req.Amount
@@ -112,6 +116,116 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		return nil, err
 	}
 	return resp, nil
+}
+
+// createBalanceSubscriptionOrder deducts the full plan price and creates a
+// paid subscription order atomically. It intentionally does not apply the
+// external payment fee or subscription currency conversion: the account
+// balance and plan price are both denominated in the platform balance unit.
+func (s *PaymentService) createBalanceSubscriptionOrder(ctx context.Context, req CreateOrderRequest, u *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig) (*CreateOrderResponse, error) {
+	if plan == nil {
+		return nil, infraerrors.BadRequest("INVALID_INPUT", "subscription plan is required")
+	}
+	if plan.Price <= 0 {
+		return nil, infraerrors.BadRequest("INVALID_AMOUNT", "subscription plan price must be positive")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin balance subscription transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := s.checkPendingLimit(ctx, tx, req.UserID, cfg.MaxPendingOrders); err != nil {
+		return nil, err
+	}
+	if err := s.checkDailyLimit(ctx, tx, req.UserID, plan.Price, cfg.DailyLimit); err != nil {
+		return nil, err
+	}
+
+	updated, err := tx.User.Update().
+		Where(user.IDEQ(req.UserID), user.BalanceGTE(plan.Price)).
+		AddBalance(-plan.Price).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("deduct subscription balance: %w", err)
+	}
+	if updated == 0 {
+		return nil, infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance for subscription")
+	}
+
+	now := time.Now()
+	expiresAt := now
+	outTradeNo, err := s.allocateOutTradeNo(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	order, err := tx.PaymentOrder.Create().
+		SetUserID(req.UserID).
+		SetUserEmail(u.Email).
+		SetUserName(u.Username).
+		SetNillableUserNotes(psNilIfEmpty(u.Notes)).
+		SetAmount(plan.Price).
+		SetPayAmount(plan.Price).
+		SetFeeRate(0).
+		SetRechargeCode(fmt.Sprintf("BALANCE-SUB-%d-%d", req.UserID, now.UnixNano())).
+		SetOutTradeNo(outTradeNo).
+		SetPaymentType(payment.TypeBalance).
+		SetPaymentTradeNo("balance").
+		SetOrderType(payment.OrderTypeSubscription).
+		SetStatus(OrderStatusPaid).
+		SetPaidAt(now).
+		SetExpiresAt(expiresAt).
+		SetClientIP(req.ClientIP).
+		SetSrcHost(req.SrcHost).
+		SetPlanID(plan.ID).
+		SetSubscriptionGroupID(plan.GroupID).
+		SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit)).
+		Save(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("create balance subscription order: %w", err)
+	}
+	if req.SrcURL != "" {
+		// The order was already saved, so retain the source URL for auditability.
+		order, err = tx.PaymentOrder.UpdateOneID(order.ID).SetSrcURL(req.SrcURL).Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("set balance subscription source URL: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit balance subscription transaction: %w", err)
+	}
+
+	if err := s.ExecuteSubscriptionFulfillment(ctx, order.ID); err != nil {
+		assigned, auditErr := hasPaymentSubscriptionAssignmentAudit(ctx, s.entClient, order.ID)
+		if auditErr == nil && !assigned && s.userRepo != nil {
+			if refundErr := s.userRepo.UpdateBalance(ctx, req.UserID, plan.Price); refundErr != nil {
+				slog.Error("balance subscription compensation failed", "orderID", order.ID, "userID", req.UserID, "amount", plan.Price, "error", refundErr)
+			} else {
+				_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).SetStatus(OrderStatusCancelled).Save(ctx)
+				s.writeAuditLog(ctx, order.ID, "BALANCE_PAYMENT_REFUNDED", "system", map[string]any{
+					"amount": plan.Price,
+					"reason": "subscription fulfillment failed before assignment",
+				})
+			}
+		}
+		return nil, err
+	}
+	completed, err := s.entClient.PaymentOrder.Get(ctx, order.ID)
+	if err != nil {
+		return nil, fmt.Errorf("reload balance subscription order: %w", err)
+	}
+	return &CreateOrderResponse{
+		OrderID:     completed.ID,
+		Amount:      completed.Amount,
+		PayAmount:   completed.PayAmount,
+		FeeRate:     completed.FeeRate,
+		Status:      completed.Status,
+		ResultType:  payment.CreatePaymentResultBalanceDone,
+		PaymentType: payment.TypeBalance,
+		OutTradeNo:  completed.OutTradeNo,
+		ExpiresAt:   completed.ExpiresAt,
+		PaymentMode: "balance",
+	}, nil
 }
 
 func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig) (*dbent.SubscriptionPlan, error) {

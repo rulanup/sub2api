@@ -18,6 +18,7 @@ const (
 	TypeLink         PaymentType = "link"
 	TypeEasyPay      PaymentType = "easypay"
 	TypeAirwallex    PaymentType = "airwallex"
+	TypeBalance      PaymentType = "balance"
 )
 
 // Order status constants shared across payment and service layers.
@@ -118,6 +119,7 @@ const (
 	CreatePaymentResultOrderCreated  CreatePaymentResultType = "order_created"
 	CreatePaymentResultOAuthRequired CreatePaymentResultType = "oauth_required"
 	CreatePaymentResultJSAPIReady    CreatePaymentResultType = "jsapi_ready"
+	CreatePaymentResultBalanceDone   CreatePaymentResultType = "balance_done"
 )
 
 // WechatOAuthInfo describes the next step when WeChat OAuth is required before payment.
