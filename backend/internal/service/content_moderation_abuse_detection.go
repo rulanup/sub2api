@@ -147,10 +147,18 @@ func (s *ContentModerationService) applyAbuseDetectionAction(ctx context.Context
 	if user == nil || user.DeletedAt != nil || !user.IsActive() || user.IsAdmin() {
 		return
 	}
+	previousStatus := user.Status
+	previousRPMLimit := user.RPMLimit
+	previousConcurrency := user.Concurrency
 	if !mutate(user) {
 		return
 	}
-	if err := s.userRepo.Update(ctx, user); err != nil {
+	fields := UserUpdateFields{
+		Status:      user.Status != previousStatus,
+		RPMLimit:    user.RPMLimit != previousRPMLimit,
+		Concurrency: user.Concurrency != previousConcurrency,
+	}
+	if err := s.userRepo.Update(ctx, user, fields); err != nil {
 		slog.Warn("content_moderation.abuse_detection_update_user_failed", "scanner", scanner, "user_id", userID, "error", err)
 		return
 	}

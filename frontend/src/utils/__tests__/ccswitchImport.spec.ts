@@ -35,7 +35,8 @@ describe('CC-Switch import targets', () => {
       openai: ['claude', 'codex', 'opencode'],
       gemini: ['gemini'],
       antigravity: ['claude', 'gemini'],
-      grok: ['grokbuild', 'opencode']
+      grok: ['grokbuild', 'opencode'],
+      composite: []
     })
     expect(getCcSwitchTargets(null)).toEqual([])
     expect(getCcSwitchTargets('unsupported')).toEqual([])
