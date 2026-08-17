@@ -131,6 +131,8 @@ func TestPromptAuditAdminOperationsUseOmittedBodiesAndAllowlistedDetails(t *test
 }
 
 func TestPromptAuditMutationAuditRoutesHaveStableActionsAndOmitBodies(t *testing.T) {
+	require.Equal(t, "admin.prompt_audit.event.read", auditSensitiveReads["GET /api/v1/admin/prompt-audit/events/:id"])
+
 	expected := map[string]string{
 		"PUT /api/v1/admin/prompt-audit/config":                   "admin.prompt_audit.config.update",
 		"POST /api/v1/admin/prompt-audit/endpoints/probe":         "admin.prompt_audit.endpoint.probe",

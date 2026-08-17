@@ -70,6 +70,13 @@
           <dt class="text-gray-500">{{ t('admin.promptAudit.events.stage') }}</dt><dd>{{ event.snapshot.stage || 'http' }}</dd>
           <dt class="text-gray-500">{{ t('admin.promptAudit.events.technical.protocol') }}</dt><dd>{{ event.snapshot.protocol }} · {{ event.snapshot.endpoint }}</dd>
         </dl>
+
+        <section v-show="activeTab === 'response'" class="space-y-2" role="tabpanel">
+          <h4 class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.promptAudit.events.modelResponse') }}</h4>
+          <p v-if="event?.model_response_truncated" class="text-xs text-amber-600 dark:text-amber-300">{{ t('admin.promptAudit.events.modelResponseTruncated') }}</p>
+          <pre v-if="event?.model_response" class="max-h-[min(54vh,32rem)] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-4 font-mono text-xs text-gray-700 dark:bg-dark-900 dark:text-dark-200">{{ event.model_response }}</pre>
+          <p v-else class="py-8 text-center text-sm text-gray-500">{{ t('admin.promptAudit.events.modelResponseUnavailable') }}</p>
+        </section>
       </div>
     </div>
   </BaseDialog>
@@ -85,7 +92,7 @@ import { SCANNER_CATALOG } from '../viewModel'
 const props = defineProps<{ show: boolean; event: PromptAuditEvent | null; loading: boolean }>()
 defineEmits<{ (event: 'close'): void }>()
 const { t } = useI18n()
-const tabs = ['summary', 'risks', 'technical'] as const
+const tabs = ['summary', 'risks', 'technical', 'response'] as const
 const activeTab = ref<(typeof tabs)[number]>('summary')
 watch(() => props.event?.id, () => { activeTab.value = 'summary' })
 

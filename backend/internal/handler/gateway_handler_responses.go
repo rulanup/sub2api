@@ -119,6 +119,13 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		h.responsesSecurityAuditError(c, decision)
 		return
 	}
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolOpenAIResponses, apiKey.GroupID, h.securityAuditCoordinator)
+	if err != nil {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply system prompt policy")
+		return
+	}
+	finishModelResponseCapture := beginModelResponseCapture(c, h.securityAuditCoordinator, apiKey.GroupID, "http")
+	defer finishModelResponseCapture()
 
 	// Error passthrough binding
 	if h.errorPassthroughService != nil {

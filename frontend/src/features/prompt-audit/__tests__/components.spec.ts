@@ -67,7 +67,7 @@ describe('Prompt Audit components', () => {
 
   it('supports group search, stale configured groups, nine scanners, and bounded worker inputs', async () => {
     const draft: PromptAuditDraft = {
-      enabled: true, blocking_enabled: false, blocking_latest_turn_only: false, store_pass_events: false, effective_mode: 'async_audit', strategy: 'priority',
+      enabled: true, blocking_enabled: false, blocking_latest_turn_only: false, store_pass_events: false, store_model_responses: false, system_prompt_enabled: false, system_prompt: '', system_prompt_mode: 'prepend', effective_mode: 'async_audit', strategy: 'priority',
       worker_count: 4, queue_capacity: 100, scanners: SCANNER_CATALOG.map((item) => item.id), all_groups: false, group_ids: [1, 99],
       endpoints: [endpoint()], config_version: 1, updated_at: '', updated_by: 0, change_summary: '',
     }
@@ -82,6 +82,10 @@ describe('Prompt Audit components', () => {
     await wrapper.get('[aria-label="admin.promptAudit.policy.workerCount"]').setValue('6')
     const emitted = wrapper.emitted('update:draft')?.at(-1)?.[0] as PromptAuditDraft
     expect(emitted.worker_count).toBe(6)
+
+    await wrapper.get('[data-test="model-response-toggle"]').trigger('click')
+    const responseDraft = wrapper.emitted('update:draft')?.at(-1)?.[0] as PromptAuditDraft
+    expect(responseDraft.store_model_responses).toBe(true)
   })
 
   it('keeps identity fields separate, supports selection, and opens filter deletion from the toolbar', async () => {
@@ -217,6 +221,7 @@ describe('Prompt Audit components', () => {
         evidence: 'Sexual Content or Sexual Acts', evidence_hash: 'abc',
       }],
       created_at: '2026-07-16T00:00:00Z',
+      model_response: 'data: {"type":"response.completed"}', model_response_truncated: true,
       snapshot: {
         request_id: 'req-1', user_id: 1, username: 'alice', user_email: 'alice@example.test',
         api_key_id: 2, api_key_name: 'alice-key', group_id: 3, group_name: 'Alpha', provider: 'openai',
@@ -243,6 +248,10 @@ describe('Prompt Audit components', () => {
     expect(wrapper.get('[data-test="risk-guard-return"]').text()).toContain('"decision": "admin.promptAudit.decisions.critical"')
     expect(wrapper.get('[data-test="risk-guard-return"]').text()).toContain('admin.promptAudit.scanners.sexual_content_or_sexual_acts')
     expect(wrapper.get('[data-test="risk-issue"]').text()).toContain('admin.promptAudit.scanners.sexual_content_or_sexual_acts')
+    const responseTab = wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes('admin.promptAudit.events.tabs.response'))
+    await responseTab!.trigger('click')
+    expect(wrapper.get('[data-test="event-detail-tab-panel"]').text()).toContain('data: {"type":"response.completed"}')
+    expect(wrapper.get('[data-test="event-detail-tab-panel"]').text()).toContain('admin.promptAudit.events.modelResponseTruncated')
   })
 
   it('falls back to the redacted preview for events stored before full prompts were kept', async () => {

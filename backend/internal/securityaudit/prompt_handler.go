@@ -18,7 +18,7 @@ type PromptAdminService interface {
 	Probe(context.Context, ProbeRequest) ProbeResult
 	Runtime(context.Context) RuntimeSnapshot
 	ListEvents(context.Context, EventFilter, int, int) (*EventPage, error)
-	GetEvent(context.Context, int64) (*Event, error)
+	GetEvent(context.Context, int64) (*EventDetail, error)
 	DeleteEvent(context.Context, int64) (*DeleteResult, error)
 	DeleteEventsByIDs(context.Context, []int64) (*DeleteResult, error)
 	PreviewDelete(context.Context, EventFilter, int64) (*DeletePreview, error)
@@ -229,6 +229,7 @@ func configAuditFields(request UpdateConfigRequest, saved *PublicConfig) map[str
 	return map[string]any{
 		"enabled": request.Enabled, "blocking_enabled": request.BlockingEnabled,
 		"blocking_latest_turn_only": request.BlockingLatestTurnOnly,
+		"store_model_responses":     request.StoreModelResponses,
 		"config_version":            version, "endpoint_count": len(request.Endpoints),
 		"scanner_count": len(request.Scanners), "all_groups": request.AllGroups,
 		"group_count": len(request.GroupIDs),

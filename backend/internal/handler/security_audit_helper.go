@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"context"
 	"crypto/sha256"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -21,6 +24,61 @@ type securityAuditWSDedupeEntry struct {
 	turn     int
 	bodyHash [sha256.Size]byte
 	decision securityaudit.Decision
+}
+
+type modelResponseCaptureWriter struct {
+	gin.ResponseWriter
+	body      []byte
+	truncated bool
+}
+
+func (w *modelResponseCaptureWriter) Write(body []byte) (int, error) {
+	w.capture(body)
+	return w.ResponseWriter.Write(body)
+}
+
+func (w *modelResponseCaptureWriter) WriteString(body string) (int, error) {
+	w.capture([]byte(body))
+	return w.ResponseWriter.WriteString(body)
+}
+
+func (w *modelResponseCaptureWriter) capture(body []byte) {
+	remaining := securityaudit.MaxModelResponseBytes - len(w.body)
+	if remaining <= 0 {
+		w.truncated = true
+		return
+	}
+	if len(body) > remaining {
+		w.body = append(w.body, body[:remaining]...)
+		w.truncated = true
+		return
+	}
+	w.body = append(w.body, body...)
+}
+
+func beginModelResponseCapture(c *gin.Context, coordinator *securityaudit.Coordinator, groupID *int64, stage string) func() {
+	if c == nil || c.Request == nil || coordinator == nil || !coordinator.ModelResponseRetentionEnabled(groupID) {
+		return func() {}
+	}
+	requestID, _ := c.Request.Context().Value(ctxkey.RequestID).(string)
+	if strings.TrimSpace(requestID) == "" {
+		return func() {}
+	}
+	original := c.Writer
+	capture := &modelResponseCaptureWriter{ResponseWriter: original}
+	c.Writer = capture
+	retentionGroupID := cloneSecurityAuditGroupID(groupID)
+	return func() {
+		c.Writer = original
+		if len(capture.body) == 0 {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = coordinator.StoreModelResponse(ctx, securityaudit.ModelResponse{
+			RequestID: requestID, Stage: stage, GroupID: retentionGroupID, Body: capture.body, Truncated: capture.truncated,
+		})
+	}
 }
 
 // cachesSecurityAuditCompletion reports whether a successful audit may be

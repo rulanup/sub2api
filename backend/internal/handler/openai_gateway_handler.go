@@ -352,6 +352,13 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		h.openAISecurityAuditError(c, decision)
 		return
 	}
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolOpenAIResponses, apiKey.GroupID, h.securityAuditCoordinator)
+	if err != nil {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply system prompt policy")
+		return
+	}
+	finishModelResponseCapture := beginModelResponseCapture(c, h.securityAuditCoordinator, apiKey.GroupID, "http")
+	defer finishModelResponseCapture()
 
 	// 使用 IsExplicitImageGenerationIntent 排除被动 image_gen namespace 声明。
 	// Codex 在所有请求中被动声明 image_gen namespace，宽泛检测会导致禁了生图的
@@ -968,6 +975,13 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		h.anthropicSecurityAuditError(c, decision)
 		return
 	}
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolAnthropicMessages, apiKey.GroupID, h.securityAuditCoordinator)
+	if err != nil {
+		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply system prompt policy")
+		return
+	}
+	finishModelResponseCapture := beginModelResponseCapture(c, h.securityAuditCoordinator, apiKey.GroupID, "http")
+	defer finishModelResponseCapture()
 
 	// 解析渠道级模型映射
 	channelMappingMsg, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, reqModel)
@@ -1227,6 +1241,9 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 
 		userAgent := c.GetHeader("User-Agent")
 		clientIP := ip.GetClientIP(c)
+		if result != nil {
+			service.BackfillOpenAICacheCreationFromAnthropicBody(body, result.UpstreamModel, &result.Usage)
+		}
 		requestPayloadHash := service.HashUsageRequestPayload(body)
 		inboundEndpoint := GetInboundEndpoint(c)
 		upstreamEndpoint := resolveOpenAIUpstreamEndpoint(c, account, result)
@@ -1766,6 +1783,11 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		closeOpenAIClientWS(wsConn, securityAuditWSCloseStatus(decision), securityAuditWSCloseReason(decision))
 		return
 	}
+	firstMessage, err = applySecuritySystemPrompt(firstMessage, "responses_websocket", apiKey.GroupID, h.securityAuditCoordinator)
+	if err != nil {
+		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "failed to apply system prompt policy")
+		return
+	}
 
 	imageIntent := service.IsExplicitImageGenerationIntent("/v1/responses", reqModel, firstMessage)
 	if imageIntent && !service.GroupAllowsImageGeneration(apiKey.Group) {
@@ -2066,13 +2088,13 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 			InitialRequestModel:     reqModel,
 			MaxReasoningEffort:      maxReasoningEffort,
 			ReasoningEffortMappings: reasoningEffortMappings,
-			BeforeRequest: func(turn int, payload []byte, originalModel string) error {
+			BeforeRequest: func(turn int, payload []byte, originalModel string) ([]byte, error) {
 				c.Set(securityAuditWSTurnContextKey, turn)
 				if turn == 1 {
-					return nil
+					return payload, nil
 				}
 				if !gjson.ValidBytes(payload) {
-					return service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", errors.New("invalid json"))
+					return payload, service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", errors.New("invalid json"))
 				}
 				model := strings.TrimSpace(originalModel)
 				if model == "" {
@@ -2083,9 +2105,13 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				}
 				if decision := h.checkSecurityAuditStage(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIResponses, model, payload, "subsequent_turn"); decision != nil && !decision.AllowNextStage {
 					writeSecurityAuditWSError(ctx, wsConn, decision)
-					return service.NewOpenAIWSClientCloseError(securityAuditWSCloseStatus(decision), securityAuditWSCloseReason(decision), nil)
+					return payload, service.NewOpenAIWSClientCloseError(securityAuditWSCloseStatus(decision), securityAuditWSCloseReason(decision), nil)
 				}
-				return nil
+				updatedPayload, applyErr := applySecuritySystemPrompt(payload, "responses_websocket", apiKey.GroupID, h.securityAuditCoordinator)
+				if applyErr != nil {
+					return payload, service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "failed to apply system prompt policy", applyErr)
+				}
+				return updatedPayload, nil
 			},
 			MapRequestModel: func(turn int, originalModel string) (string, error) {
 				model := strings.TrimSpace(originalModel)

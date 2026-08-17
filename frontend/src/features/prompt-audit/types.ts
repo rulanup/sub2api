@@ -25,6 +25,10 @@ export interface PromptAuditConfig {
   blocking_enabled: boolean
   blocking_latest_turn_only: boolean
   store_pass_events: boolean
+  store_model_responses: boolean
+  system_prompt_enabled: boolean
+  system_prompt: string
+  system_prompt_mode: 'prepend' | 'if_absent'
   effective_mode: PromptAuditMode
   strategy: 'priority'
   worker_count: number
@@ -49,6 +53,10 @@ export interface PromptAuditUpdateRequest {
   blocking_enabled: boolean
   blocking_latest_turn_only: boolean
   store_pass_events: boolean
+  store_model_responses: boolean
+  system_prompt_enabled: boolean
+  system_prompt: string
+  system_prompt_mode: 'prepend' | 'if_absent'
   strategy: 'priority'
   worker_count: number
   queue_capacity: number
@@ -193,6 +201,8 @@ export interface PromptAuditEvent {
   latency_ms: number
   issue_summaries: PromptIssueSummary[]
   created_at: string
+  model_response?: string
+  model_response_truncated?: boolean
 }
 
 export interface PromptEventFilters {

@@ -61,6 +61,15 @@ type Event struct {
 	LatencyMS       int                `json:"latency_ms"`
 	IssueSummaries  []IssueSummary     `json:"issue_summaries"`
 	CreatedAt       time.Time          `json:"created_at"`
+
+	modelResponse     string
+	responseTruncated bool
+}
+
+type EventDetail struct {
+	*Event
+	ModelResponse     string `json:"model_response,omitempty"`
+	ResponseTruncated bool   `json:"model_response_truncated,omitempty"`
 }
 
 type JobRepository interface {

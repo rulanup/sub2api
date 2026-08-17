@@ -49,6 +49,50 @@ func NewPromptService(
 	}
 }
 
+func (s *PromptService) SystemPromptPolicy(groupID *int64) SystemPromptPolicy {
+	if s == nil || s.config == nil {
+		return SystemPromptPolicy{}
+	}
+	cfg, ok := s.config.Active()
+	if !ok || cfg.EffectiveMode() == ModeOff || !cfg.IncludesGroup(groupID) {
+		return SystemPromptPolicy{}
+	}
+	return SystemPromptPolicy{Enabled: cfg.SystemPromptEnabled, Prompt: cfg.SystemPrompt, Mode: cfg.SystemPromptMode}
+}
+
+func (s *PromptService) ModelResponseRetentionEnabled(groupID *int64) bool {
+	if s == nil || s.config == nil {
+		return false
+	}
+	cfg, ok := s.config.Active()
+	return ok && cfg.EffectiveMode() != ModeOff && cfg.StoreModelResponses && cfg.IncludesGroup(groupID)
+}
+
+func (s *PromptService) StoreModelResponse(ctx context.Context, response ModelResponse) error {
+	if s == nil || s.repo == nil || s.config == nil {
+		return nil
+	}
+	cfg, ok := s.config.Active()
+	if !ok || cfg.EffectiveMode() == ModeOff || !cfg.StoreModelResponses || !cfg.IncludesGroup(response.GroupID) {
+		return nil
+	}
+	var err error
+	for attempt := 0; attempt < 10; attempt++ {
+		err = s.repo.StoreModelResponse(ctx, response)
+		if !errors.Is(err, ErrModelResponseCorrelationNotFound) {
+			return err
+		}
+		timer := time.NewTimer(25 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return err
+}
+
 func (s *PromptService) Start(ctx context.Context) error {
 	if s == nil || s.config == nil || s.runner == nil {
 		return errors.New("prompt audit service unavailable")
@@ -386,7 +430,7 @@ func (s *PromptService) probeSnapshot() map[string]ProbeResult {
 func (s *PromptService) ListEvents(ctx context.Context, filter EventFilter, page, pageSize int) (*EventPage, error) {
 	return s.repo.ListEvents(ctx, filter, page, pageSize)
 }
-func (s *PromptService) GetEvent(ctx context.Context, id int64) (*Event, error) {
+func (s *PromptService) GetEvent(ctx context.Context, id int64) (*EventDetail, error) {
 	return s.repo.GetEvent(ctx, id)
 }
 

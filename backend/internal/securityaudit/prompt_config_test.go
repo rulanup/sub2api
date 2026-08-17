@@ -271,6 +271,58 @@ func TestEffectiveModeTruthTable(t *testing.T) {
 	}
 }
 
+func TestModelResponseRetentionDefaultsOffAndRoundTripsPublicConfig(t *testing.T) {
+	cfg := DefaultStorageConfig()
+	require.False(t, cfg.StoreModelResponses)
+	require.False(t, PublicFromStorage(cfg, true).StoreModelResponses)
+
+	cfg.StoreModelResponses = true
+	require.True(t, PublicFromStorage(cfg, true).StoreModelResponses)
+	active, err := ActiveFromStorage(cfg, true, prefixEncryptor{})
+	require.NoError(t, err)
+	require.True(t, active.StoreModelResponses)
+}
+
+func TestModelResponseRetentionRequiresPromptAuditEnabled(t *testing.T) {
+	cfg := DefaultStorageConfig()
+	cfg.StoreModelResponses = true
+	require.Error(t, validateStorageConfig(cfg))
+	require.Error(t, validateUpdateConfigRequest(UpdateConfigRequest{StoreModelResponses: true}))
+}
+
+func TestSystemPromptConfigValidationAndGroupScope(t *testing.T) {
+	cfg := DefaultStorageConfig()
+	cfg.SystemPromptEnabled = true
+	cfg.SystemPrompt = " Follow the platform safety policy. "
+	cfg.SystemPromptMode = "if_absent"
+	normalizeStorageConfig(&cfg)
+	require.NoError(t, validateStorageConfig(cfg))
+
+	active, err := ActiveFromStorage(cfg, true, prefixEncryptor{})
+	require.NoError(t, err)
+	groupID := int64(42)
+	require.Equal(t, "Follow the platform safety policy.", active.SystemPrompt)
+	require.True(t, active.IncludesGroup(&groupID))
+
+	cfg.AllGroups = false
+	cfg.GroupIDs = []int64{7}
+	active, err = ActiveFromStorage(cfg, true, prefixEncryptor{})
+	require.NoError(t, err)
+	require.False(t, active.IncludesGroup(&groupID))
+
+	cfg.SystemPrompt = ""
+	require.Error(t, validateStorageConfig(cfg))
+}
+
+func TestSystemPromptConfigRejectsInvalidModeAndOversizedPrompt(t *testing.T) {
+	cfg := DefaultStorageConfig()
+	cfg.SystemPromptMode = "replace"
+	require.Error(t, validateStorageConfig(cfg))
+	cfg.SystemPromptMode = "prepend"
+	cfg.SystemPrompt = strings.Repeat("x", MaxSystemPromptRunes+1)
+	require.Error(t, validateStorageConfig(cfg))
+}
+
 func TestConfigManagerColdStartOnlyFailsClosedForExplicitBlockingIntent(t *testing.T) {
 	manager := &ConfigManager{}
 

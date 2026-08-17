@@ -1,6 +1,7 @@
 package securityaudit
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -43,7 +44,7 @@ func openPromptAuditIntegrationDB(t *testing.T) *sql.DB {
 		);
 	`)
 	require.NoError(t, err)
-	for _, name := range []string{"181_prompt_audit.sql", "182_prompt_audit_full_prompt.sql"} {
+	for _, name := range []string{"181_prompt_audit.sql", "182_prompt_audit_full_prompt.sql", "186_prompt_audit_model_responses.sql"} {
 		migration, err := os.ReadFile(filepath.Join("..", "..", "migrations", name))
 		require.NoError(t, err)
 		// The migration runner can retry an interrupted deployment; the migration
@@ -60,7 +61,7 @@ func openPromptAuditIntegrationDB(t *testing.T) *sql.DB {
 
 func resetPromptAuditIntegrationDB(t *testing.T, db *sql.DB) {
 	t.Helper()
-	_, err := db.Exec(`TRUNCATE TABLE prompt_audit_events, prompt_audit_jobs, api_keys, users, groups, settings RESTART IDENTITY CASCADE`)
+	_, err := db.Exec(`TRUNCATE TABLE prompt_audit_model_responses, prompt_audit_events, prompt_audit_jobs, api_keys, users, groups, settings RESTART IDENTITY CASCADE`)
 	require.NoError(t, err)
 }
 
@@ -196,6 +197,48 @@ func TestPromptAuditDatabasePersistsFullPromptOnEventsOnly(t *testing.T) {
 	require.Equal(t, stableErrorMessage(code), message)
 	require.NotContains(t, message, errorCanary)
 	require.LessOrEqual(t, len([]rune(message)), 160)
+}
+
+func TestPromptAuditModelResponseCorrelatesThroughJobBeforeEventAndStaysOutOfLists(t *testing.T) {
+	db := openPromptAuditIntegrationDB(t)
+	repo := NewPostgreSQLRepository(db)
+	ctx := context.Background()
+	snapshot := integrationSnapshot("response")
+	const rawResponse = `data: {"type":"response.completed","response":{"output_text":"complete raw response"}}`
+
+	job, err := repo.CreateStagingWithCapacity(ctx, snapshot, 1, 3, 10)
+	require.NoError(t, err)
+	require.NoError(t, repo.PublishQueued(ctx, job.ID))
+	claimed, ok, err := repo.ClaimNextJob(ctx, time.Now().UTC().Add(time.Second))
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	require.NoError(t, repo.StoreModelResponse(ctx, ModelResponse{
+		RequestID: snapshot.RequestID, Stage: snapshot.Stage, Body: []byte(rawResponse),
+	}))
+	event, err := repo.Complete(ctx, claimed, integrationResult(EventPass), true)
+	require.NoError(t, err)
+
+	page, err := repo.ListEvents(ctx, EventFilter{RequestID: snapshot.RequestID}, 1, 20)
+	require.NoError(t, err)
+	listJSON, err := json.Marshal(page)
+	require.NoError(t, err)
+	require.NotContains(t, string(listJSON), rawResponse)
+	require.NotContains(t, string(listJSON), "model_response")
+
+	detail, err := repo.GetEvent(ctx, event.ID)
+	require.NoError(t, err)
+	require.Equal(t, rawResponse, detail.ModelResponse)
+	require.False(t, detail.ResponseTruncated)
+
+	oversized := bytes.Repeat([]byte("z"), MaxModelResponseBytes+1)
+	require.NoError(t, repo.StoreModelResponse(ctx, ModelResponse{
+		RequestID: snapshot.RequestID, Stage: snapshot.Stage, Body: oversized,
+	}))
+	detail, err = repo.GetEvent(ctx, event.ID)
+	require.NoError(t, err)
+	require.Len(t, detail.ModelResponse, MaxModelResponseBytes)
+	require.True(t, detail.ResponseTruncated)
 }
 
 func TestPromptAuditRepositoryAdmissionClaimFencingAndEventTransaction(t *testing.T) {

@@ -336,6 +336,8 @@ func (m *ConfigManager) buildNextStorage(current storageConfig, req UpdateConfig
 	}
 	next := storageConfig{
 		Enabled: req.Enabled, BlockingEnabled: req.BlockingEnabled, BlockingLatestTurnOnly: req.BlockingLatestTurnOnly, StorePassEvents: req.StorePassEvents,
+		StoreModelResponses: req.StoreModelResponses,
+		SystemPromptEnabled: req.SystemPromptEnabled, SystemPrompt: strings.TrimSpace(req.SystemPrompt), SystemPromptMode: strings.TrimSpace(req.SystemPromptMode),
 		Strategy: strings.TrimSpace(req.Strategy), WorkerCount: req.WorkerCount,
 		QueueCapacity: req.QueueCapacity, Scanners: append([]string(nil), req.Scanners...),
 		AllGroups: req.AllGroups, GroupIDs: append([]int64(nil), req.GroupIDs...),

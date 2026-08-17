@@ -189,7 +189,7 @@ func (r *Runner) processJob(ctx context.Context, workerID int, cfg ActiveConfig,
 		"action": aggregated.Action, "chunk_total": aggregated.ChunkTotal,
 		"latency_ms": aggregated.LatencyMS, "guard_endpoint_id": aggregated.GuardEndpointID, "status": "completed",
 	}))
-	event, err := r.repo.Complete(ctx, job, aggregated, cfg.StorePassEvents)
+	event, err := r.repo.Complete(ctx, job, aggregated, cfg.StorePassEvents || cfg.StoreModelResponses)
 	if err != nil {
 		return err
 	}

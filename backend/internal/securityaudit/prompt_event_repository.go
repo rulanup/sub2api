@@ -53,7 +53,7 @@ type DeleteResult struct {
 
 type EventRepository interface {
 	ListEvents(ctx context.Context, filter EventFilter, page, pageSize int) (*EventPage, error)
-	GetEvent(ctx context.Context, id int64) (*Event, error)
+	GetEvent(ctx context.Context, id int64) (*EventDetail, error)
 	DeleteEvent(ctx context.Context, id int64) (*DeleteResult, error)
 	DeleteEventsByIDs(ctx context.Context, ids []int64) (*DeleteResult, error)
 	PreviewDelete(ctx context.Context, filter EventFilter) (*DeletePreview, error)
@@ -102,12 +102,19 @@ func (r *PostgreSQLRepository) ListEvents(ctx context.Context, filter EventFilte
 	return &EventPage{Items: items, Total: total, Page: page, PageSize: pageSize, Pages: pages}, nil
 }
 
-func (r *PostgreSQLRepository) GetEvent(ctx context.Context, id int64) (*Event, error) {
-	event, err := scanEvent(r.db.QueryRowContext(ctx, `SELECT `+eventDetailColumns("e")+` FROM prompt_audit_events e WHERE e.id=$1`, id), true)
+func (r *PostgreSQLRepository) GetEvent(ctx context.Context, id int64) (*EventDetail, error) {
+	event, err := scanEvent(r.db.QueryRowContext(ctx, `SELECT `+eventDetailColumns("e")+`,
+		COALESCE(m.response_body,''::bytea),COALESCE(m.truncated,FALSE)
+		FROM prompt_audit_events e
+		LEFT JOIN prompt_audit_model_responses m ON m.job_id=e.job_id
+		WHERE e.id=$1`, id), true, true)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrEventNotFound
 	}
-	return event, err
+	if err != nil {
+		return nil, err
+	}
+	return &EventDetail{Event: event, ModelResponse: event.modelResponse, ResponseTruncated: event.responseTruncated}, nil
 }
 
 func (r *PostgreSQLRepository) DeleteEvent(ctx context.Context, id int64) (*DeleteResult, error) {
@@ -326,7 +333,7 @@ func eventDetailColumns(alias string) string {
 	return eventColumns(alias) + fmt.Sprintf(",%[1]s.full_prompt", alias)
 }
 
-func scanEvent(row rowScanner, withFullPrompt ...bool) (*Event, error) {
+func scanEvent(row rowScanner, detail ...bool) (*Event, error) {
 	event := &Event{}
 	var userID, apiKeyID, groupID sql.NullInt64
 	var categories, matched, scores, evidence []byte
@@ -338,8 +345,12 @@ func scanEvent(row rowScanner, withFullPrompt ...bool) (*Event, error) {
 		&event.RiskLevel, &event.Action, &categories, &matched, &scores, &evidence, &event.ScannerBackend,
 		&event.ScannerVersion, &event.GuardEndpointID, &event.PolicyID, &event.PolicyVersion,
 		&event.ConfigVersion, &event.ChunkTotal, &event.LatencyMS, &event.CreatedAt}
-	if len(withFullPrompt) > 0 && withFullPrompt[0] {
+	if len(detail) > 0 && detail[0] {
 		dest = append(dest, &event.Snapshot.FullPrompt)
+	}
+	var modelResponse []byte
+	if len(detail) > 1 && detail[1] {
+		dest = append(dest, &modelResponse, &event.responseTruncated)
 	}
 	err := row.Scan(dest...)
 	if err != nil {
@@ -348,6 +359,7 @@ func scanEvent(row rowScanner, withFullPrompt ...bool) (*Event, error) {
 	event.Snapshot.UserID = nullableInt64Value(userID)
 	event.Snapshot.APIKeyID = nullableInt64Value(apiKeyID)
 	event.Snapshot.GroupID = nullableInt64Ptr(groupID)
+	event.modelResponse = string(modelResponse)
 	_ = json.Unmarshal(categories, &event.Categories)
 	_ = json.Unmarshal(matched, &event.MatchedScanners)
 	_ = json.Unmarshal(scores, &event.ScannerScores)

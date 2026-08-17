@@ -17,6 +17,16 @@ type PromptEngine interface {
 	Evaluate(ctx context.Context, req Request) (*PromptDecision, error)
 }
 
+type SystemPromptPolicy struct {
+	Enabled bool
+	Prompt  string
+	Mode    string
+}
+
+type systemPromptPolicyProvider interface {
+	SystemPromptPolicy(groupID *int64) SystemPromptPolicy
+}
+
 type Coordinator struct {
 	legacy LegacyEngine
 	prompt PromptEngine
@@ -24,6 +34,36 @@ type Coordinator struct {
 
 func NewCoordinator(legacy LegacyEngine, prompt PromptEngine) *Coordinator {
 	return &Coordinator{legacy: legacy, prompt: prompt}
+}
+
+func (c *Coordinator) SystemPromptPolicy(groupID *int64) SystemPromptPolicy {
+	if c == nil || c.prompt == nil {
+		return SystemPromptPolicy{}
+	}
+	provider, ok := c.prompt.(systemPromptPolicyProvider)
+	if !ok {
+		return SystemPromptPolicy{}
+	}
+	return provider.SystemPromptPolicy(groupID)
+}
+
+func (c *Coordinator) ModelResponseRetentionEnabled(groupID *int64) bool {
+	if c == nil || c.prompt == nil {
+		return false
+	}
+	provider, ok := c.prompt.(modelResponseRetentionProvider)
+	return ok && provider.ModelResponseRetentionEnabled(groupID)
+}
+
+func (c *Coordinator) StoreModelResponse(ctx context.Context, response ModelResponse) error {
+	if c == nil || c.prompt == nil {
+		return nil
+	}
+	provider, ok := c.prompt.(modelResponseRetentionProvider)
+	if !ok {
+		return nil
+	}
+	return provider.StoreModelResponse(ctx, response)
 }
 
 func (c *Coordinator) Check(ctx context.Context, req Request) Decision {

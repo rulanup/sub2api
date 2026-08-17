@@ -497,9 +497,13 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 		bridgeReplayInputExists := false
 		for turn := 1; ; turn++ {
 			if turn > 1 && hooks != nil && hooks.BeforeRequest != nil {
-				if err := hooks.BeforeRequest(turn, currentBridgePayload.payloadRaw, currentBridgePayload.originalModel); err != nil {
+				updatedPayload, err := hooks.BeforeRequest(turn, currentBridgePayload.payloadRaw, currentBridgePayload.originalModel)
+				if err != nil {
 					return err
 				}
+				currentBridgePayload.payloadRaw = updatedPayload
+				currentBridgePayload.rawForHash = updatedPayload
+				currentBridgePayload.payloadBytes = len(updatedPayload)
 			}
 			if hooks != nil && hooks.BeforeTurn != nil {
 				if err := hooks.BeforeTurn(turn); err != nil {
@@ -1260,9 +1264,11 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 	for {
 		if turn > 1 && !skipBeforeTurn && hooks != nil && hooks.BeforeRequest != nil {
-			if err := hooks.BeforeRequest(turn, currentPayload, currentOriginalModel); err != nil {
+			updatedPayload, err := hooks.BeforeRequest(turn, currentPayload, currentOriginalModel)
+			if err != nil {
 				return err
 			}
+			currentPayload = updatedPayload
 		}
 		if !skipBeforeTurn && hooks != nil && hooks.BeforeTurn != nil {
 			if err := hooks.BeforeTurn(turn); err != nil {

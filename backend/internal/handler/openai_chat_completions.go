@@ -102,6 +102,13 @@ func (h *OpenAIGatewayHandler) ChatCompletions(c *gin.Context) {
 		h.openAISecurityAuditError(c, decision)
 		return
 	}
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolOpenAIChat, apiKey.GroupID, h.securityAuditCoordinator)
+	if err != nil {
+		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply system prompt policy")
+		return
+	}
+	finishModelResponseCapture := beginModelResponseCapture(c, h.securityAuditCoordinator, apiKey.GroupID, "http")
+	defer finishModelResponseCapture()
 	if h.rejectIfCyberSessionBlocked(c, apiKey, body, reqModel, cyberBlockFormatChat) {
 		return
 	}

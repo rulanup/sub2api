@@ -22,7 +22,7 @@ type fakePromptAdminService struct {
 	probe        func(context.Context, ProbeRequest) ProbeResult
 	runtime      RuntimeSnapshot
 	list         func(context.Context, EventFilter, int, int) (*EventPage, error)
-	get          func(context.Context, int64) (*Event, error)
+	get          func(context.Context, int64) (*EventDetail, error)
 	deleteOne    func(context.Context, int64) (*DeleteResult, error)
 	deleteIDs    func(context.Context, []int64) (*DeleteResult, error)
 	preview      func(context.Context, EventFilter, int64) (*DeletePreview, error)
@@ -51,7 +51,7 @@ func (s *fakePromptAdminService) ListEvents(ctx context.Context, filter EventFil
 	}
 	return s.list(ctx, filter, page, pageSize)
 }
-func (s *fakePromptAdminService) GetEvent(ctx context.Context, id int64) (*Event, error) {
+func (s *fakePromptAdminService) GetEvent(ctx context.Context, id int64) (*EventDetail, error) {
 	if s.get == nil {
 		return nil, ErrEventNotFound
 	}

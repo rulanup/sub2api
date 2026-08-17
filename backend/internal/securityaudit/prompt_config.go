@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -25,6 +26,7 @@ const (
 	MinInputLimit        = 128
 	MaxInputLimit        = 100000
 	DefaultPayloadTTL    = 30 * time.Minute
+	MaxSystemPromptRunes = 16384
 )
 
 type SecretEncryptor interface {
@@ -68,6 +70,10 @@ type storageConfig struct {
 	BlockingEnabled        bool              `json:"blocking_enabled"`
 	BlockingLatestTurnOnly bool              `json:"blocking_latest_turn_only"`
 	StorePassEvents        bool              `json:"store_pass_events"`
+	StoreModelResponses    bool              `json:"store_model_responses"`
+	SystemPromptEnabled    bool              `json:"system_prompt_enabled"`
+	SystemPrompt           string            `json:"system_prompt"`
+	SystemPromptMode       string            `json:"system_prompt_mode"`
 	Strategy               string            `json:"strategy"`
 	WorkerCount            int               `json:"worker_count"`
 	QueueCapacity          int               `json:"queue_capacity"`
@@ -104,6 +110,10 @@ type ActiveConfig struct {
 	BlockingEnabled        bool
 	BlockingLatestTurnOnly bool
 	StorePassEvents        bool
+	StoreModelResponses    bool
+	SystemPromptEnabled    bool
+	SystemPrompt           string
+	SystemPromptMode       string
 	Strategy               string
 	WorkerCount            int
 	QueueCapacity          int
@@ -135,6 +145,10 @@ type PublicConfig struct {
 	BlockingEnabled        bool             `json:"blocking_enabled"`
 	BlockingLatestTurnOnly bool             `json:"blocking_latest_turn_only"`
 	StorePassEvents        bool             `json:"store_pass_events"`
+	StoreModelResponses    bool             `json:"store_model_responses"`
+	SystemPromptEnabled    bool             `json:"system_prompt_enabled"`
+	SystemPrompt           string           `json:"system_prompt"`
+	SystemPromptMode       string           `json:"system_prompt_mode"`
 	EffectiveMode          Mode             `json:"effective_mode"`
 	Strategy               string           `json:"strategy"`
 	WorkerCount            int              `json:"worker_count"`
@@ -168,6 +182,10 @@ type UpdateConfigRequest struct {
 	BlockingEnabled        bool             `json:"blocking_enabled"`
 	BlockingLatestTurnOnly bool             `json:"blocking_latest_turn_only"`
 	StorePassEvents        bool             `json:"store_pass_events"`
+	StoreModelResponses    bool             `json:"store_model_responses"`
+	SystemPromptEnabled    bool             `json:"system_prompt_enabled"`
+	SystemPrompt           string           `json:"system_prompt"`
+	SystemPromptMode       string           `json:"system_prompt_mode"`
 	Strategy               string           `json:"strategy"`
 	WorkerCount            int              `json:"worker_count"`
 	QueueCapacity          int              `json:"queue_capacity"`
@@ -183,6 +201,8 @@ func DefaultStorageConfig() storageConfig {
 		BlockingEnabled:        false,
 		BlockingLatestTurnOnly: false,
 		StorePassEvents:        false,
+		StoreModelResponses:    false,
+		SystemPromptMode:       "prepend",
 		Strategy:               "priority",
 		WorkerCount:            DefaultWorkerCount,
 		QueueCapacity:          DefaultQueueCapacity,
@@ -219,6 +239,10 @@ func normalizeStorageConfig(cfg *storageConfig) {
 	if strings.TrimSpace(cfg.Strategy) == "" {
 		cfg.Strategy = "priority"
 	}
+	if strings.TrimSpace(cfg.SystemPromptMode) == "" {
+		cfg.SystemPromptMode = "prepend"
+	}
+	cfg.SystemPrompt = strings.TrimSpace(cfg.SystemPrompt)
 	if cfg.WorkerCount == 0 {
 		cfg.WorkerCount = DefaultWorkerCount
 	}
@@ -255,6 +279,22 @@ func normalizeStorageConfig(cfg *storageConfig) {
 }
 
 func validateStorageConfig(cfg storageConfig) error {
+	if cfg.StoreModelResponses && !cfg.Enabled {
+		return infraerrors.BadRequest("prompt_audit_response_retention_requires_enabled", "保存模型响应前必须先启用提示词审计")
+	}
+	systemPromptMode := strings.TrimSpace(cfg.SystemPromptMode)
+	if systemPromptMode == "" {
+		systemPromptMode = "prepend"
+	}
+	if systemPromptMode != "prepend" && systemPromptMode != "if_absent" {
+		return infraerrors.BadRequest("prompt_audit_invalid_system_prompt_mode", "系统提示词注入模式无效")
+	}
+	if utf8.RuneCountInString(cfg.SystemPrompt) > MaxSystemPromptRunes {
+		return infraerrors.BadRequest("prompt_audit_system_prompt_too_long", "系统提示词长度超出允许范围")
+	}
+	if cfg.SystemPromptEnabled && strings.TrimSpace(cfg.SystemPrompt) == "" {
+		return infraerrors.BadRequest("prompt_audit_system_prompt_required", "启用系统提示词注入前必须填写提示词")
+	}
 	if cfg.BlockingEnabled && !cfg.Enabled {
 		return infraerrors.BadRequest(ErrorCodeRequiresEnabled, "开启同步阻止前必须先启用提示词审计")
 	}
@@ -306,6 +346,22 @@ func validateStorageConfig(cfg storageConfig) error {
 }
 
 func validateUpdateConfigRequest(req UpdateConfigRequest) error {
+	if req.StoreModelResponses && !req.Enabled {
+		return infraerrors.BadRequest("prompt_audit_response_retention_requires_enabled", "保存模型响应前必须先启用提示词审计")
+	}
+	systemPromptMode := strings.TrimSpace(req.SystemPromptMode)
+	if systemPromptMode == "" {
+		systemPromptMode = "prepend"
+	}
+	if systemPromptMode != "prepend" && systemPromptMode != "if_absent" {
+		return infraerrors.BadRequest("prompt_audit_invalid_system_prompt_mode", "系统提示词注入模式无效")
+	}
+	if utf8.RuneCountInString(req.SystemPrompt) > MaxSystemPromptRunes {
+		return infraerrors.BadRequest("prompt_audit_system_prompt_too_long", "系统提示词长度超出允许范围")
+	}
+	if req.SystemPromptEnabled && strings.TrimSpace(req.SystemPrompt) == "" {
+		return infraerrors.BadRequest("prompt_audit_system_prompt_required", "启用系统提示词注入前必须填写提示词")
+	}
 	if strings.TrimSpace(req.Strategy) != "priority" {
 		return infraerrors.BadRequest("prompt_audit_invalid_strategy", "提示词审计策略仅支持 priority")
 	}
@@ -387,7 +443,11 @@ func (cfg ActiveConfig) InvalidTokenEndpointIDs() []string {
 	return ids
 }
 
-func PublicFromStorage(cfg storageConfig, riskControlEnabled bool, invalidTokenEndpointIDs []string) PublicConfig {
+func PublicFromStorage(cfg storageConfig, riskControlEnabled bool, invalidTokenEndpointIDLists ...[]string) PublicConfig {
+	var invalidTokenEndpointIDs []string
+	if len(invalidTokenEndpointIDLists) > 0 {
+		invalidTokenEndpointIDs = invalidTokenEndpointIDLists[0]
+	}
 	invalid := make(map[string]struct{}, len(invalidTokenEndpointIDs))
 	for _, id := range invalidTokenEndpointIDs {
 		invalid[id] = struct{}{}
@@ -413,6 +473,8 @@ func PublicFromStorage(cfg storageConfig, riskControlEnabled bool, invalidTokenE
 	active := ActiveConfig{RiskControlEnabled: riskControlEnabled, Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled}
 	return PublicConfig{
 		Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled, BlockingLatestTurnOnly: cfg.BlockingLatestTurnOnly, StorePassEvents: cfg.StorePassEvents,
+		StoreModelResponses: cfg.StoreModelResponses,
+		SystemPromptEnabled: cfg.SystemPromptEnabled, SystemPrompt: cfg.SystemPrompt, SystemPromptMode: cfg.SystemPromptMode,
 		EffectiveMode: active.EffectiveMode(), Strategy: cfg.Strategy, WorkerCount: cfg.WorkerCount,
 		QueueCapacity: cfg.QueueCapacity, Scanners: scanners, AllGroups: cfg.AllGroups,
 		GroupIDs: groupIDs, Endpoints: endpoints, ConfigVersion: cfg.ConfigVersion,
@@ -424,7 +486,8 @@ func ActiveFromStorage(cfg storageConfig, riskControlEnabled bool, encryptor Sec
 	active := ActiveConfig{
 		RiskControlEnabled: riskControlEnabled, Enabled: cfg.Enabled, BlockingEnabled: cfg.BlockingEnabled,
 		BlockingLatestTurnOnly: cfg.BlockingLatestTurnOnly,
-		StorePassEvents:        cfg.StorePassEvents, Strategy: cfg.Strategy, WorkerCount: cfg.WorkerCount,
+		SystemPromptEnabled:    cfg.SystemPromptEnabled, SystemPrompt: cfg.SystemPrompt, SystemPromptMode: cfg.SystemPromptMode,
+		StorePassEvents: cfg.StorePassEvents, StoreModelResponses: cfg.StoreModelResponses, Strategy: cfg.Strategy, WorkerCount: cfg.WorkerCount,
 		QueueCapacity: cfg.QueueCapacity, Scanners: append([]string(nil), cfg.Scanners...), AllGroups: cfg.AllGroups,
 		GroupIDs: append([]int64(nil), cfg.GroupIDs...), ConfigVersion: cfg.ConfigVersion,
 		UpdatedAt: cfg.UpdatedAt, UpdatedBy: cfg.UpdatedBy, ChangeSummary: cfg.ChangeSummary,
@@ -464,12 +527,13 @@ func changeSummary(cfg storageConfig) string {
 		BlockingEnabled        bool   `json:"blocking_enabled"`
 		BlockingLatestTurnOnly bool   `json:"blocking_latest_turn_only"`
 		StorePassEvents        bool   `json:"store_pass_events"`
+		StoreModelResponses    bool   `json:"store_model_responses"`
 		EndpointCount          int    `json:"endpoint_count"`
 		ScannerCount           int    `json:"scanner_count"`
 		AllGroups              bool   `json:"all_groups"`
 		GroupCount             int    `json:"group_count"`
 		GroupHash              string `json:"group_hash"`
-	}{cfg.Enabled, cfg.BlockingEnabled, cfg.BlockingLatestTurnOnly, cfg.StorePassEvents, len(cfg.Endpoints), len(cfg.Scanners), cfg.AllGroups, len(cfg.GroupIDs), ""}
+	}{cfg.Enabled, cfg.BlockingEnabled, cfg.BlockingLatestTurnOnly, cfg.StorePassEvents, cfg.StoreModelResponses, len(cfg.Endpoints), len(cfg.Scanners), cfg.AllGroups, len(cfg.GroupIDs), ""}
 	rawGroups, _ := json.Marshal(cfg.GroupIDs)
 	digest := sha256.Sum256(rawGroups)
 	summary.GroupHash = hex.EncodeToString(digest[:])

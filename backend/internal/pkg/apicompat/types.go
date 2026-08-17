@@ -478,10 +478,11 @@ type ResponsesSummary struct {
 
 // ResponsesUsage holds token counts in Responses API format.
 type ResponsesUsage struct {
-	InputTokens              int `json:"input_tokens"`
-	OutputTokens             int `json:"output_tokens"`
-	TotalTokens              int `json:"total_tokens"`
-	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
+	InputTokens              int  `json:"input_tokens"`
+	OutputTokens             int  `json:"output_tokens"`
+	TotalTokens              int  `json:"total_tokens"`
+	CacheCreationInputTokens int  `json:"cache_creation_input_tokens,omitempty"`
+	CacheCreationReported    bool `json:"-"`
 
 	// Optional detailed breakdown
 	InputTokensDetails  *ResponsesInputTokensDetails  `json:"input_tokens_details,omitempty"`
@@ -515,6 +516,21 @@ func (u *ResponsesUsage) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*u = ResponsesUsage(aux.responsesUsageAlias)
+	u.CacheCreationReported = nestedPresence.InputTokensDetails != nil && (nestedPresence.InputTokensDetails.CacheWriteTokens != nil || nestedPresence.InputTokensDetails.CacheCreationTokens != nil) ||
+		nestedPresence.PromptTokensDetails != nil && (nestedPresence.PromptTokensDetails.CacheWriteTokens != nil || nestedPresence.PromptTokensDetails.CacheCreationTokens != nil)
+	if !u.CacheCreationReported {
+		var topLevelPresence struct {
+			CacheCreationInputTokens *int `json:"cache_creation_input_tokens"`
+			CacheCreationTokens      *int `json:"cache_creation_tokens"`
+			CacheWriteInputTokens    *int `json:"cache_write_input_tokens"`
+			CacheWriteTokens         *int `json:"cache_write_tokens"`
+		}
+		if err := json.Unmarshal(data, &topLevelPresence); err != nil {
+			return err
+		}
+		u.CacheCreationReported = topLevelPresence.CacheCreationInputTokens != nil || topLevelPresence.CacheCreationTokens != nil ||
+			topLevelPresence.CacheWriteInputTokens != nil || topLevelPresence.CacheWriteTokens != nil
+	}
 	if u.InputTokens == 0 && aux.PromptTokens != 0 {
 		u.InputTokens = aux.PromptTokens
 	}

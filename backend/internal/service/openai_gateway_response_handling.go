@@ -1146,6 +1146,7 @@ func openAIUsageFromGJSON(value gjson.Result) (OpenAIUsage, bool) {
 	}
 	cacheReadTokens := openAICacheReadTokensFromUsage(value)
 	cacheCreationTokens := openAICacheCreationTokensFromUsage(value)
+	cacheCreationReported := openAICacheCreationReported(value)
 	imageOutputTokens := value.Get("output_tokens_details.image_tokens").Int()
 	if imageOutputTokens == 0 {
 		imageOutputTokens = value.Get("completion_tokens_details.image_tokens").Int()
@@ -1162,6 +1163,7 @@ func openAIUsageFromGJSON(value gjson.Result) (OpenAIUsage, bool) {
 		ImageInputTokens:         imageInputTokens,
 		OutputTokens:             int(outputTokens),
 		CacheCreationInputTokens: cacheCreationTokens,
+		CacheCreationReported:    cacheCreationReported,
 		CacheReadInputTokens:     cacheReadTokens,
 		ImageOutputTokens:        int(imageOutputTokens),
 	}, true
@@ -1195,6 +1197,24 @@ func openAICacheCreationTokensFromUsage(value gjson.Result) int {
 		value.Get("cache_write_input_tokens"),
 		value.Get("cache_creation_tokens"),
 	)
+}
+
+func openAICacheCreationReported(value gjson.Result) bool {
+	for _, field := range []gjson.Result{
+		value.Get("input_tokens_details.cache_write_tokens"),
+		value.Get("prompt_tokens_details.cache_write_tokens"),
+		value.Get("input_tokens_details.cache_creation_tokens"),
+		value.Get("prompt_tokens_details.cache_creation_tokens"),
+		value.Get("cache_write_tokens"),
+		value.Get("cache_creation_input_tokens"),
+		value.Get("cache_write_input_tokens"),
+		value.Get("cache_creation_tokens"),
+	} {
+		if field.Exists() {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *OpenAIGatewayService) handleNonStreamingResponse(ctx context.Context, resp *http.Response, c *gin.Context, account *Account, originalModel, mappedModel string) (*openaiNonStreamingResult, error) {

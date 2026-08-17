@@ -68,6 +68,44 @@
         </div>
       </div>
     </div>
+
+    <div class="mt-5 flex items-center justify-between gap-4 rounded-xl border border-amber-200 p-4 dark:border-amber-800/60 dark:bg-amber-950/10 sm:p-5">
+      <div>
+        <h3 class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.promptAudit.policy.modelResponseTitle') }}</h3>
+        <p class="mt-1 text-xs text-gray-600 dark:text-dark-300">{{ t('admin.promptAudit.policy.modelResponseDescription') }}</p>
+      </div>
+      <Toggle data-test="model-response-toggle" :model-value="draft.store_model_responses" @update:model-value="patch({ store_model_responses: $event })" />
+    </div>
+
+    <div class="mt-5 rounded-xl border border-gray-200 p-4 dark:border-dark-700/60 dark:bg-dark-900/20 sm:p-5">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <h3 class="text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.promptAudit.policy.systemPromptTitle') }}</h3>
+          <p class="mt-1 text-xs text-gray-500 dark:text-dark-300">{{ t('admin.promptAudit.policy.systemPromptDescription') }}</p>
+        </div>
+        <Toggle :model-value="draft.system_prompt_enabled" @update:model-value="patch({ system_prompt_enabled: $event })" />
+      </div>
+      <div class="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <label class="block text-sm text-gray-700 dark:text-dark-200">
+          <span>{{ t('admin.promptAudit.policy.systemPrompt') }}</span>
+          <textarea
+            :value="draft.system_prompt"
+            rows="6"
+            maxlength="16384"
+            class="input mt-1.5 w-full resize-y font-mono text-xs leading-5"
+            :placeholder="t('admin.promptAudit.policy.systemPromptPlaceholder')"
+            @input="patch({ system_prompt: ($event.target as HTMLTextAreaElement).value })"
+          />
+        </label>
+        <label class="block text-sm text-gray-700 dark:text-dark-200">
+          <span>{{ t('admin.promptAudit.policy.systemPromptMode') }}</span>
+          <select :value="draft.system_prompt_mode" class="input mt-1.5 w-full" @change="patch({ system_prompt_mode: ($event.target as HTMLSelectElement).value as 'prepend' | 'if_absent' })">
+            <option value="prepend">{{ t('admin.promptAudit.policy.systemPromptPrepend') }}</option>
+            <option value="if_absent">{{ t('admin.promptAudit.policy.systemPromptIfAbsent') }}</option>
+          </select>
+        </label>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -76,6 +114,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PromptAuditDraft, PromptAuditGroup } from '../types'
 import { cloneData, SCANNER_CATALOG } from '../viewModel'
+import Toggle from '@/components/common/Toggle.vue'
 
 const props = defineProps<{ draft: PromptAuditDraft; groups: PromptAuditGroup[] }>()
 const emit = defineEmits<{ (event: 'update:draft', value: PromptAuditDraft): void }>()

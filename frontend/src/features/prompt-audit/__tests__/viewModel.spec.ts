@@ -15,6 +15,10 @@ const config = (): PromptAuditConfig => ({
   blocking_enabled: false,
   blocking_latest_turn_only: false,
   store_pass_events: false,
+  store_model_responses: false,
+  system_prompt_enabled: false,
+  system_prompt: '',
+  system_prompt_mode: 'prepend',
   effective_mode: 'async_audit',
   strategy: 'priority',
   worker_count: 4,
@@ -68,6 +72,10 @@ describe('Prompt Audit view model', () => {
     const changed = configToDraft(config())
     expect(draftFingerprint(changed)).toBe(draftFingerprint(original))
     changed.queue_capacity += 1
+    expect(draftFingerprint(changed)).not.toBe(draftFingerprint(original))
+    changed.queue_capacity = original.queue_capacity
+    changed.store_model_responses = true
+    expect(buildUpdateRequest(changed).store_model_responses).toBe(true)
     expect(draftFingerprint(changed)).not.toBe(draftFingerprint(original))
   })
 

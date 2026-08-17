@@ -211,6 +211,13 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		googleSecurityAuditError(c, decision)
 		return
 	}
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolGemini, apiKey.GroupID, h.securityAuditCoordinator)
+	if err != nil {
+		googleError(c, http.StatusBadRequest, "Failed to apply system prompt policy")
+		return
+	}
+	finishModelResponseCapture := beginModelResponseCapture(c, h.securityAuditCoordinator, apiKey.GroupID, "http")
+	defer finishModelResponseCapture()
 
 	// 解析渠道级模型映射
 	channelMapping, _ := h.gatewayService.ResolveChannelMappingAndRestrict(c.Request.Context(), apiKey.GroupID, modelName)
