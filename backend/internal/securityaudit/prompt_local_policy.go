@@ -43,18 +43,18 @@ var localPolicyRules = []localPolicyRule{
 	},
 	{
 		category: "phishing", reason: "phishing_or_credential_harvesting",
-		actions: []string{"制作", "搭建", "仿冒", "伪造", "创建", "build", "create", "make", "phishing"},
-		targets: []string{"钓鱼", "登录界面", "登录页面", "credential", "凭据", "密码", "password", "账号", "login"},
+		actions: []string{"制作", "搭建", "仿冒", "伪造", "创建", "build", "create", "make", "phishing", "harvest", "harvesting"},
+		targets: []string{"钓鱼", "登录界面", "登录页面", "credential harvesting", "credential", "凭据", "密码", "password", "账号", "login"},
 	},
 	{
 		category: "ransomware", reason: "ransomware_creation_or_deployment",
-		actions: []string{"编写", "写", "制作", "做", "开发", "部署", "传播", "create", "write", "develop", "deploy", "spread"},
-		targets: []string{"勒索软件", "ransomware", "加密文件", "文件加密", "赎金", "ransom"},
+		actions: []string{"编写", "写", "制作", "做", "开发", "部署", "传播", "create", "write", "develop", "deploy", "spread", "encrypt", "encryption"},
+		targets: []string{"勒索软件", "ransomware", "加密文件", "文件加密", "encrypt files", "file encryption", "victim files", "victims files", "赎金", "ransom"},
 	},
 	{
 		category: "ddos", reason: "distributed_denial_of_service",
 		actions: []string{"发起", "实施", "发动", "执行", "发送", "压垮", "打垮", "flood", "launch", "perform", "attack"},
-		targets: []string{"ddos", "拒绝服务", "网站", "服务器", "api", "接口", "目标"},
+		targets: []string{"ddos", "拒绝服务", "denial of service", "网站", "服务器", "api", "接口", "目标"},
 	},
 	{
 		category: "license_key_cracking", reason: "license_or_product_key_cracking",
