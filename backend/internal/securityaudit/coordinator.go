@@ -2,9 +2,13 @@ package securityaudit
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
+
+	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 type LegacyEngine interface {
@@ -30,10 +34,19 @@ type systemPromptPolicyProvider interface {
 type Coordinator struct {
 	legacy LegacyEngine
 	prompt PromptEngine
+	risk   service.RiskScoreRouter
 }
 
 func NewCoordinator(legacy LegacyEngine, prompt PromptEngine) *Coordinator {
 	return &Coordinator{legacy: legacy, prompt: prompt}
+}
+
+// SetRiskScoreRouter attaches the optional per-user routing policy while
+// keeping the legacy constructor compatible with isolated handlers/tests.
+func (c *Coordinator) SetRiskScoreRouter(router service.RiskScoreRouter) {
+	if c != nil {
+		c.risk = router
+	}
 }
 
 func (c *Coordinator) SystemPromptPolicy(groupID *int64) SystemPromptPolicy {
@@ -70,6 +83,32 @@ func (c *Coordinator) Check(ctx context.Context, req Request) Decision {
 	if c == nil {
 		return allowDecision(nil, nil)
 	}
+	local := EvaluateLocalPolicy(req)
+	if local.Blocked {
+		decision := Decision{
+			Kind:           DecisionBlock,
+			HTTPStatus:     http.StatusForbidden,
+			ErrorCode:      local.ErrorCode,
+			ClientMessage:  "请求被网络安全策略拦截",
+			AllowNextStage: false,
+		}
+		c.recordRisk(ctx, req, decision, &local)
+		return decision
+	}
+	if c.risk != nil {
+		promptConfigured := c.prompt != nil && c.prompt.EffectiveMode() != ModeOff
+		route, err := c.risk.Route(ctx, req.UserID, local.NeedsAI, promptConfigured)
+		if err == nil {
+			if route.SkipExternal {
+				return allowDecision(nil, nil)
+			}
+			return c.checkRouted(ctx, req, route)
+		}
+	}
+	return c.checkConfigured(ctx, req)
+}
+
+func (c *Coordinator) checkConfigured(ctx context.Context, req Request) Decision {
 	mode := ModeOff
 	if c.prompt != nil {
 		mode = c.prompt.EffectiveMode()
@@ -80,48 +119,101 @@ func (c *Coordinator) Check(ctx context.Context, req Request) Decision {
 		// context and copies request memory before it can outlive the Handler.
 		_ = c.prompt.Enqueue(ctx, req.Clone())
 		legacy, _ := c.checkLegacy(ctx, req)
-		return prioritize(legacy, nil)
+		decision := prioritize(legacy, nil)
+		c.recordRisk(ctx, req, decision, nil)
+		return decision
 	case ModeBlocking:
-		return c.checkBlocking(ctx, req)
+		decision := c.checkBlocking(ctx, req)
+		c.recordRisk(ctx, req, decision, nil)
+		return decision
 	default:
 		legacy, _ := c.checkLegacy(ctx, req)
-		return prioritize(legacy, nil)
+		decision := prioritize(legacy, nil)
+		c.recordRisk(ctx, req, decision, nil)
+		return decision
 	}
 }
 
+func (c *Coordinator) checkRouted(ctx context.Context, req Request, route service.RiskRoute) Decision {
+	mode := ModeOff
+	if c.prompt != nil {
+		mode = c.prompt.EffectiveMode()
+	}
+	if route.RunPromptAudit && mode == ModeAsync {
+		_ = c.prompt.Enqueue(ctx, req.Clone())
+		var legacy *LegacyDecision
+		if route.RunModeration {
+			legacy, _ = c.checkLegacy(ctx, req)
+		}
+		decision := prioritize(legacy, nil)
+		c.recordRisk(ctx, req, decision, nil)
+		return decision
+	}
+	if route.RunPromptAudit && mode == ModeBlocking {
+		decision := c.checkBlockingStages(ctx, req, route.RunModeration, true)
+		c.recordRisk(ctx, req, decision, nil)
+		return decision
+	}
+	var legacy *LegacyDecision
+	if route.RunModeration {
+		legacy, _ = c.checkLegacy(ctx, req)
+	}
+	decision := prioritize(legacy, nil)
+	c.recordRisk(ctx, req, decision, nil)
+	return decision
+}
+
 func (c *Coordinator) checkBlocking(ctx context.Context, req Request) Decision {
+	return c.checkBlockingStages(ctx, req, true, true)
+}
+
+func (c *Coordinator) checkBlockingStages(ctx context.Context, req Request, runLegacy, runPrompt bool) Decision {
 	var wg sync.WaitGroup
-	wg.Add(2)
+	workers := 0
+	if runLegacy {
+		workers++
+	}
+	if runPrompt {
+		workers++
+	}
+	if workers == 0 {
+		return allowDecision(nil, nil)
+	}
+	wg.Add(workers)
 	var legacy *LegacyDecision
 	var prompt *PromptDecision
-	go func() {
-		defer wg.Done()
-		legacy, _ = c.checkLegacy(ctx, req)
-	}()
-	go func() {
-		defer wg.Done()
-		if c.prompt == nil {
-			prompt = unavailablePromptDecision(ErrorCodeUnavailable)
-			return
-		}
-		result, err := c.prompt.Evaluate(ctx, req.Clone())
-		if err != nil {
-			var guardErr *GuardError
-			if errors.As(err, &guardErr) && guardErr.Code == ErrorCodeInvalidResponse {
-				prompt = unavailablePromptDecision(ErrorCodeInvalidResponse)
-				return
-			}
-			prompt = unavailablePromptDecision(ErrorCodeUnavailable)
-			return
-		}
-		if result == nil {
-			prompt = unavailablePromptDecision(ErrorCodeUnavailable)
-			return
-		}
-		prompt = result
-	}()
+	if runLegacy {
+		go func() {
+			defer wg.Done()
+			legacy, _ = c.checkLegacy(ctx, req)
+		}()
+	}
+	if runPrompt {
+		go func() {
+			defer wg.Done()
+			prompt = c.evaluatePrompt(ctx, req)
+		}()
+	}
 	wg.Wait()
 	return prioritize(legacy, prompt)
+}
+
+func (c *Coordinator) evaluatePrompt(ctx context.Context, req Request) *PromptDecision {
+	if c.prompt == nil {
+		return unavailablePromptDecision(ErrorCodeUnavailable)
+	}
+	result, err := c.prompt.Evaluate(ctx, req.Clone())
+	if err != nil {
+		var guardErr *GuardError
+		if errors.As(err, &guardErr) && guardErr.Code == ErrorCodeInvalidResponse {
+			return unavailablePromptDecision(ErrorCodeInvalidResponse)
+		}
+		return unavailablePromptDecision(ErrorCodeUnavailable)
+	}
+	if result == nil {
+		return unavailablePromptDecision(ErrorCodeUnavailable)
+	}
+	return result
 }
 
 func (c *Coordinator) checkLegacy(ctx context.Context, req Request) (*LegacyDecision, error) {
@@ -155,10 +247,10 @@ func prioritize(legacy *LegacyDecision, prompt *PromptDecision) Decision {
 			ClientMessage: "提示词安全审计拒绝了该请求，请调整输入后重试", Legacy: legacy, Prompt: prompt}
 	case DecisionInvalid:
 		return Decision{Kind: DecisionInvalid, HTTPStatus: http.StatusServiceUnavailable, ErrorCode: ErrorCodeInvalidResponse,
-			ClientMessage: "提示词安全审计暂时不可用，请稍后重试", Legacy: legacy, Prompt: prompt}
+			ClientMessage: "提示词安全审计暂时不可用，已放行当前请求", Legacy: legacy, Prompt: prompt, AllowNextStage: true}
 	case DecisionUnavailable:
 		return Decision{Kind: DecisionUnavailable, HTTPStatus: http.StatusServiceUnavailable, ErrorCode: ErrorCodeUnavailable,
-			ClientMessage: "提示词安全审计暂时不可用，请稍后重试", Legacy: legacy, Prompt: prompt}
+			ClientMessage: "提示词安全审计暂时不可用，已放行当前请求", Legacy: legacy, Prompt: prompt, AllowNextStage: true}
 	case DecisionFlag:
 		return Decision{Kind: DecisionFlag, HTTPStatus: http.StatusOK, Legacy: legacy, Prompt: prompt, AllowNextStage: true}
 	default:
@@ -175,5 +267,43 @@ func unavailablePromptDecision(code string) *PromptDecision {
 	if code == ErrorCodeInvalidResponse {
 		kind = DecisionInvalid
 	}
-	return &PromptDecision{Kind: kind, ErrorCode: code, AllowNextStage: false}
+	return &PromptDecision{Kind: kind, ErrorCode: code, AllowNextStage: true}
+}
+
+func (c *Coordinator) recordRisk(ctx context.Context, req Request, decision Decision, local *LocalPolicyDecision) {
+	if c == nil || c.risk == nil {
+		return
+	}
+	if local != nil && local.Blocked {
+		_ = c.risk.Record(ctx, req.UserID, service.RiskEvent{
+			ReasonCode: local.ReasonCode,
+			Delta:      50,
+			DedupeKey:  riskDedupeKey(req, local.ReasonCode),
+		})
+		return
+	}
+	event := service.RiskEvent{}
+	switch {
+	case decision.Kind == DecisionBlock && decision.Legacy != nil:
+		event = service.RiskEvent{ReasonCode: "content_moderation_blocked", Delta: 30}
+	case decision.Kind == DecisionBlock && decision.Prompt != nil:
+		event = service.RiskEvent{ReasonCode: "prompt_guard_blocked", Delta: 35}
+	case decision.Legacy != nil && decision.Legacy.Flagged:
+		event = service.RiskEvent{ReasonCode: "content_moderation_flagged", Delta: 20}
+	case decision.Kind == DecisionFlag && decision.Prompt != nil:
+		event = service.RiskEvent{ReasonCode: "prompt_guard_flagged", Delta: 20}
+	default:
+		return
+	}
+	event.DedupeKey = riskDedupeKey(req, event.ReasonCode)
+	_ = c.risk.Record(ctx, req.UserID, event)
+}
+
+func riskDedupeKey(req Request, reasonCode string) string {
+	identity := req.RequestID
+	if identity == "" {
+		digest := sha256.Sum256(req.Body)
+		identity = fmt.Sprintf("body-%x", digest[:8])
+	}
+	return fmt.Sprintf("%s:%s:%s:%s", identity, req.Stage, req.Protocol, reasonCode)
 }

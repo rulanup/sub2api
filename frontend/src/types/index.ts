@@ -105,6 +105,10 @@ export interface AdminUser extends User {
   // 管理员备注（普通用户接口不返回）
   notes: string
   last_used_at?: string | null
+  risk_score?: number
+  risk_level?: 'low' | 'medium' | 'high' | 'critical' | string
+  last_risk_reason_code?: string
+  last_risk_event_at?: string | null
   // 用户专属分组倍率配置 (group_id -> rate_multiplier)
   group_rates?: Record<number, number>
   // 当前并发数（仅管理员列表接口返回）

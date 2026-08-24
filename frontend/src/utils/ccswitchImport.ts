@@ -6,7 +6,7 @@ export const GROK_CC_SWITCH_MODEL = 'grok-4.5'
 export type CcSwitchClientType = 'claude' | 'codex' | 'opencode' | 'gemini' | 'grokbuild'
 
 export const CC_SWITCH_TARGETS_BY_PLATFORM: Readonly<
-  Record<GroupPlatform, readonly CcSwitchClientType[]>
+  Partial<Record<GroupPlatform, readonly CcSwitchClientType[]>>
 > = {
   anthropic: ['claude'],
   openai: ['claude', 'codex', 'opencode'],
@@ -48,7 +48,7 @@ export function getCcSwitchTargets(
   platform: GroupPlatform | string | undefined | null
 ): readonly CcSwitchClientType[] {
   if (!platform || !(platform in CC_SWITCH_TARGETS_BY_PLATFORM)) return []
-  return CC_SWITCH_TARGETS_BY_PLATFORM[platform as GroupPlatform]
+  return CC_SWITCH_TARGETS_BY_PLATFORM[platform as GroupPlatform] ?? []
 }
 
 export function resolveCcSwitchImportConfig(

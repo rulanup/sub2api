@@ -975,6 +975,8 @@ var ProviderSet = wire.NewSet(
 	NewModelPricingResolver,
 	NewModelPlazaService,
 	ProvideContentModerationService,
+	NewUserRiskScoreService,
+	wire.Bind(new(RiskScoreRouter), new(*UserRiskScoreService)),
 	NewAffiliateService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,

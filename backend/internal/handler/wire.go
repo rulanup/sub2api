@@ -13,6 +13,7 @@ import (
 func ProvideAdminHandlers(
 	dashboardHandler *admin.DashboardHandler,
 	userHandler *admin.UserHandler,
+	riskScoreService *service.UserRiskScoreService,
 	groupHandler *admin.GroupHandler,
 	accountHandler *admin.AccountHandler,
 	announcementHandler *admin.AnnouncementHandler,
@@ -53,6 +54,7 @@ func ProvideAdminHandlers(
 ) *AdminHandlers {
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
 	accountHandler.SetOllamaCloudUsageService(ollamaCloudUsage)
+	userHandler.SetUserRiskProfileReader(riskScoreService)
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,

@@ -6,7 +6,8 @@ import PolicyPanel from '../components/PolicyPanel.vue'
 import EventWorkspace from '../components/EventWorkspace.vue'
 import EventDetailDialog from '../components/EventDetailDialog.vue'
 import FilterDeleteDialog from '../components/FilterDeleteDialog.vue'
-import type { PromptAuditDraft, PromptAuditEndpointDraft, PromptAuditEvent, PromptEventFilters } from '../types'
+import RuntimeOverview from '../components/RuntimeOverview.vue'
+import type { PromptAuditDraft, PromptAuditEndpointDraft, PromptAuditEvent, PromptAuditRuntime, PromptEventFilters } from '../types'
 import { emptyEventFilters, resolveDeleteRangeFilters, SCANNER_CATALOG } from '../viewModel'
 
 vi.mock('vue-i18n', async () => {
@@ -23,8 +24,25 @@ const endpoint = (): PromptAuditEndpointDraft => ({
   has_token: true, token_status: 'configured', token: '', clear_token: false,
 })
 
+const runtime = (unavailable: number): PromptAuditRuntime => ({
+  process_status: 'running', effective_mode: 'blocking', expected_config_version: 1, active_config_version: 1,
+  worker_total: 1, worker_active: 0, queue_capacity: 10,
+  queue: { staging: 0, queued: 0, processing: 0, retry: 0, done: 0, failed: 0, active: 0 },
+  processed_total: 0, failed_total: 0, enqueued_total: 0, dropped_total: 0,
+  database_status: 'ok', redis_status: 'ok', endpoints: {},
+  guard_metrics: { total: 1, allowed: 1, flagged: 0, blocked: 0, unavailable, invalid: 0, timeouts: 0, failovers: 0, bulkhead_full: 0, record_failed: 0 },
+})
+
 describe('Prompt Audit components', () => {
   beforeEach(() => vi.restoreAllMocks())
+
+  it('warns administrators when the audit node is unavailable while traffic remains allowed', () => {
+    const wrapper = mount(RuntimeOverview, { props: { runtime: runtime(2), loading: false, error: '' } })
+    expect(wrapper.get('[data-test="audit-unavailable-warning"]').text()).toContain('admin.promptAudit.runtime.unavailableWarning')
+
+    const healthy = mount(RuntimeOverview, { props: { runtime: runtime(0), loading: false, error: '' } })
+    expect(healthy.find('[data-test="audit-unavailable-warning"]').exists()).toBe(false)
+  })
 
   it('edits a saved endpoint with blank-secret keep, explicit clear, replacement, and probe actions', async () => {
     const wrapper = mount(EndpointPool, {

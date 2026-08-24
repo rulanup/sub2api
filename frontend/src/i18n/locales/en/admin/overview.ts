@@ -536,6 +536,8 @@ export default {
         usageAntigravity: 'Usage (Antigravity)',
         concurrency: 'Concurrency',
         status: 'Status',
+        riskScore: 'Risk Score',
+        riskLevel: 'Risk Level',
         lastActive: 'Last Active',
         lastUsed: 'Last Used',
         created: 'Created',
@@ -671,6 +673,12 @@ export default {
       roles: {
         admin: 'Admin',
         user: 'User'
+      },
+      riskLevels: {
+        low: 'Low',
+        medium: 'Medium',
+        high: 'High',
+        critical: 'Critical'
       },
       // Settings Dropdowns
       filterSettings: 'Filter Settings',

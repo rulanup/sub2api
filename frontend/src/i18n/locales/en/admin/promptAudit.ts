@@ -39,6 +39,7 @@ export default {
       queue: 'Active jobs / capacity', dependencies: 'Dependencies', guardMetrics: 'Synchronous Guard metrics', latest: 'Latest processing and error',
       queueBreakdown: 'queued {queued} · processing {processing} · retry {retry} · done {done} · failed {failed}',
       deliveryTotals: 'Total enqueued {enqueued} · dropped {dropped} · processed {processed} · failed {failed}',
+      unavailableWarning: 'The audit node has been unavailable {count} time(s). Normal requests are allowed to continue; check node configuration, network connectivity, and runtime health.',
     },
     metrics: { total: 'Total', allowed: 'Allowed', flagged: 'Flagged', blocked: 'Blocked', unavailable: 'Unavailable', timeouts: 'Timeouts', failovers: 'Failovers' },
     pool: {
@@ -59,7 +60,7 @@ export default {
     saveBar: { enabled: 'Enable prompt audit', blocking: 'Synchronous blocking', blockingLatestTurnOnly: 'Only latest input and prior output', storePass: 'Store safe events', dirty: 'Unsaved changes', synced: 'Configuration synced' },
     blockingConfirm: {
       title: 'Enable synchronous blocking?',
-      message: 'Applicable requests wait for Guard before account selection, billing, or upstream access. Block, unavailable Guard, and invalid responses all prevent upstream access.',
+      message: 'Applicable requests wait for Guard before account selection, billing, or upstream access. A Block prevents upstream access; an unavailable Guard or invalid response allows the request through and alerts administrators so normal users are not interrupted.',
       confirm: 'I understand; enable it',
     },
     events: {

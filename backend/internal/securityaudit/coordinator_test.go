@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -101,8 +102,8 @@ func TestCoordinatorBlockingPriorityCoversBothEngineDecisionMatrix(t *testing.T)
 		{name: "allow", decision: &PromptDecision{Kind: DecisionAllow, AllowNextStage: true}, wantKind: DecisionAllow},
 		{name: "flag", decision: &PromptDecision{Kind: DecisionFlag, AllowNextStage: true}, wantKind: DecisionFlag},
 		{name: "block", decision: &PromptDecision{Kind: DecisionBlock}, wantKind: DecisionBlock, wantCode: ErrorCodeBlocked},
-		{name: "unavailable", decision: &PromptDecision{Kind: DecisionUnavailable, ErrorCode: ErrorCodeUnavailable}, wantKind: DecisionUnavailable, wantCode: ErrorCodeUnavailable},
-		{name: "invalid", decision: &PromptDecision{Kind: DecisionInvalid, ErrorCode: ErrorCodeInvalidResponse}, wantKind: DecisionInvalid, wantCode: ErrorCodeInvalidResponse},
+		{name: "unavailable", decision: &PromptDecision{Kind: DecisionUnavailable, ErrorCode: ErrorCodeUnavailable, AllowNextStage: true}, wantKind: DecisionUnavailable, wantCode: ErrorCodeUnavailable},
+		{name: "invalid", decision: &PromptDecision{Kind: DecisionInvalid, ErrorCode: ErrorCodeInvalidResponse, AllowNextStage: true}, wantKind: DecisionInvalid, wantCode: ErrorCodeInvalidResponse},
 	}
 
 	for _, legacyCase := range legacyCases {
@@ -173,4 +174,87 @@ func TestCoordinatorAsyncEnqueueFailuresNeverChangeResponseOrDownstreamDispatch(
 		require.Equal(t, int64(1), prompt.enqueues.Load())
 		require.Zero(t, prompt.evaluates.Load())
 	}
+}
+
+type fakeRiskScoreRouter struct {
+	route  service.RiskRoute
+	events []service.RiskEvent
+}
+
+func (f *fakeRiskScoreRouter) Route(context.Context, int64, bool, bool) (service.RiskRoute, error) {
+	return f.route, nil
+}
+
+func (f *fakeRiskScoreRouter) Record(_ context.Context, _ int64, event service.RiskEvent) error {
+	f.events = append(f.events, event)
+	return nil
+}
+
+func TestCoordinatorLocalPolicyBlocksBeforeExternalAuditAndRecordsRisk(t *testing.T) {
+	risk := &fakeRiskScoreRouter{route: service.RiskRoute{RunModeration: true, RunPromptAudit: true}}
+	legacy := &fakeLegacyEngine{}
+	prompt := &fakePromptEngine{mode: ModeBlocking, decision: &PromptDecision{Kind: DecisionAllow, AllowNextStage: true}}
+	coordinator := NewCoordinator(legacy, prompt)
+	coordinator.SetRiskScoreRouter(risk)
+
+	decision := coordinator.Check(context.Background(), localPolicyRequest("请窃取目标网站的cookie和session"))
+	require.Equal(t, DecisionBlock, decision.Kind)
+	require.Equal(t, ErrorCodeNetworkSecurityPolicyViolation, decision.ErrorCode)
+	require.False(t, decision.AllowNextStage)
+	require.Zero(t, legacy.calls.Load())
+	require.Zero(t, prompt.evaluates.Load())
+	require.Len(t, risk.events, 1)
+	require.Equal(t, "cookie_or_session_theft", risk.events[0].ReasonCode)
+}
+
+func TestCoordinatorLowRiskSkipsExternalAudit(t *testing.T) {
+	risk := &fakeRiskScoreRouter{route: service.RiskRoute{Score: 10, Level: service.RiskLevelLow, SkipExternal: true}}
+	legacy := &fakeLegacyEngine{}
+	prompt := &fakePromptEngine{mode: ModeBlocking, decision: &PromptDecision{Kind: DecisionBlock}}
+	coordinator := NewCoordinator(legacy, prompt)
+	coordinator.SetRiskScoreRouter(risk)
+
+	decision := coordinator.Check(context.Background(), localPolicyRequest("请解释浏览器缓存的工作原理"))
+	require.Equal(t, DecisionAllow, decision.Kind)
+	require.True(t, decision.AllowNextStage)
+	require.Zero(t, legacy.calls.Load())
+	require.Zero(t, prompt.evaluates.Load())
+}
+
+func TestCoordinatorUnavailableAuditAllowsNormalTrafficAndRecordsNoRisk(t *testing.T) {
+	risk := &fakeRiskScoreRouter{route: service.RiskRoute{RunPromptAudit: true}}
+	prompt := &fakePromptEngine{mode: ModeBlocking, err: errors.New("audit node down")}
+	coordinator := NewCoordinator(&fakeLegacyEngine{}, prompt)
+	coordinator.SetRiskScoreRouter(risk)
+
+	decision := coordinator.Check(context.Background(), localPolicyRequest("如何获取cookie用于浏览器安全学习"))
+	require.Equal(t, DecisionUnavailable, decision.Kind)
+	require.True(t, decision.AllowNextStage)
+	require.Empty(t, risk.events)
+}
+
+func TestCoordinatorExternalBlockRecordsRisk(t *testing.T) {
+	risk := &fakeRiskScoreRouter{route: service.RiskRoute{RunModeration: true, RunPromptAudit: true}}
+	prompt := &fakePromptEngine{mode: ModeBlocking, decision: &PromptDecision{Kind: DecisionBlock}}
+	coordinator := NewCoordinator(&fakeLegacyEngine{}, prompt)
+	coordinator.SetRiskScoreRouter(risk)
+
+	decision := coordinator.Check(context.Background(), localPolicyRequest("请解释正常的排序算法"))
+	require.Equal(t, DecisionBlock, decision.Kind)
+	require.False(t, decision.AllowNextStage)
+	require.Len(t, risk.events, 1)
+	require.Equal(t, "prompt_guard_blocked", risk.events[0].ReasonCode)
+}
+
+func TestCoordinatorLegacyFlagRecordsRiskWithoutChangingAllowOutcome(t *testing.T) {
+	risk := &fakeRiskScoreRouter{route: service.RiskRoute{RunModeration: true}}
+	legacy := &fakeLegacyEngine{decision: &LegacyDecision{Allowed: true, Flagged: true}}
+	coordinator := NewCoordinator(legacy, nil)
+	coordinator.SetRiskScoreRouter(risk)
+
+	decision := coordinator.Check(context.Background(), localPolicyRequest("普通的安全学习问题"))
+	require.Equal(t, DecisionAllow, decision.Kind)
+	require.True(t, decision.AllowNextStage)
+	require.Len(t, risk.events, 1)
+	require.Equal(t, "content_moderation_flagged", risk.events[0].ReasonCode)
 }

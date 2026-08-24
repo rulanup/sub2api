@@ -583,6 +583,18 @@
             </div>
           </template>
 
+          <template #cell-risk_score="{ value }">
+            <span class="font-mono text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-200">
+              {{ value ?? 0 }}
+            </span>
+          </template>
+
+          <template #cell-risk_level="{ value }">
+            <span :class="['badge', riskLevelClass(value)]">
+              {{ t('admin.users.riskLevels.' + (value || 'low')) }}
+            </span>
+          </template>
+
           <template #cell-created_at="{ value }">
             <span class="text-sm text-gray-500 dark:text-dark-400">{{ formatDateTime(value) }}</span>
           </template>
@@ -813,6 +825,19 @@ import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
 const appStore = useAppStore()
 
+function riskLevelClass(level: unknown): string {
+  switch (level) {
+    case 'medium':
+      return 'badge-warning'
+    case 'high':
+      return 'badge-warning'
+    case 'critical':
+      return 'badge-danger'
+    default:
+      return 'badge-success'
+  }
+}
+
 // Generate dynamic attribute columns from enabled definitions
 const attributeColumns = computed<Column[]>(() =>
   attributeDefinitions.value
@@ -879,6 +904,8 @@ const allColumns = computed<Column[]>(() => [
   { key: 'usage_antigravity', label: t('admin.users.columns.usageAntigravity'), sortable: false },
   { key: 'concurrency', label: t('admin.users.columns.concurrency'), sortable: true },
   { key: 'status', label: t('admin.users.columns.status'), sortable: true },
+  { key: 'risk_score', label: t('admin.users.columns.riskScore'), sortable: false },
+  { key: 'risk_level', label: t('admin.users.columns.riskLevel'), sortable: false },
   { key: 'last_active_at', label: t('admin.users.columns.lastActive'), sortable: true },
   { key: 'last_used_at', label: t('admin.users.columns.lastUsed'), sortable: true },
   { key: 'created_at', label: t('admin.users.columns.created'), sortable: true },

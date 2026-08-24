@@ -1,6 +1,15 @@
 package securityaudit
 
-import "github.com/google/wire"
+import (
+	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/google/wire"
+)
+
+func ProvideCoordinator(legacy LegacyEngine, prompt PromptEngine, risk service.RiskScoreRouter) *Coordinator {
+	coordinator := NewCoordinator(legacy, prompt)
+	coordinator.SetRiskScoreRouter(risk)
+	return coordinator
+}
 
 var ProviderSet = wire.NewSet(
 	NewPostgreSQLRepository,
@@ -18,6 +27,6 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(PromptEngine), new(*PromptService)),
 	wire.Bind(new(PromptAdminService), new(*PromptService)),
 	NewLegacyModerationAdapter,
-	NewCoordinator,
+	ProvideCoordinator,
 	NewPromptAdminHandler,
 )

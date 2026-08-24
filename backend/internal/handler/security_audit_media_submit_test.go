@@ -175,8 +175,9 @@ func TestSecurityAuditBlockingFailuresLeaveAllDownstreamCountersAtZero(t *testin
 	for _, kind := range []securityaudit.DecisionKind{securityaudit.DecisionBlock, securityaudit.DecisionUnavailable, securityaudit.DecisionInvalid} {
 		t.Run(string(kind), func(t *testing.T) {
 			promptDecision := promptGuardDecision(kind)
+			allowNextStage := kind != securityaudit.DecisionBlock
 			engine := &handlerPromptEngine{mode: securityaudit.ModeBlocking, decision: &securityaudit.PromptDecision{
-				Kind: kind, ErrorCode: promptDecision.ErrorCode, AllowNextStage: false,
+				Kind: kind, ErrorCode: promptDecision.ErrorCode, AllowNextStage: allowNextStage,
 			}}
 			coordinator := securityaudit.NewCoordinator(nil, engine)
 			recorder := httptest.NewRecorder()
@@ -187,7 +188,7 @@ func TestSecurityAuditBlockingFailuresLeaveAllDownstreamCountersAtZero(t *testin
 			subject := middleware2.AuthSubject{UserID: 7, Concurrency: 2}
 			decision := runSecurityAudit(c, nil, coordinator, nil, apiKey, subject, service.ContentModerationProtocolOpenAIChat, "gpt-test", []byte(`{"messages":[{"role":"user","content":"guard me"}]}`), "http")
 			require.NotNil(t, decision)
-			require.False(t, decision.AllowNextStage)
+			require.Equal(t, allowNextStage, decision.AllowNextStage)
 			require.False(t, recorder.Result().Header.Get("Content-Type") != "", "Guard evaluation itself must not start SSE/HTTP output")
 
 			accountSelections, billingChecks, billingPreconsumes, upstreamDispatches := 0, 0, 0, 0
@@ -197,12 +198,19 @@ func TestSecurityAuditBlockingFailuresLeaveAllDownstreamCountersAtZero(t *testin
 				billingPreconsumes++
 				upstreamDispatches++
 			}
-			require.Zero(t, accountSelections)
-			require.Zero(t, billingChecks)
-			require.Zero(t, billingPreconsumes)
-			require.Zero(t, upstreamDispatches)
-			(&OpenAIGatewayHandler{}).openAISecurityAuditError(c, decision)
-			require.Equal(t, promptDecision.HTTPStatus, recorder.Code)
+			if kind == securityaudit.DecisionBlock {
+				require.Zero(t, accountSelections)
+				require.Zero(t, billingChecks)
+				require.Zero(t, billingPreconsumes)
+				require.Zero(t, upstreamDispatches)
+				(&OpenAIGatewayHandler{}).openAISecurityAuditError(c, decision)
+				require.Equal(t, promptDecision.HTTPStatus, recorder.Code)
+			} else {
+				require.Equal(t, 1, accountSelections)
+				require.Equal(t, 1, billingChecks)
+				require.Equal(t, 1, billingPreconsumes)
+				require.Equal(t, 1, upstreamDispatches)
+			}
 		})
 	}
 }

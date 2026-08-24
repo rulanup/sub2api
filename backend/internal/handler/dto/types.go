@@ -43,8 +43,12 @@ type User struct {
 type AdminUser struct {
 	User
 
-	Notes      string     `json:"notes"`
-	LastUsedAt *time.Time `json:"last_used_at"`
+	Notes              string     `json:"notes"`
+	LastUsedAt         *time.Time `json:"last_used_at"`
+	RiskScore          int        `json:"risk_score"`
+	RiskLevel          string     `json:"risk_level"`
+	LastRiskReasonCode string     `json:"last_risk_reason_code,omitempty"`
+	LastRiskEventAt    *time.Time `json:"last_risk_event_at,omitempty"`
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]rateMultiplier
 	GroupRates map[int64]float64 `json:"group_rates,omitempty"`

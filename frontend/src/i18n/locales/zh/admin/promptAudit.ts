@@ -39,6 +39,7 @@ export default {
       queue: '活动任务 / 容量', dependencies: '依赖', guardMetrics: '同步 Guard 指标', latest: '最近处理与错误',
       queueBreakdown: 'queued {queued} · processing {processing} · retry {retry} · done {done} · failed {failed}',
       deliveryTotals: '累计入队 {enqueued} · 丢弃 {dropped} · 处理 {processed} · 失败 {failed}',
+      unavailableWarning: '最近有 {count} 次审计节点不可用；为避免干扰正常用户，请求会继续放行。请管理员检查节点配置、网络连通性和运行状态。',
     },
     metrics: { total: '总计', allowed: '放行', flagged: '标记', blocked: '阻止', unavailable: '不可用', timeouts: '超时', failovers: '故障切换' },
     pool: {
@@ -59,7 +60,7 @@ export default {
     saveBar: { enabled: '启用提示词审计', blocking: '同步阻止', blockingLatestTurnOnly: '仅审最新输入和上一轮输出', storePass: '保存安全事件', dirty: '有未保存的更改', synced: '配置已同步' },
     blockingConfirm: {
       title: '开启同步阻止？',
-      message: '适用请求会在账号选择、计费和访问上游之前等待 Guard。命中 Block、Guard 不可用或响应非法时，请求都不会访问上游。',
+      message: '适用请求会在账号选择、计费和访问上游之前等待 Guard。命中 Block 时请求不会访问上游；Guard 不可用或响应非法时，为避免干扰正常用户，请求会继续放行并提示管理员。',
       confirm: '理解风险并开启',
     },
     events: {

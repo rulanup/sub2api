@@ -119,7 +119,7 @@ Record(ctx context.Context, userID int64, event UserRiskEvent) error
 GetForUsers(ctx context.Context, userIDs []int64) (map[int64]UserRiskProfile, error)
 ```
 
-Define the coordinator-facing `RiskScoreRouter`, `RiskRoute`, and `RiskEvent` contracts in `backend/internal/securityaudit` using only primitive request metadata. Make the service implement that interface without importing handler packages; bind it in Wire. The coordinator passes `req.UserID`, the local-policy signal, and whether prompt audit is configured, then supplies a request/stage/category dedupe key when recording an event.
+Define the coordinator-facing `RiskScoreRouter`, `RiskRoute`, and `RiskEvent` contracts in `backend/internal/service` using only primitive request metadata; the security-audit coordinator already depends on this service boundary for its legacy adapter. Make the score service implement that interface without importing handler packages; bind it in Wire. The coordinator passes `req.UserID`, the local-policy signal, and whether prompt audit is configured, then supplies a request/stage/category dedupe key when recording an event.
 
 Route selection must be deterministic:
 

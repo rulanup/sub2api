@@ -96,6 +96,10 @@ const DataTableStub = {
       <template v-for="col in columns" :key="col.key">
         <slot :name="'header-' + col.key" :column="col" />
       </template>
+      <div v-for="row in data" :key="'risk-' + row.id" data-test="risk-cells">
+        <span data-test="risk-score"><slot name="cell-risk_score" :value="row.risk_score" :row="row" /></span>
+        <span data-test="risk-level"><slot name="cell-risk_level" :value="row.risk_level" :row="row" /></span>
+      </div>
       <div v-for="row in data" :key="row.id">
         <slot name="cell-last_used_at" :value="row.last_used_at" :row="row" />
       </div>
@@ -197,6 +201,50 @@ describe('admin UsersView', () => {
       }),
       expect.any(Object)
     )
+  })
+
+  it('shows risk score and localized risk level in the user table', async () => {
+    listUsers.mockResolvedValue({
+      items: [createAdminUser({ risk_score: 72, risk_level: 'high' })],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+    const wrapper = mount(UsersView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: { template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>' },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          EmptyState: true,
+          GroupBadge: true,
+          Select: true,
+          UserAttributesConfigModal: true,
+          UserConcurrencyCell: true,
+          UserCreateModal: true,
+          UserEditModal: true,
+          BulkEditUserModal: BulkEditUserModalStub,
+          UserPlatformQuotaModal: true,
+          UserApiKeysModal: true,
+          UserAllowedGroupsModal: true,
+          UserBalanceModal: true,
+          UserBalanceHistoryModal: true,
+          GroupReplaceModal: true,
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+    await flushPromises()
+
+    const columns = wrapper.get('[data-test="columns"]').text().split(',')
+    expect(columns).toContain('risk_score')
+    expect(columns).toContain('risk_level')
+    expect(wrapper.get('[data-test="risk-score"]').text()).toContain('72')
+    expect(wrapper.get('[data-test="risk-level"]').text()).toContain('admin.users.riskLevels.high')
   })
 
   it('clears usage current-page sort when switching to last_used_at server sort', async () => {

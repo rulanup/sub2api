@@ -514,6 +514,8 @@ export default {
         usageAntigravity: '用量 (Antigravity)',
         concurrency: '并发数',
         status: '状态',
+        riskScore: '风险分数',
+        riskLevel: '风险等级',
         lastActive: '最后活跃时间',
         lastUsed: '最后使用时间',
         created: '创建时间',
@@ -560,6 +562,12 @@ export default {
       roles: {
         admin: '管理员',
         user: '用户'
+      },
+      riskLevels: {
+        low: '低',
+        medium: '中',
+        high: '高',
+        critical: '严重'
       },
       form: {
         emailLabel: '邮箱',

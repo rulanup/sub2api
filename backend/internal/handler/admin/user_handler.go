@@ -25,6 +25,10 @@ type UserWithConcurrency struct {
 	CurrentConcurrency int `json:"current_concurrency"`
 }
 
+type UserRiskProfileReader interface {
+	GetForUsers(ctx context.Context, userIDs []int64) (map[int64]service.UserRiskProfile, error)
+}
+
 // UserHandler handles admin user management
 type UserHandler struct {
 	adminService          service.AdminService
@@ -34,6 +38,7 @@ type UserHandler struct {
 	totpService           *service.TotpService                // 角色提升为管理员的 step-up 门控
 	userService           *service.UserService
 	settingService        *service.SettingService // step-up 功能开关
+	riskProfileReader     UserRiskProfileReader
 }
 
 // NewUserHandler creates a new admin user handler
@@ -55,6 +60,49 @@ func NewUserHandler(
 		userService:           userService,
 		settingService:        settingService,
 	}
+}
+
+func (h *UserHandler) SetUserRiskProfileReader(reader UserRiskProfileReader) {
+	if h != nil {
+		h.riskProfileReader = reader
+	}
+}
+
+func (h *UserHandler) loadRiskProfiles(ctx context.Context, users []service.User) map[int64]service.UserRiskProfile {
+	profiles := make(map[int64]service.UserRiskProfile, len(users))
+	if h == nil || h.riskProfileReader == nil || len(users) == 0 {
+		return profiles
+	}
+	userIDs := make([]int64, 0, len(users))
+	for _, user := range users {
+		userIDs = append(userIDs, user.ID)
+	}
+	loaded, err := h.riskProfileReader.GetForUsers(ctx, userIDs)
+	if err != nil {
+		slog.Warn("failed to load user risk profiles", "error", err)
+		return profiles
+	}
+	for userID, profile := range loaded {
+		profile.Score = service.ClampRiskScore(profile.Score)
+		profile.Level = service.RiskLevelForScore(profile.Score)
+		profiles[userID] = profile
+	}
+	return profiles
+}
+
+func applyRiskProfile(user *dto.AdminUser, profile service.UserRiskProfile, ok bool) {
+	if user == nil {
+		return
+	}
+	if !ok {
+		user.RiskScore = 0
+		user.RiskLevel = string(service.RiskLevelLow)
+		return
+	}
+	user.RiskScore = service.ClampRiskScore(profile.Score)
+	user.RiskLevel = string(service.RiskLevelForScore(user.RiskScore))
+	user.LastRiskReasonCode = profile.LastReasonCode
+	user.LastRiskEventAt = profile.LastEventAt
 }
 
 // CreateUserRequest represents admin create user request
@@ -154,6 +202,7 @@ func (h *UserHandler) List(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	riskProfiles := h.loadRiskProfiles(c.Request.Context(), users)
 
 	// Batch get current concurrency (nil map if unavailable)
 	var loadInfo map[int64]*service.UserLoadInfo
@@ -171,8 +220,10 @@ func (h *UserHandler) List(c *gin.Context) {
 	// Build response with concurrency info
 	out := make([]UserWithConcurrency, len(users))
 	for i := range users {
+		adminUser := dto.UserFromServiceAdmin(&users[i])
+		applyRiskProfile(adminUser, riskProfiles[users[i].ID], hasRiskProfile(riskProfiles, users[i].ID))
 		out[i] = UserWithConcurrency{
-			AdminUser: *dto.UserFromServiceAdmin(&users[i]),
+			AdminUser: *adminUser,
 		}
 		if info := loadInfo[users[i].ID]; info != nil {
 			out[i].CurrentConcurrency = info.CurrentConcurrency
@@ -225,7 +276,15 @@ func (h *UserHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, dto.UserFromServiceAdmin(user))
+	adminUser := dto.UserFromServiceAdmin(user)
+	profiles := h.loadRiskProfiles(c.Request.Context(), []service.User{*user})
+	applyRiskProfile(adminUser, profiles[user.ID], hasRiskProfile(profiles, user.ID))
+	response.Success(c, adminUser)
+}
+
+func hasRiskProfile(profiles map[int64]service.UserRiskProfile, userID int64) bool {
+	_, ok := profiles[userID]
+	return ok
 }
 
 // BindAuthIdentity manually binds a canonical auth identity to a user.

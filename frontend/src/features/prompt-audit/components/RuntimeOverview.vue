@@ -21,6 +21,14 @@
       <div v-for="index in 6" :key="index" class="h-16 animate-pulse rounded-xl bg-gray-100 dark:bg-dark-800" />
     </div>
     <template v-else-if="runtime">
+      <div
+        v-if="runtime.guard_metrics.unavailable > 0"
+        data-test="audit-unavailable-warning"
+        role="alert"
+        class="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
+      >
+        {{ t('admin.promptAudit.runtime.unavailableWarning', { count: runtime.guard_metrics.unavailable }) }}
+      </div>
       <dl class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <div v-for="item in statusItems" :key="item.label" class="rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-3 dark:border-dark-700/60 dark:bg-dark-900/40">
           <dt class="text-xs text-gray-500 dark:text-dark-400">{{ item.label }}</dt>
