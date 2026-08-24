@@ -33,7 +33,7 @@ var localPolicyRules = []localPolicyRule{
 	{
 		category: "api_rate_limit_bypass", reason: "bypass_api_rate_limit",
 		actions: []string{"绕过", "规避", "突破", "bypass", "evade", "circumvent"},
-		targets: []string{"api限流", "限流", "速率限制", "rate limit", "配额", "quota", "访问控制", "access control"},
+		targets: []string{"api限流", "限流", "速率限制", "rate limit", "rate limiting", "throttle", "throttling", "配额", "quota", "访问控制", "access control"},
 	},
 	{
 		category: "cookie_theft", reason: "cookie_or_session_theft",
@@ -63,14 +63,14 @@ var localPolicyRules = []localPolicyRule{
 	},
 	{
 		category: "website_intrusion", reason: "unauthorized_website_intrusion",
-		actions:   []string{"入侵", "攻击", "渗透", "利用漏洞", "漏洞利用", "exploit", "getshell", "webshell", "提权", "sql注入", "rce"},
+		actions:   []string{"入侵", "攻击", "渗透", "利用漏洞", "漏洞利用", "exploit", "hack", "compromise", "breach", "deface", "take over", "getshell", "webshell", "提权", "sql注入", "rce"},
 		targets:   []string{"网站", "站点", "服务器", "后台", "web", "目标", "系统"},
 		ambiguous: []string{"验证", "测试", "扫描", "检测", "audit", "test", "scan"},
 	},
 	{
 		category: "jailbreak", reason: "jailbreak_or_safety_bypass",
 		actions: []string{"破限", "解除限制", "绕过限制", "忽略之前", "忽略指令", "无视规则", "jailbreak", "bypass"},
-		targets: []string{"破限", "安全策略", "内容限制", "审核", "系统提示", "safety", "restriction", "guardrail"},
+		targets: []string{"破限", "安全策略", "内容限制", "审核", "系统提示", "模型", "model", "llm", "safety", "restriction", "guardrail"},
 	},
 }
 

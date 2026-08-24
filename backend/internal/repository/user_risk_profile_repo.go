@@ -125,6 +125,17 @@ RETURNING id`, userID, event.DedupeKey, event.ReasonCode, event.Delta, event.At)
 	}
 	_ = eventID
 
+	// Materialize the profile before locking it. A missing row cannot be locked
+	// with SELECT ... FOR UPDATE; the unique-key upsert serializes concurrent
+	// first events for the same user before the lock is taken.
+	_, err = tx.ExecContext(ctx, `
+INSERT INTO user_risk_profiles (user_id, score, level, last_decay_at, version)
+VALUES ($1, 0, 'low', $2, 0)
+ON CONFLICT (user_id) DO NOTHING`, userID, now)
+	if err != nil {
+		return rollback(fmt.Errorf("initialize user risk profile: %w", err))
+	}
+
 	var score int
 	var lastDecayAt time.Time
 	var version int64
@@ -133,35 +144,25 @@ SELECT score, last_decay_at, version
 FROM user_risk_profiles
 WHERE user_id = $1
 FOR UPDATE`, userID).Scan(&score, &lastDecayAt, &version)
-	profileExists := true
 	if errors.Is(err, sql.ErrNoRows) {
-		profileExists = false
-		score = 0
-		lastDecayAt = now
-		version = 0
-	} else if err != nil {
+		return rollback(fmt.Errorf("user risk profile disappeared after initialization"))
+	}
+	if err != nil {
 		return rollback(fmt.Errorf("lock user risk profile: %w", err))
 	}
 
 	newScore := service.ClampRiskScore(service.DecayRiskScore(score, lastDecayAt, now, service.DefaultRiskScoreHalfLife) + event.Delta)
 	newLevel := service.RiskLevelForScore(newScore)
-	if profileExists {
-		_, err = tx.ExecContext(ctx, `
+	_, err = tx.ExecContext(ctx, `
 UPDATE user_risk_profiles
 SET score = $2,
     level = $3,
     last_event_at = $4,
     last_decay_at = $4,
-    last_reason_code = $5,
-    version = $6,
-    updated_at = NOW()
+	last_reason_code = $5,
+	version = $6,
+	updated_at = NOW()
 WHERE user_id = $1`, userID, newScore, newLevel, event.At, event.ReasonCode, version+1)
-	} else {
-		_, err = tx.ExecContext(ctx, `
-INSERT INTO user_risk_profiles (
-    user_id, score, level, last_event_at, last_decay_at, last_reason_code, version
-) VALUES ($1, $2, $3, $4, $4, $5, $6)`, userID, newScore, newLevel, event.At, event.ReasonCode, int64(1))
-	}
 	if err != nil {
 		return rollback(fmt.Errorf("update user risk profile: %w", err))
 	}

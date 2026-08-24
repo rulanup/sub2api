@@ -97,7 +97,7 @@ Before production code, add tests for a fake repository covering:
 - a 24-hour half-life decays a score of 80 to approximately 40 after 24 hours;
 - concurrent events serialize without lost updates;
 - duplicate `(user, reason, dedupe key)` events within the configured window apply once;
-- low-risk users with no current local signal skip external AI;
+- low-risk users with no current local signal keep the existing Moderation API path but skip the more expensive prompt audit;
 - medium-risk users route to OpenAI Moderation;
 - high-risk users route to OpenAI Moderation plus prompt audit when configured;
 - any current ambiguous signal routes to AI even for a low-risk profile;
@@ -123,11 +123,11 @@ Define the coordinator-facing `RiskScoreRouter`, `RiskRoute`, and `RiskEvent` co
 
 Route selection must be deterministic:
 
-- low + no current signal: skip external AI;
+- low + no current signal: Moderation API only;
 - medium: Moderation API;
 - high: Moderation API and prompt audit when available/configured;
 - critical: all available audit stages;
-- current signal always enables at least Moderation API.
+- current signal always enables Moderation API and escalates to prompt audit when configured.
 
 Treat a missing profile as score 0/low. Do not auto-ban or expose the raw score to ordinary user endpoints. Add service providers and Wire bindings, then regenerate the server injector.
 
@@ -199,7 +199,7 @@ go test ./internal/handler -run 'Test.*SecurityAudit|Test.*Audit.*Order' -count=
 Add fakes for legacy audit, prompt audit, and risk routing. Test that:
 
 - a local high-confidence policy match returns a block and neither external audit nor upstream dispatch is reached;
-- a low-risk request skips external AI and is allowed;
+- a low-risk request runs Moderation API, skips prompt audit, and is allowed when Moderation allows it;
 - a current ambiguous signal routes to AI;
 - a prompt/Moderation API block is returned before upstream and produces a risk event;
 - a prompt node timeout/unavailability returns `AllowNextStage=true`, increments unavailable metrics, and produces an administrator-visible runtime signal;
@@ -219,7 +219,7 @@ Add a `RiskScoreRouter` interface in `securityaudit` and inject it through a set
 extract snapshot -> local policy -> risk route -> configured external audits -> record result -> upstream
 ```
 
-For a local block, return a decision that cannot advance. For a low-risk skip, return an allow decision without calling external audit. For medium/high/critical routes, preserve the existing configured stage behavior and record only meaningful score events. Use request/stage/category/reason as the dedupe identity.
+For a local block, return a decision that cannot advance. For a low-risk route, preserve the existing Moderation API path while skipping prompt audit. For medium/high/critical routes, preserve the existing configured stage behavior and record only meaningful score events. A current local ambiguous signal escalates to prompt audit when configured. Use request/stage/category/reason as the dedupe identity.
 
 Change unavailable/invalid external audit outcomes so they:
 

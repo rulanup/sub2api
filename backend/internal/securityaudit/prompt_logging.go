@@ -31,6 +31,7 @@ const (
 	EventGuardBlocked         = "prompt_guard.blocked"
 	EventGuardFailed          = "prompt_guard.failed"
 	EventResultRecordFailed   = "prompt_guard.result_record_failed"
+	EventRiskScoreStoreFailed = "prompt_guard.risk_score_store_failed"
 	EventEventDeleted         = "prompt_audit.event_deleted"
 	EventEventsDeleted        = "prompt_audit.events_deleted"
 	EventDeletePreviewed      = "prompt_audit.events_delete_previewed"
@@ -43,7 +44,7 @@ var knownLogEvents = map[string]struct{}{
 	EventJobEnqueued: {}, EventEnqueueSkipped: {}, EventEnqueueDropped: {},
 	EventAuditStarted: {}, EventProcessingReclaimed: {}, EventProcessed: {}, EventProcessFailed: {}, EventFindingRecorded: {},
 	EventChunkStarted: {}, EventChunkCompleted: {}, EventChunkFailed: {}, EventChunksAggregated: {},
-	EventEvaluationStarted: {}, EventGuardAllowed: {}, EventGuardBlocked: {}, EventGuardFailed: {}, EventResultRecordFailed: {},
+	EventEvaluationStarted: {}, EventGuardAllowed: {}, EventGuardBlocked: {}, EventGuardFailed: {}, EventResultRecordFailed: {}, EventRiskScoreStoreFailed: {},
 	EventEventDeleted: {}, EventEventsDeleted: {}, EventDeletePreviewed: {}, EventEventsFilterDeleted: {},
 }
 

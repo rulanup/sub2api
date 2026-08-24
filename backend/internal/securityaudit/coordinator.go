@@ -98,7 +98,9 @@ func (c *Coordinator) Check(ctx context.Context, req Request) Decision {
 	if c.risk != nil {
 		promptConfigured := c.prompt != nil && c.prompt.EffectiveMode() != ModeOff
 		route, err := c.risk.Route(ctx, req.UserID, local.NeedsAI, promptConfigured)
-		if err == nil {
+		if err != nil {
+			c.logRiskScoreStoreFailure(req, "route", err)
+		} else {
 			if route.SkipExternal {
 				return allowDecision(nil, nil)
 			}
@@ -275,7 +277,7 @@ func (c *Coordinator) recordRisk(ctx context.Context, req Request, decision Deci
 		return
 	}
 	if local != nil && local.Blocked {
-		_ = c.risk.Record(ctx, req.UserID, service.RiskEvent{
+		c.recordRiskEvent(ctx, req, service.RiskEvent{
 			ReasonCode: local.ReasonCode,
 			Delta:      50,
 			DedupeKey:  riskDedupeKey(req, local.ReasonCode),
@@ -296,7 +298,26 @@ func (c *Coordinator) recordRisk(ctx context.Context, req Request, decision Deci
 		return
 	}
 	event.DedupeKey = riskDedupeKey(req, event.ReasonCode)
-	_ = c.risk.Record(ctx, req.UserID, event)
+	c.recordRiskEvent(ctx, req, event)
+}
+
+func (c *Coordinator) recordRiskEvent(ctx context.Context, req Request, event service.RiskEvent) {
+	if c == nil || c.risk == nil {
+		return
+	}
+	if err := c.risk.Record(ctx, req.UserID, event); err != nil {
+		c.logRiskScoreStoreFailure(req, "record", err)
+	}
+}
+
+func (c *Coordinator) logRiskScoreStoreFailure(req Request, action string, err error) {
+	if err == nil {
+		return
+	}
+	fields := requestLogFields(req)
+	fields["action"] = "risk_score_" + action
+	fields["error_code"] = err.Error()
+	LogWarn(EventRiskScoreStoreFailed, fields)
 }
 
 func riskDedupeKey(req Request, reasonCode string) string {

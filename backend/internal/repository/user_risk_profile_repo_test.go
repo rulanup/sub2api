@@ -45,6 +45,12 @@ ON CONFLICT (user_id, dedupe_key) DO NOTHING
 RETURNING id`)).
 		WithArgs(int64(42), "req-1:block:cookie", "cookie_theft", 45, now).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+	mock.ExpectExec(regexp.QuoteMeta(`
+INSERT INTO user_risk_profiles (user_id, score, level, last_decay_at, version)
+VALUES ($1, 0, 'low', $2, 0)
+ON CONFLICT (user_id) DO NOTHING`)).
+		WithArgs(int64(42), now).
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery(regexp.QuoteMeta(`
 SELECT score, last_decay_at, version
 FROM user_risk_profiles

@@ -207,8 +207,8 @@ func TestCoordinatorLocalPolicyBlocksBeforeExternalAuditAndRecordsRisk(t *testin
 	require.Equal(t, "cookie_or_session_theft", risk.events[0].ReasonCode)
 }
 
-func TestCoordinatorLowRiskSkipsExternalAudit(t *testing.T) {
-	risk := &fakeRiskScoreRouter{route: service.RiskRoute{Score: 10, Level: service.RiskLevelLow, SkipExternal: true}}
+func TestCoordinatorLowRiskRunsModerationButSkipsPromptAudit(t *testing.T) {
+	risk := &fakeRiskScoreRouter{route: service.RiskRoute{Score: 10, Level: service.RiskLevelLow, RunModeration: true}}
 	legacy := &fakeLegacyEngine{}
 	prompt := &fakePromptEngine{mode: ModeBlocking, decision: &PromptDecision{Kind: DecisionBlock}}
 	coordinator := NewCoordinator(legacy, prompt)
@@ -217,7 +217,7 @@ func TestCoordinatorLowRiskSkipsExternalAudit(t *testing.T) {
 	decision := coordinator.Check(context.Background(), localPolicyRequest("请解释浏览器缓存的工作原理"))
 	require.Equal(t, DecisionAllow, decision.Kind)
 	require.True(t, decision.AllowNextStage)
-	require.Zero(t, legacy.calls.Load())
+	require.Equal(t, int64(1), legacy.calls.Load())
 	require.Zero(t, prompt.evaluates.Load())
 }
 

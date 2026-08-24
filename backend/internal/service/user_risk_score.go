@@ -135,12 +135,11 @@ func (s *UserRiskScoreService) Route(ctx context.Context, userID int64, currentS
 	now := s.nowTime()
 	score := DecayRiskScore(profile.Score, profile.LastDecayAt, now, DefaultRiskScoreHalfLife)
 	level := RiskLevelForScore(score)
-	route := RiskRoute{Score: score, Level: level, SkipExternal: true}
-	if currentSignal || score >= 30 {
-		route.SkipExternal = false
-		route.RunModeration = true
-	}
-	if promptAuditConfigured && score >= 60 {
+	// Keep the existing moderation chain active for every routed request when it
+	// is configured. The score controls the more expensive prompt audit, while a
+	// local policy signal always escalates to it when available.
+	route := RiskRoute{Score: score, Level: level, RunModeration: true}
+	if promptAuditConfigured && (currentSignal || score >= 60) {
 		route.SkipExternal = false
 		route.RunPromptAudit = true
 	}
@@ -154,12 +153,13 @@ func (s *UserRiskScoreService) Record(ctx context.Context, userID int64, event U
 	if userID <= 0 || event.Delta == 0 || event.DedupeKey == "" || event.ReasonCode == "" {
 		return nil
 	}
+	now := s.nowTime()
 	_, err := s.repo.ApplyEvent(ctx, userID, UserRiskEventRecord{
 		DedupeKey:  event.DedupeKey,
 		ReasonCode: event.ReasonCode,
 		Delta:      event.Delta,
-		At:         s.nowTime(),
-	}, s.nowTime())
+		At:         now,
+	}, now)
 	return err
 }
 

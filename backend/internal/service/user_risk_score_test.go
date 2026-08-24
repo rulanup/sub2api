@@ -125,8 +125,9 @@ func TestUserRiskScoreRouteByLevelAndCurrentSignal(t *testing.T) {
 
 	low, err := svc.Route(context.Background(), 1, false, true)
 	require.NoError(t, err)
-	require.True(t, low.SkipExternal)
-	require.False(t, low.RunModeration)
+	require.False(t, low.SkipExternal)
+	require.True(t, low.RunModeration)
+	require.False(t, low.RunPromptAudit)
 
 	medium, err := svc.Route(context.Background(), 2, false, true)
 	require.NoError(t, err)
@@ -148,6 +149,11 @@ func TestUserRiskScoreRouteByLevelAndCurrentSignal(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, currentSignal.SkipExternal)
 	require.True(t, currentSignal.RunModeration)
+
+	currentSignalWithPrompt, err := svc.Route(context.Background(), 1, true, true)
+	require.NoError(t, err)
+	require.True(t, currentSignalWithPrompt.RunModeration)
+	require.True(t, currentSignalWithPrompt.RunPromptAudit)
 }
 
 func TestUserRiskScoreDoesNotRecordZeroDeltaUnavailableOutcome(t *testing.T) {
