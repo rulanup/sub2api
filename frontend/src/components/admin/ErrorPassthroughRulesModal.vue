@@ -506,6 +506,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
+import { CONCRETE_PLATFORM_OPTIONS } from '@/constants/platforms'
 import { adminAPI } from '@/api/admin'
 import type { ErrorPassthroughRule } from '@/api/admin/errorPassthrough'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -613,13 +614,7 @@ const bodyModeOptions = computed(() => [
 
 const customMessageLength = computed(() => Array.from(form.custom_message || '').length)
 
-const platformOptions = [
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'gemini', label: 'Gemini' },
-  { value: 'antigravity', label: 'Antigravity' },
-  { value: 'grok', label: 'Grok' }
-]
+const platformOptions = CONCRETE_PLATFORM_OPTIONS
 
 // Load independent settings when the dialog opens.
 watch(() => props.show, (newVal) => {

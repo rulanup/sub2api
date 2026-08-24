@@ -109,7 +109,33 @@ export default defineConfig(({ mode }) => {
     // blank page when lazy routes are opened immediately after a deployment.
     emptyOutDir: false,
     rollupOptions: {
-      output: {}
+      output: {
+        manualChunks(id: string) {
+          if (id.includes('node_modules')) {
+            if (
+              id.includes('/vue/') ||
+              id.includes('/vue-router/') ||
+              id.includes('/pinia/') ||
+              id.includes('/@vue/')
+            ) {
+              return 'vendor-vue'
+            }
+            if (id.includes('/@vueuse/') || id.includes('/xlsx/')) {
+              return 'vendor-ui'
+            }
+            if (id.includes('/chart.js/') || id.includes('/vue-chartjs/')) {
+              return 'vendor-chart'
+            }
+            if (id.includes('/vue-i18n/') || id.includes('/@intlify/')) {
+              return 'vendor-i18n'
+            }
+            if (id.includes('/@stripe/stripe-js/')) {
+              return 'vendor-stripe'
+            }
+            return 'vendor-misc'
+          }
+        }
+      }
     }
   },
     server: {

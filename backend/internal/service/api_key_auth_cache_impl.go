@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 19 // v19: group search/audio/video_model_prices billing fields (force refresh of pre-fix snapshots)
+const apiKeyAuthSnapshotVersion = 20 // v20: group long-context and model pricing fields (force refresh of pre-fix snapshots)
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -434,6 +434,8 @@ func apiKeyAuthGroupSnapshotFromGroup(group *Group) *APIKeyAuthGroupSnapshot {
 		AudioRealtimePricePerMin:        group.AudioRealtimePricePerMin,
 		AudioTTSPricePerMillionChars:    group.AudioTTSPricePerMillionChars,
 		AudioSTTPricePerHour:            group.AudioSTTPricePerHour,
+		LongContextPricingEnabled:       group.LongContextPricingEnabled,
+		ModelPricing:                    group.ModelPricing,
 		ClaudeCodeOnly:                  group.ClaudeCodeOnly,
 		FallbackGroupID:                 group.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: group.FallbackGroupIDOnInvalidRequest,
@@ -547,6 +549,8 @@ func groupFromAPIKeyAuthSnapshot(snapshot *APIKeyAuthGroupSnapshot) *Group {
 		AudioRealtimePricePerMin:        snapshot.AudioRealtimePricePerMin,
 		AudioTTSPricePerMillionChars:    snapshot.AudioTTSPricePerMillionChars,
 		AudioSTTPricePerHour:            snapshot.AudioSTTPricePerHour,
+		LongContextPricingEnabled:       snapshot.LongContextPricingEnabled,
+		ModelPricing:                    snapshot.ModelPricing,
 		ClaudeCodeOnly:                  snapshot.ClaudeCodeOnly,
 		FallbackGroupID:                 snapshot.FallbackGroupID,
 		FallbackGroupIDOnInvalidRequest: snapshot.FallbackGroupIDOnInvalidRequest,

@@ -65,3 +65,16 @@ func TestErrorPassthroughRuleValidateBounds(t *testing.T) {
 		})
 	}
 }
+
+func TestAllPlatformsIncludesEveryConcretePlatform(t *testing.T) {
+	require.ElementsMatch(t, []string{
+		"anthropic",
+		"openai",
+		"gemini",
+		"antigravity",
+		"grok",
+		"kimi",
+		"zhipu",
+		"deepseek",
+	}, AllPlatforms())
+}
