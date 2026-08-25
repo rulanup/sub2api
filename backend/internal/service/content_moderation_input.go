@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/securitytext"
 	"github.com/tidwall/gjson"
 )
 
@@ -315,5 +316,5 @@ func addModerationText(parts *[]string, text string) {
 }
 
 func normalizeContentModerationText(text string) string {
-	return strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
+	return securitytext.Canonicalize(text).Text
 }

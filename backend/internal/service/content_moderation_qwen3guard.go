@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/securitytext"
 )
 
 type qwen3GuardSeverity string
@@ -200,6 +202,7 @@ func qwen3GuardEndpoint(baseURL string) (string, error) {
 func qwen3GuardTextInput(input any) (string, error) {
 	switch value := input.(type) {
 	case string:
+		value = securitytext.Canonicalize(value).Text
 		if strings.TrimSpace(value) == "" {
 			return "", errors.New("qwen3guard input is empty")
 		}
@@ -209,8 +212,9 @@ func qwen3GuardTextInput(input any) (string, error) {
 		for _, part := range value {
 			switch part.Type {
 			case "text":
-				if strings.TrimSpace(part.Text) != "" {
-					parts = append(parts, part.Text)
+				text := securitytext.Canonicalize(part.Text).Text
+				if strings.TrimSpace(text) != "" {
+					parts = append(parts, text)
 				}
 			case "image_url":
 				return "", errors.New("qwen3guard chat moderation does not support image input")
