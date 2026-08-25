@@ -402,12 +402,25 @@
                 <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ modeDescription(configForm.mode) }}</p>
               </div>
               <div>
+                <label class="input-label">{{ t('admin.riskControl.protocol') }}</label>
+                <Select v-model="configForm.protocol" :options="protocolOptions" data-test="moderation-protocol" />
+                <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  {{ configForm.protocol === 'qwen3guard_chat' ? t('admin.riskControl.qwenProtocolHint') : t('admin.riskControl.openaiModerationProtocolHint') }}
+                </p>
+              </div>
+              <div v-if="configForm.protocol === 'qwen3guard_chat'">
+                <label class="input-label">{{ t('admin.riskControl.controversialAction') }}</label>
+                <Select v-model="configForm.controversial_action" :options="controversialActionOptions" data-test="controversial-action" />
+                <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.controversialActionHint') }}</p>
+              </div>
+              <div>
                 <label class="input-label">{{ t('admin.riskControl.baseUrl') }}</label>
                 <input v-model.trim="configForm.base_url" type="url" class="input" placeholder="https://api.openai.com" />
               </div>
               <div>
                 <label class="input-label">{{ t('admin.riskControl.model') }}</label>
-                <input v-model.trim="configForm.model" type="text" class="input" placeholder="omni-moderation-latest" />
+                <input v-model.trim="configForm.model" type="text" class="input" :placeholder="configForm.protocol === 'qwen3guard_chat' ? 'Qwen3Guard-Gen-8B' : 'omni-moderation-latest'" />
+                <p v-if="configForm.protocol === 'qwen3guard_chat'" class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.qwenModelHint') }}</p>
               </div>
               <div>
                 <label class="input-label">{{ t('admin.riskControl.timeoutMs') }}</label>
@@ -533,6 +546,7 @@
                       <div>
                         <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.auditTestInput') }}</p>
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.auditTestInputHint') }}</p>
+                        <p v-if="configForm.protocol === 'qwen3guard_chat'" class="mt-1 text-xs text-amber-600 dark:text-amber-300">{{ t('admin.riskControl.qwenImageUnsupportedHint') }}</p>
                       </div>
                       <button
                         v-if="moderationTestPrompt || moderationTestImages.length > 0 || moderationTestResult"
@@ -668,6 +682,12 @@
                         <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.auditTestResult') }}</p>
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                           {{ t('admin.riskControl.auditTestHighest', { category: moderationTestResult.highest_category || '-', score: percent(moderationTestResult.highest_score) }) }}
+                        </p>
+                        <p v-if="moderationTestResult.severity" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          {{ t('admin.riskControl.auditTestSeverity', { severity: auditSeverityLabel(moderationTestResult.severity) }) }}
+                        </p>
+                        <p v-if="moderationTestResult.categories?.length" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                          {{ t('admin.riskControl.auditTestCategories') }}: {{ moderationTestResult.categories.join(', ') }}
                         </p>
                       </div>
                       <span class="inline-flex rounded-full px-2 py-1 text-xs font-medium" :class="moderationTestResult.flagged ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'">
@@ -1209,7 +1229,9 @@ import type {
   ContentModerationModelFilterType,
   ContentModerationRuntimeStatus,
   ContentModerationTestAuditResult,
+  ControversialAction,
   KeywordBlockingMode,
+  ModerationProtocol,
   ModerationMode,
   UpdateContentModerationConfig,
 } from '@/api/admin/riskControl'
@@ -1296,6 +1318,8 @@ let statusTimer: number | null = null
 const configForm = reactive({
   enabled: false,
   mode: 'pre_block' as ModerationMode,
+  protocol: 'openai_moderation' as ModerationProtocol,
+  controversial_action: 'allow' as ControversialAction,
   base_url: 'https://api.openai.com',
   model: 'omni-moderation-latest',
   proxy_id: null as number | null,
@@ -1372,6 +1396,16 @@ const modeOptions = computed<SelectOption[]>(() => [
   { value: 'pre_block', label: t('admin.riskControl.modePreBlock') },
   { value: 'observe', label: t('admin.riskControl.modeObserve') },
   { value: 'off', label: t('admin.riskControl.modeOff') },
+])
+
+const protocolOptions = computed<SelectOption[]>(() => [
+  { value: 'openai_moderation', label: t('admin.riskControl.protocolOpenAIModeration') },
+  { value: 'qwen3guard_chat', label: t('admin.riskControl.protocolQwen3Guard') },
+])
+
+const controversialActionOptions = computed<SelectOption[]>(() => [
+  { value: 'allow', label: t('admin.riskControl.controversialActionAllow') },
+  { value: 'block', label: t('admin.riskControl.controversialActionBlock') },
 ])
 
 const keywordBlockingModeOptions = computed<Array<{ value: KeywordBlockingMode; label: string; description: string }>>(() => [
@@ -1788,8 +1822,10 @@ function normalizeUserIDs(value: unknown): number[] {
 function applyConfig(config: ContentModerationConfig) {
   configForm.enabled = config.enabled
   configForm.mode = config.mode
+  configForm.protocol = config.protocol || 'openai_moderation'
+  configForm.controversial_action = config.controversial_action || 'allow'
   configForm.base_url = config.base_url || 'https://api.openai.com'
-  configForm.model = config.model || 'omni-moderation-latest'
+  configForm.model = config.model || (configForm.protocol === 'qwen3guard_chat' ? 'Qwen3Guard-Gen-8B' : 'omni-moderation-latest')
   configForm.proxy_id = config.proxy_id || null
   configForm.api_keys_text = ''
   configForm.api_key_configured = config.api_key_configured
@@ -1892,6 +1928,8 @@ async function saveConfig() {
     const payload: UpdateContentModerationConfig = {
       enabled: configForm.enabled,
       mode: configForm.mode,
+      protocol: configForm.protocol,
+      controversial_action: configForm.controversial_action,
       base_url: configForm.base_url,
       model: configForm.model,
       // 后端语义：0 清除代理（直连），>0 指定代理
@@ -2090,6 +2128,32 @@ function setModelFilterType(type: ContentModerationModelFilterType) {
   }
 }
 
+function auditSeverityLabel(severity: string): string {
+  switch (severity) {
+    case 'safe':
+      return t('admin.riskControl.auditSeveritySafe')
+    case 'unsafe':
+      return t('admin.riskControl.auditSeverityUnsafe')
+    case 'controversial':
+      return t('admin.riskControl.auditSeverityControversial')
+    default:
+      return severity
+  }
+}
+
+function isUnsupportedAuditEndpointError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const value = err as {
+    message?: unknown
+    response?: { status?: unknown; data?: { message?: unknown; error?: { message?: unknown } } }
+  }
+  const status = Number(value.response?.status)
+  const messages = [value.message, value.response?.data?.message, value.response?.data?.error?.message]
+    .filter((item): item is string => typeof item === 'string')
+    .join(' ')
+  return status === 400 && /unsupported\s+(interface|endpoint)|暂不支持该接口/i.test(messages)
+}
+
 async function testApiKeys(useInputKeys: boolean) {
   const keys = useInputKeys ? parseApiKeys(configForm.api_keys_text) : []
   if (useInputKeys && keys.length === 0) {
@@ -2100,6 +2164,8 @@ async function testApiKeys(useInputKeys: boolean) {
   try {
     const result = await adminAPI.riskControl.testAPIKeys({
       api_keys: keys,
+      protocol: configForm.protocol,
+      controversial_action: configForm.controversial_action,
       base_url: configForm.base_url,
       model: configForm.model,
       timeout_ms: Number(configForm.timeout_ms) || 3000,
@@ -2118,7 +2184,9 @@ async function testApiKeys(useInputKeys: boolean) {
     }
     appStore.showSuccess(t('admin.riskControl.apiKeyTestDone', { count: result.items.length }))
   } catch (err: unknown) {
-    appStore.showError(extractApiErrorMessage(err, t('admin.riskControl.apiKeyTestFailed')))
+    appStore.showError(isUnsupportedAuditEndpointError(err)
+      ? t('admin.riskControl.auditEndpointUnsupported')
+      : extractApiErrorMessage(err, t('admin.riskControl.apiKeyTestFailed')))
   } finally {
     apiKeyTesting.value = false
   }

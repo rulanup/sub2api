@@ -13,6 +13,7 @@ const {
   listLogs,
   getGroups,
   getProxies,
+  testAPIKeys,
   showError,
   showSuccess,
 } = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ const {
   listLogs: vi.fn(),
   getGroups: vi.fn(),
   getProxies: vi.fn(),
+  testAPIKeys: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
 }))
@@ -33,7 +35,7 @@ vi.mock('@/api/admin', () => ({
       updateConfig,
       getStatus,
       listLogs,
-      testAPIKeys: vi.fn(),
+      testAPIKeys,
       deleteFlaggedHash: vi.fn(),
       clearFlaggedHashes: vi.fn(),
       unbanUser: vi.fn(),
@@ -76,6 +78,8 @@ vi.mock('vue-i18n', async () => {
 const baseConfig = (): ContentModerationConfig => ({
   enabled: true,
   mode: 'pre_block',
+  protocol: 'openai_moderation',
+  controversial_action: 'allow',
   base_url: 'https://api.openai.com',
   model: 'omni-moderation-latest',
   proxy_id: null,
@@ -237,6 +241,7 @@ describe('admin RiskControlView', () => {
     listLogs.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20, pages: 1 })
     getGroups.mockResolvedValue([])
     getProxies.mockResolvedValue([])
+    testAPIKeys.mockReset()
     updateConfig.mockImplementation(async (payload: UpdateContentModerationConfig) => ({
       ...baseConfig(),
       ...payload,
@@ -247,6 +252,112 @@ describe('admin RiskControlView', () => {
       api_key_masks: [],
       api_key_statuses: [],
     }))
+  })
+
+  it('submits Qwen3Guard protocol and controversial action settings', async () => {
+    const wrapper = mount(RiskControlView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+          Select: true,
+          Toggle: true,
+          Pagination: true,
+          ModelWhitelistSelector: ModelWhitelistSelectorStub,
+          ProxySelector: true,
+        },
+      },
+    })
+
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    const vm = wrapper.vm as typeof wrapper.vm & {
+      configForm: { protocol: string; model: string; controversial_action: string }
+    }
+    vm.configForm.protocol = 'qwen3guard_chat'
+    vm.configForm.model = 'Qwen3Guard-Gen-8B'
+    vm.configForm.controversial_action = 'block'
+    await wrapper.vm.$nextTick()
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      protocol: 'qwen3guard_chat',
+      model: 'Qwen3Guard-Gen-8B',
+      controversial_action: 'block',
+    }))
+  })
+
+  it('renders Qwen3Guard severity and categories from audit test results', async () => {
+    testAPIKeys.mockResolvedValueOnce({
+      items: [],
+      image_count: 0,
+      audit_result: {
+        flagged: true,
+        severity: 'unsafe',
+        categories: ['jailbreak', 'illicit'],
+        highest_category: 'jailbreak',
+        highest_score: 1,
+        composite_score: 1,
+        category_scores: { jailbreak: 1 },
+        thresholds: { jailbreak: 0.65 },
+      },
+    })
+    const wrapper = mount(RiskControlView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+          Select: true,
+          Toggle: true,
+          Pagination: true,
+          ModelWhitelistSelector: ModelWhitelistSelectorStub,
+          ProxySelector: true,
+        },
+      },
+    })
+
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    const textareas = wrapper.findAll('textarea')
+    await textareas[0].setValue('qwen-test-key')
+    await findButtonByText(wrapper, 'admin.riskControl.testInputApiKeys').trigger('click')
+    await flushPromises()
+
+    expect(testAPIKeys).toHaveBeenCalledWith(expect.objectContaining({
+      protocol: 'openai_moderation',
+      controversial_action: 'allow',
+    }))
+    expect(wrapper.text()).toContain('jailbreak')
+    expect(wrapper.text()).toContain('illicit')
+  })
+
+  it('shows a friendly message when the audit endpoint does not support the protocol', async () => {
+    testAPIKeys.mockRejectedValueOnce({ response: { status: 400, data: { message: '暂不支持该接口' } } })
+    const wrapper = mount(RiskControlView, {
+      global: {
+        stubs: {
+          AppLayout: AppLayoutStub,
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+          Select: true,
+          Toggle: true,
+          Pagination: true,
+          ModelWhitelistSelector: ModelWhitelistSelectorStub,
+          ProxySelector: true,
+        },
+      },
+    })
+
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await wrapper.findAll('textarea')[0].setValue('qwen-test-key')
+    await findButtonByText(wrapper, 'admin.riskControl.testInputApiKeys').trigger('click')
+    await flushPromises()
+
+    expect(showError).toHaveBeenCalledWith('admin.riskControl.auditEndpointUnsupported')
   })
 
   it('saves the selected model filter mode and models', async () => {

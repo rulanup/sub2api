@@ -1,6 +1,8 @@
 import { apiClient } from '../client'
 
 export type ModerationMode = 'off' | 'observe' | 'pre_block'
+export type ModerationProtocol = 'openai_moderation' | 'qwen3guard_chat'
+export type ControversialAction = 'allow' | 'block'
 export type KeywordBlockingMode = 'keyword_only' | 'keyword_and_api' | 'api_only'
 export type ContentModerationModelFilterType = 'all' | 'include' | 'exclude'
 
@@ -12,6 +14,8 @@ export interface ContentModerationModelFilter {
 export interface ContentModerationConfig {
   enabled: boolean
   mode: ModerationMode
+  protocol: ModerationProtocol
+  controversial_action: ControversialAction
   base_url: string
   model: string
   proxy_id: number | null
@@ -73,6 +77,8 @@ export interface ContentModerationAPIKeyStatus {
 
 export interface TestContentModerationAPIKeysPayload {
   api_keys?: string[]
+  protocol?: ModerationProtocol
+  controversial_action?: ControversialAction
   base_url?: string
   model?: string
   timeout_ms?: number
@@ -90,6 +96,10 @@ export interface TestContentModerationAPIKeysResponse {
 
 export interface ContentModerationTestAuditResult {
   flagged: boolean
+  severity?: 'safe' | 'unsafe' | 'controversial' | string
+  categories?: string[]
+  error_type?: string
+  error_message?: string
   highest_category: string
   highest_score: number
   composite_score: number
@@ -100,6 +110,8 @@ export interface ContentModerationTestAuditResult {
 export interface UpdateContentModerationConfig {
   enabled?: boolean
   mode?: ModerationMode
+  protocol?: ModerationProtocol
+  controversial_action?: ControversialAction
   base_url?: string
   model?: string
   // undefined 不修改；0 清除（直连）；>0 指定代理

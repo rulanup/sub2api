@@ -21,4 +21,17 @@ describe('risk control locale copy', () => {
     expect(zh.admin.riskControl.preBlockAPIKeyLoadHint).not.toContain('Worker 池')
     expect(en.admin.riskControl.preBlockAPIKeyLoadHint).not.toContain('worker pool')
   })
+
+  it('keeps Qwen3Guard protocol and endpoint diagnostics localized', () => {
+    for (const key of [
+      'protocol',
+      'protocolQwen3Guard',
+      'controversialAction',
+      'qwenImageUnsupportedHint',
+      'auditEndpointUnsupported',
+    ] as const) {
+      expect(zh.admin.riskControl[key]).toBeTruthy()
+      expect(en.admin.riskControl[key]).toBeTruthy()
+    }
+  })
 })
