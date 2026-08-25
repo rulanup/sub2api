@@ -54,8 +54,25 @@ func collectLastRoleMessage(messages gjson.Result, role string, parts *[]string,
 		return
 	}
 	last := array[len(array)-1]
-	if strings.ToLower(strings.TrimSpace(last.Get("role").String())) != role {
-		return
+	lastRole := strings.ToLower(strings.TrimSpace(last.Get("role").String()))
+	if lastRole != role {
+		// DSH may resend the full conversation after a model/tool turn. In
+		// that shape the latest item is assistant, while the user text that
+		// must be audited is still present earlier in the request. Keep the
+		// explicit tool-loop skip: tool results are not new user input and are
+		// already covered by the preceding user turn.
+		if role != "user" || lastRole == "tool" {
+			return
+		}
+		for i := len(array) - 2; i >= 0; i-- {
+			if strings.ToLower(strings.TrimSpace(array[i].Get("role").String())) == role {
+				last = array[i]
+				break
+			}
+		}
+		if strings.ToLower(strings.TrimSpace(last.Get("role").String())) != role {
+			return
+		}
 	}
 	var candidate []string
 	var candidateImages []string

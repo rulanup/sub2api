@@ -112,6 +112,9 @@ backend/data/
 backend/config.yaml
 deploy/config.yaml
 deploy/*.dump
+deploy/fork_data/
+deploy/fork_postgres_data/
+deploy/fork_redis_data/
 backend/.installed
 
 # ===================

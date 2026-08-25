@@ -94,6 +94,19 @@ func TestExtractContentModerationInput_OpenAIChatMultiTurnExtractsLatestUser(t *
 	require.Equal(t, "Q2", input.Text)
 }
 
+func TestExtractContentModerationInput_OpenAIChatReauditsLatestUserWhenAssistantTerminatesContext(t *testing.T) {
+	body := []byte(`{
+		"messages": [
+			{"role":"user","content":"security audit canary"},
+			{"role":"assistant","content":"previous response"}
+		]
+	}`)
+
+	input := ExtractContentModerationInput(ContentModerationProtocolOpenAIChat, body)
+
+	require.Equal(t, "security audit canary", input.Text)
+}
+
 func TestExtractContentModerationInput_GeminiAgentToolLoopSkipsAudit(t *testing.T) {
 	body := []byte(`{
 		"contents": [
