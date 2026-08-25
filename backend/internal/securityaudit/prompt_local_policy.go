@@ -43,6 +43,11 @@ var localPolicyRules = []localPolicyRule{
 		ambiguous: []string{"获取", "抓取", "导出", "提取", "读取", "查看", "get", "extract", "dump", "collect"},
 	},
 	{
+		category: "credential_theft", reason: "wireless_credential_extraction",
+		actions: []string{"netsh wlan show profile", "netsh wlan show profiles", "netsh.exe wlan show profile"},
+		targets: []string{"key=clear", "key clear", "wifi key", "wireless key", "无线密钥"},
+	},
+	{
 		category: "phishing", reason: "phishing_or_credential_harvesting",
 		actions: []string{"制作", "搭建", "仿冒", "伪造", "创建", "build", "create", "make", "phishing", "harvest", "harvesting"},
 		targets: []string{"钓鱼", "登录界面", "登录页面", "credential harvesting", "credential", "凭据", "密码", "password", "账号", "login"},
