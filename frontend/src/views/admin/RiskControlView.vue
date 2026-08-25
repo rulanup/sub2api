@@ -689,6 +689,9 @@
                         <p v-if="moderationTestResult.categories?.length" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                           {{ t('admin.riskControl.auditTestCategories') }}: {{ moderationTestResult.categories.join(', ') }}
                         </p>
+                        <p v-if="moderationTestResult.error_message" class="mt-1 text-xs font-medium text-red-600 dark:text-red-300">
+                          {{ moderationTestResult.error_message }}
+                        </p>
                       </div>
                       <span class="inline-flex rounded-full px-2 py-1 text-xs font-medium" :class="moderationTestResult.flagged ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'">
                         {{ moderationTestResult.flagged ? t('admin.riskControl.auditTestFlagged') : t('admin.riskControl.auditTestPassed') }}

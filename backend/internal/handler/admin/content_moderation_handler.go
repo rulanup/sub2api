@@ -7,6 +7,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -157,6 +158,12 @@ func (h *ContentModerationHandler) TestAPIKeys(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if local := securityaudit.EvaluateLocalPolicyText(req.Prompt); local.Blocked {
+		response.Success(c, &service.TestContentModerationAPIKeysResult{
+			AuditResult: localPolicyModerationTestResult(local),
+		})
+		return
+	}
 	result, err := h.service.TestAPIKeys(c.Request.Context(), service.TestContentModerationAPIKeysInput{
 		APIKeys:             req.APIKeys,
 		Protocol:            req.Protocol,
@@ -173,6 +180,32 @@ func (h *ContentModerationHandler) TestAPIKeys(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+func localPolicyModerationTestResult(decision securityaudit.LocalPolicyDecision) *service.ContentModerationTestAuditResult {
+	const policyCategory = securityaudit.NetworkSecurityPolicyID
+	scores := map[string]float64{policyCategory: 1}
+	categories := []string{policyCategory}
+	if decision.Category != "" {
+		scores[decision.Category] = 1
+		categories = append(categories, decision.Category)
+	}
+	thresholds := make(map[string]float64, len(scores))
+	for category := range scores {
+		thresholds[category] = 1
+	}
+	return &service.ContentModerationTestAuditResult{
+		Flagged:         true,
+		Severity:        "unsafe",
+		Categories:      categories,
+		ErrorType:       securityaudit.ErrorCodeNetworkSecurityPolicyViolation,
+		ErrorMessage:    "请求被网络安全策略拦截",
+		HighestCategory: policyCategory,
+		HighestScore:    1,
+		CompositeScore:  1,
+		CategoryScores:  scores,
+		Thresholds:      thresholds,
+	}
 }
 
 func (h *ContentModerationHandler) GetStatus(c *gin.Context) {

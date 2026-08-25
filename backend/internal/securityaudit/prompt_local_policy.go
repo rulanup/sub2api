@@ -83,10 +83,19 @@ var localPolicyContextTerms = []string{
 
 func EvaluateLocalPolicy(req Request) LocalPolicyDecision {
 	snapshot, err := ExtractPromptSnapshot(req)
-	if err != nil || strings.TrimSpace(snapshot.ScanText) == "" {
+	if err != nil {
 		return LocalPolicyDecision{}
 	}
-	canonical := securitytext.Canonicalize(snapshot.ScanText)
+	return EvaluateLocalPolicyText(snapshot.ScanText)
+}
+
+// EvaluateLocalPolicyText applies the deterministic network security policy to
+// a text-only audit input, such as the admin moderation test form.
+func EvaluateLocalPolicyText(text string) LocalPolicyDecision {
+	if strings.TrimSpace(text) == "" {
+		return LocalPolicyDecision{}
+	}
+	canonical := securitytext.Canonicalize(text)
 	normalized, compact := canonical.Text, canonical.Compact
 	if normalized == "" {
 		return LocalPolicyDecision{}

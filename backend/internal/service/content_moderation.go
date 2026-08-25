@@ -309,6 +309,8 @@ type ContentModerationTestAuditResult struct {
 	Flagged         bool               `json:"flagged"`
 	Severity        string             `json:"severity,omitempty"`
 	Categories      []string           `json:"categories,omitempty"`
+	ErrorType       string             `json:"error_type,omitempty"`
+	ErrorMessage    string             `json:"error_message,omitempty"`
 	HighestCategory string             `json:"highest_category"`
 	HighestScore    float64            `json:"highest_score"`
 	CompositeScore  float64            `json:"composite_score"`
