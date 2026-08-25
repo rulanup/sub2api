@@ -24,7 +24,6 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/httpclient"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/servertiming"
 	"github.com/google/uuid"
 )
 
@@ -545,7 +544,6 @@ type ContentModerationService struct {
 	proxyRepo                ProxyRepository
 	authCacheInvalidator     APIKeyAuthCacheInvalidator
 	emailService             *EmailService
-	httpClient               *http.Client
 	moderationProxyCache     atomic.Pointer[moderationProxyURLCacheEntry]
 	asyncQueue               chan contentModerationTask
 	workerCount              int
@@ -631,7 +629,6 @@ func NewContentModerationService(
 		proxyRepo:            proxyRepo,
 		authCacheInvalidator: authCacheInvalidator,
 		emailService:         emailService,
-		httpClient:           servertiming.InstrumentClient(nil),
 		workerCount:          maxContentModerationWorkerCount,
 		asyncQueue:           make(chan contentModerationTask, maxContentModerationQueueSize),
 		keyHealth:            make(map[string]*contentModerationKeyHealth),
@@ -1886,10 +1883,14 @@ const contentModerationProxyURLCacheTTL = time.Minute
 // 代理解析/构建失败直接返回错误，绝不回退直连（避免 IP 关联风险）。
 func (s *ContentModerationService) moderationHTTPClient(ctx context.Context, cfg *ContentModerationConfig) (*http.Client, error) {
 	if cfg == nil || cfg.ProxyID == nil {
-		if s.httpClient == nil {
-			return http.DefaultClient, nil
+		// “无代理”必须绕过进程级 HTTP(S)_PROXY 环境变量。否则开发容器
+		// 的全局代理会意外接管审计请求，且代理协议不匹配时只返回
+		// `unexpected EOF`，与管理端“默认直连”的语义不一致。
+		client, err := httpclient.GetClient(httpclient.Options{})
+		if err != nil {
+			return nil, fmt.Errorf("build direct moderation client: %w", err)
 		}
-		return s.httpClient, nil
+		return client, nil
 	}
 	proxyURL, err := s.resolveModerationProxyURL(ctx, *cfg.ProxyID)
 	if err != nil {

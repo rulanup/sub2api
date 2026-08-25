@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -141,6 +142,46 @@ func TestContentModerationCallRoutesThroughProxy(t *testing.T) {
 	}
 	if proxied.Load() == 0 {
 		t.Fatal("expected request to be routed through the proxy server")
+	}
+}
+
+func TestContentModerationWithoutConfiguredProxyIgnoresProcessProxy(t *testing.T) {
+	var directCalls atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		directCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(moderationAPIResponse{Results: []moderationAPIResult{{Flagged: false}}})
+	}))
+	defer server.Close()
+
+	var proxiedCalls atomic.Int64
+	proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxiedCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(moderationAPIResponse{Results: []moderationAPIResult{{Flagged: true}}})
+	}))
+	defer proxyServer.Close()
+	proxyURL, err := url.Parse(proxyServer.URL)
+	if err != nil {
+		t.Fatalf("parse proxy URL: %v", err)
+	}
+	defaultTransport := http.DefaultTransport.(*http.Transport)
+	originalProxy := defaultTransport.Proxy
+	defaultTransport.Proxy = http.ProxyURL(proxyURL)
+	defer func() { defaultTransport.Proxy = originalProxy }()
+
+	svc := NewContentModerationService(nil, nil, nil, nil, nil, nil, nil, nil)
+	cfg := defaultContentModerationConfig()
+	cfg.BaseURL = server.URL
+	cfg.ProxyID = nil
+	cfg.normalize()
+
+	httpStatus := 0
+	if _, err := svc.callModerationOnceWithInput(context.Background(), cfg, "sk-test", "hello", &httpStatus); err != nil {
+		t.Fatalf("expected direct moderation call to ignore process proxy, got: %v", err)
+	}
+	if httpStatus != http.StatusOK || directCalls.Load() != 1 || proxiedCalls.Load() != 0 {
+		t.Fatalf("expected direct call without configured proxy (status=%d direct=%d proxied=%d)", httpStatus, directCalls.Load(), proxiedCalls.Load())
 	}
 }
 
