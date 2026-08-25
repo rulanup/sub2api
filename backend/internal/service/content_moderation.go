@@ -127,6 +127,11 @@ var contentModerationCategoryOrder = []string{
 	"sexual/minors",
 	"violence",
 	"violence/graphic",
+	"pii",
+	"unethical",
+	"jailbreak",
+	"copyright",
+	"political",
 }
 
 func ContentModerationDefaultThresholds() map[string]float64 {
