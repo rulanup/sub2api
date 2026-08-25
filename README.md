@@ -9,6 +9,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
+[![Build](https://github.com/rulanup/sub2api/actions/workflows/build.yml/badge.svg?branch=fork-merged)](https://github.com/rulanup/sub2api/actions/workflows/build.yml?query=branch%3Afork-merged)
 
 <a href="https://trendshift.io/repositories/21823" target="_blank"><img src="https://trendshift.io/api/badge/repositories/21823" alt="Wei-Shaw%2Fsub2api | Trendshift" width="250" height="55"/></a>
 
@@ -582,6 +583,10 @@ nano config.yaml
 ```
 
 > **Note:** The `-tags embed` flag embeds the frontend into the binary. Without this flag, the binary will not serve the frontend UI.
+
+#### GitHub Actions build
+
+The fork's [`Build` workflow](https://github.com/rulanup/sub2api/actions/workflows/build.yml) runs on pushes, pull requests, and manual dispatch. It builds the frontend first, compiles an embedded Linux amd64 backend, and uploads the `frontend-dist` and `backend-linux-amd64` artifacts.
 
 **Key configuration in `config.yaml`:**
 

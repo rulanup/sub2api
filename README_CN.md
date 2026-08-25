@@ -9,6 +9,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
+[![Build](https://github.com/rulanup/sub2api/actions/workflows/build.yml/badge.svg?branch=fork-merged)](https://github.com/rulanup/sub2api/actions/workflows/build.yml?query=branch%3Afork-merged)
 
 <a href="https://trendshift.io/repositories/21823" target="_blank"><img src="https://trendshift.io/api/badge/repositories/21823" alt="Wei-Shaw%2Fsub2api | Trendshift" width="250" height="55"/></a>
 
@@ -596,6 +597,10 @@ nano config.yaml
 ```
 
 > **注意：** `-tags embed` 参数会将前端嵌入到二进制文件中。不使用此参数编译的程序将不包含前端界面。
+
+#### GitHub Actions 构建
+
+Fork 的 [`Build` 工作流](https://github.com/rulanup/sub2api/actions/workflows/build.yml)支持 push、Pull Request 和手动触发。工作流会先编译前端，再编译嵌入前端的 Linux amd64 后端，并上传 `frontend-dist` 和 `backend-linux-amd64` 构建产物。
 
 **`config.yaml` 关键配置：**
 
