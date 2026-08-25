@@ -2,7 +2,8 @@ package securityaudit
 
 import (
 	"strings"
-	"unicode"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/securitytext"
 )
 
 const (
@@ -69,8 +70,8 @@ var localPolicyRules = []localPolicyRule{
 	},
 	{
 		category: "jailbreak", reason: "jailbreak_or_safety_bypass",
-		actions: []string{"破限", "解除限制", "绕过限制", "忽略之前", "忽略指令", "无视规则", "jailbreak", "bypass"},
-		targets: []string{"破限", "安全策略", "内容限制", "审核", "系统提示", "模型", "model", "llm", "safety", "restriction", "guardrail"},
+		actions: []string{"破限", "解除限制", "绕过限制", "忽略之前", "忽略指令", "无视规则", "不要拒绝", "进入开发者模式", "生成", "jailbreak", "bypass"},
+		targets: []string{"破限", "安全策略", "安全规则", "内容限制", "审核", "系统提示", "开发者模式", "攻击工具", "攻击脚本", "恶意工具", "模型", "model", "llm", "safety", "restriction", "guardrail"},
 	},
 }
 
@@ -85,7 +86,8 @@ func EvaluateLocalPolicy(req Request) LocalPolicyDecision {
 	if err != nil || strings.TrimSpace(snapshot.ScanText) == "" {
 		return LocalPolicyDecision{}
 	}
-	normalized, compact := normalizeLocalPolicyText(snapshot.ScanText)
+	canonical := securitytext.Canonicalize(snapshot.ScanText)
+	normalized, compact := canonical.Text, canonical.Compact
 	if normalized == "" {
 		return LocalPolicyDecision{}
 	}
@@ -131,29 +133,10 @@ func localPolicyReviewDecision(rule localPolicyRule) LocalPolicyDecision {
 	}
 }
 
-func normalizeLocalPolicyText(input string) (string, string) {
-	var builder strings.Builder
-	for _, r := range strings.ToLower(input) {
-		switch {
-		case r == '\u200b' || r == '\u200c' || r == '\u200d' || r == '\ufeff':
-			continue
-		case r == '\uff00':
-			builder.WriteRune(' ')
-		case r >= '\uff01' && r <= '\uff5e':
-			builder.WriteRune(r - 0xfee0)
-		case unicode.IsLetter(r) || unicode.IsDigit(r):
-			builder.WriteRune(r)
-		default:
-			builder.WriteRune(' ')
-		}
-	}
-	normalized := strings.Join(strings.Fields(builder.String()), " ")
-	return normalized, strings.ReplaceAll(normalized, " ", "")
-}
-
 func containsAnyLocalPolicyTerm(normalized, compact string, terms []string) bool {
 	for _, term := range terms {
-		termNormalized, termCompact := normalizeLocalPolicyText(term)
+		canonical := securitytext.Canonicalize(term)
+		termNormalized, termCompact := canonical.Text, canonical.Compact
 		if termNormalized != "" && strings.Contains(normalized, termNormalized) {
 			return true
 		}
