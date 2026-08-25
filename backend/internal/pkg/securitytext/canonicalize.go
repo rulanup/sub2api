@@ -3,6 +3,7 @@
 package securitytext
 
 import (
+	"encoding/base64"
 	"html"
 	"strconv"
 	"strings"
@@ -33,6 +34,7 @@ func Canonicalize(input string) Result {
 		next := html.UnescapeString(current)
 		next = decodePercentEscapes(next)
 		next = decodeLiteralUnicodeEscapes(next)
+		next = decodeBase64Segments(next)
 		next = truncateUTF8(next, canonicalizeMaxInputBytes)
 		if next == current {
 			break
@@ -45,7 +47,7 @@ func Canonicalize(input string) Result {
 }
 
 func normalizeUnicode(input string) string {
-	input = strings.ToLower(norm.NFKC.String(input))
+	input = norm.NFKC.String(input)
 	var builder strings.Builder
 	builder.Grow(len(input))
 	for _, r := range input {
@@ -65,10 +67,91 @@ func compact(input string) string {
 	var builder strings.Builder
 	for _, r := range input {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			builder.WriteRune(r)
+			builder.WriteRune(unicode.ToLower(r))
 		}
 	}
 	return builder.String()
+}
+
+const base64MinSegmentLength = 24
+
+func decodeBase64Segments(input string) string {
+	var builder strings.Builder
+	builder.Grow(len(input))
+	changed := false
+	for index := 0; index < len(input); {
+		if !isBase64SegmentByte(input[index]) {
+			builder.WriteByte(input[index])
+			index++
+			continue
+		}
+		start := index
+		for index < len(input) && isBase64SegmentByte(input[index]) {
+			index++
+		}
+		segment := input[start:index]
+		decoded, ok := decodeBase64Candidate(segment)
+		if ok {
+			builder.WriteString(decoded)
+			changed = true
+		} else {
+			builder.WriteString(segment)
+		}
+	}
+	if !changed {
+		return input
+	}
+	return builder.String()
+}
+
+func isBase64SegmentByte(value byte) bool {
+	return value >= 'A' && value <= 'Z' ||
+		value >= 'a' && value <= 'z' ||
+		value >= '0' && value <= '9' ||
+		value == '+' || value == '/' || value == '-' || value == '_' || value == '='
+}
+
+func decodeBase64Candidate(candidate string) (string, bool) {
+	if len(candidate) < base64MinSegmentLength {
+		return "", false
+	}
+	decoders := []*base64.Encoding{
+		base64.StdEncoding,
+		base64.RawStdEncoding,
+		base64.URLEncoding,
+		base64.RawURLEncoding,
+	}
+	for _, decoder := range decoders {
+		decoded, err := decoder.DecodeString(candidate)
+		if err != nil || !isReadableBase64Text(decoded) {
+			continue
+		}
+		return string(decoded), true
+	}
+	return "", false
+}
+
+func isReadableBase64Text(input []byte) bool {
+	if len(input) == 0 || !utf8.Valid(input) {
+		return false
+	}
+	runeCount := 0
+	printableCount := 0
+	hasWord := false
+	for _, r := range string(input) {
+		runeCount++
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			hasWord = true
+		}
+		if unicode.IsControl(r) && !unicode.IsSpace(r) {
+			return false
+		}
+		if !unicode.IsPrint(r) && !unicode.IsSpace(r) {
+			return false
+		}
+		printableCount++
+	}
+	return runeCount >= 3 && hasWord && printableCount*100 >= runeCount*85
 }
 
 func decodePercentEscapes(input string) string {

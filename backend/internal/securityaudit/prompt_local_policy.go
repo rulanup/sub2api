@@ -70,7 +70,7 @@ var localPolicyRules = []localPolicyRule{
 	},
 	{
 		category: "jailbreak", reason: "jailbreak_or_safety_bypass",
-		actions: []string{"破限", "解除限制", "绕过限制", "忽略之前", "忽略指令", "无视规则", "不要拒绝", "进入开发者模式", "生成", "jailbreak", "bypass"},
+		actions: []string{"破限", "解除限制", "绕过限制", "忽略之前", "忽略指令", "无视规则", "不要拒绝", "进入开发者模式", "生成攻击工具", "生成攻击脚本", "生成恶意工具", "jailbreak", "bypass"},
 		targets: []string{"破限", "安全策略", "安全规则", "内容限制", "审核", "系统提示", "开发者模式", "攻击工具", "攻击脚本", "恶意工具", "模型", "model", "llm", "safety", "restriction", "guardrail"},
 	},
 }
@@ -134,10 +134,11 @@ func localPolicyReviewDecision(rule localPolicyRule) LocalPolicyDecision {
 }
 
 func containsAnyLocalPolicyTerm(normalized, compact string, terms []string) bool {
+	normalizedFolded := strings.ToLower(normalized)
 	for _, term := range terms {
 		canonical := securitytext.Canonicalize(term)
 		termNormalized, termCompact := canonical.Text, canonical.Compact
-		if termNormalized != "" && strings.Contains(normalized, termNormalized) {
+		if termNormalized != "" && strings.Contains(normalizedFolded, strings.ToLower(termNormalized)) {
 			return true
 		}
 		if termCompact != "" && strings.Contains(compact, termCompact) {
