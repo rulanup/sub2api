@@ -50,6 +50,9 @@ Please read the following carefully before using this project:
 
 ### Risk Control and Error Customization
 
+- **Content moderation providers** - Open **Risk Control > Settings > Basic** and choose **OpenAI Moderation API** (`{base_url}/v1/moderations`) or **Qwen3Guard Chat Completions** (`{base_url}/v1/chat/completions`, default model `Qwen3Guard-Gen-8B`). Qwen3Guard's first integration is text-only; use OpenAI Moderation for image inputs.
+- **Qwen3Guard decisions** - `Safe` passes, `Unsafe` is blocked before the main upstream request, and `Controversial` is allowed and recorded by default. Administrators can switch Controversial handling to block in the same settings page.
+- **Audit-node failures** - Timeouts, unavailable nodes, unsupported images, malformed responses, and HTTP 400 interface errors are recorded in the audit diagnostics/logs and allow the normal request to continue. A 400 interface error does not freeze the audit API key; the settings test shows a provider/protocol hint.
 - Open **Risk Control > Settings > Abuse Detection** to configure relay detection, repeated security-policy usage, penalties, optional account disabling, and separate allowlists. The global risk-control switch and each detector switch must both be enabled.
 - Relay detection evaluates the latest 10 complete UTC minute buckets. A user is flagged when every bucket contains at least one synchronous request.
 - Security-policy detection counts `cyber_policy` usage within the configured hour window and disables the user after the configured threshold is reached.

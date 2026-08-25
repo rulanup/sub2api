@@ -51,6 +51,9 @@
 
 ### 风控与错误定制
 
+- **内容审计节点** - 在 **风控中心 > 设置 > 基础** 选择 **OpenAI Moderation API**（`{base_url}/v1/moderations`）或 **Qwen3Guard Chat Completions**（`{base_url}/v1/chat/completions`，默认模型 `Qwen3Guard-Gen-8B`）。Qwen3Guard 首版仅支持文本；图片输入建议使用 OpenAI Moderation。
+- **Qwen3Guard 判定** - `Safe` 放行，`Unsafe` 在主请求发送到上游前拦截；`Controversial` 默认放行并记录，也可以在同一页面切换为拦截。
+- **审计节点故障** - 超时、节点不可用、不支持图片、响应格式异常和 HTTP 400 接口错误会记录到审计诊断/日志，并放行正常请求。400 接口错误不会冻结审计 API Key；设置页测试会提示协议或节点问题。
 - 在 **风控中心 > 设置 > 异常检测** 配置同步中转检测、安全策略重复使用检测、处罚参数、可选禁用用户和独立白名单。全局风控开关及对应检测开关必须同时开启。
 - 同步中转检测检查最近 10 个完整 UTC 分钟；每分钟至少存在一次同步请求时判定命中。
 - 安全策略检测统计配置小时窗口内的 `cyber_policy` 使用次数，达到阈值后禁用用户。
