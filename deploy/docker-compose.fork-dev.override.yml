@@ -1,0 +1,15 @@
+services:
+  sub2api:
+    container_name: sub2api-fork-dev
+    volumes:
+      - /home/guili/sub2api/deploy/fork_data:/app/data:Z
+
+  postgres:
+    container_name: sub2api-postgres-fork-dev
+    volumes:
+      - /home/guili/sub2api/deploy/fork_postgres_data:/var/lib/postgresql/data:Z
+
+  redis:
+    container_name: sub2api-redis-fork-dev
+    volumes:
+      - /home/guili/sub2api/deploy/fork_redis_data:/data:Z
