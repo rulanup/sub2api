@@ -44,7 +44,7 @@ var localPolicyRules = []localPolicyRule{
 	},
 	{
 		category: "credential_theft", reason: "wireless_credential_extraction",
-		actions: []string{"netsh wlan show profile", "netsh wlan show profiles", "netsh.exe wlan show profile"},
+		actions: []string{"netsh wlan show profile", "netsh wlan show profiles", "netsh.exe wlan show profile", "show profile", "show profiles"},
 		targets: []string{"key=clear", "key clear", "wifi key", "wireless key", "无线密钥"},
 	},
 	{
@@ -102,6 +102,7 @@ func EvaluateLocalPolicyText(text string) LocalPolicyDecision {
 	}
 	canonical := securitytext.Canonicalize(text)
 	scanTexts := append([]string{canonical.Text}, securitytext.ReverseScanCandidates(canonical.Text)...)
+	scanTexts = append(scanTexts, securitytext.ClassicalCipherScanCandidates(text)...)
 	var review LocalPolicyDecision
 	for _, scanText := range scanTexts {
 		decision := evaluateCanonicalLocalPolicy(scanText)
