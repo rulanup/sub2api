@@ -57,9 +57,15 @@ const (
 	ContentModerationProtocolOpenAIChat        = "openai_chat_completions"
 	ContentModerationProtocolGemini            = "gemini"
 	ContentModerationProtocolOpenAIImages      = "openai_images"
+	ContentModerationProtocolOpenAIModeration  = "openai_moderation"
+	ContentModerationProtocolQwen3GuardChat    = "qwen3guard_chat"
+
+	ContentModerationControversialActionAllow = "allow"
+	ContentModerationControversialActionBlock = "block"
 
 	defaultContentModerationBaseURL   = "https://api.openai.com"
 	defaultContentModerationModel     = "omni-moderation-latest"
+	defaultQwen3GuardModel            = "Qwen3Guard-Gen-8B"
 	defaultContentModerationTimeoutMS = 3000
 	maxContentModerationTimeoutMS     = 30000
 	maxModerationInputRunes           = 12000
@@ -138,6 +144,11 @@ func ContentModerationDefaultThresholds() map[string]float64 {
 		"sexual/minors":          0.65,
 		"violence":               0.95,
 		"violence/graphic":       0.95,
+		"pii":                    0.65,
+		"unethical":              0.65,
+		"jailbreak":              0.65,
+		"copyright":              0.65,
+		"political":              0.65,
 	}
 }
 
@@ -148,10 +159,12 @@ func ContentModerationCategories() []string {
 }
 
 type ContentModerationConfig struct {
-	Enabled bool   `json:"enabled"`
-	Mode    string `json:"mode"`
-	BaseURL string `json:"base_url"`
-	Model   string `json:"model"`
+	Enabled             bool   `json:"enabled"`
+	Mode                string `json:"mode"`
+	Protocol            string `json:"protocol"`
+	ControversialAction string `json:"controversial_action"`
+	BaseURL             string `json:"base_url"`
+	Model               string `json:"model"`
 	// ProxyID 指定审计请求使用的代理服务器（IP管理-代理服务器），nil 表示直连。
 	ProxyID                    *int64                       `json:"proxy_id,omitempty"`
 	APIKey                     string                       `json:"api_key,omitempty"`
@@ -195,6 +208,8 @@ type ContentModerationConfig struct {
 type ContentModerationConfigView struct {
 	Enabled                        bool                            `json:"enabled"`
 	Mode                           string                          `json:"mode"`
+	Protocol                       string                          `json:"protocol"`
+	ControversialAction            string                          `json:"controversial_action"`
 	BaseURL                        string                          `json:"base_url"`
 	Model                          string                          `json:"model"`
 	ProxyID                        *int64                          `json:"proxy_id"`
@@ -267,10 +282,12 @@ type ContentModerationAPIKeyLoad struct {
 }
 
 type TestContentModerationAPIKeysInput struct {
-	APIKeys   []string `json:"api_keys"`
-	BaseURL   string   `json:"base_url"`
-	Model     string   `json:"model"`
-	TimeoutMS int      `json:"timeout_ms"`
+	APIKeys             []string `json:"api_keys"`
+	Protocol            string   `json:"protocol"`
+	ControversialAction string   `json:"controversial_action"`
+	BaseURL             string   `json:"base_url"`
+	Model               string   `json:"model"`
+	TimeoutMS           int      `json:"timeout_ms"`
 	// ProxyID nil 表示沿用已保存配置的代理；<=0 表示强制直连测试；>0 表示指定代理测试。
 	ProxyID *int64   `json:"proxy_id"`
 	Prompt  string   `json:"prompt"`
@@ -285,6 +302,8 @@ type TestContentModerationAPIKeysResult struct {
 
 type ContentModerationTestAuditResult struct {
 	Flagged         bool               `json:"flagged"`
+	Severity        string             `json:"severity,omitempty"`
+	Categories      []string           `json:"categories,omitempty"`
 	HighestCategory string             `json:"highest_category"`
 	HighestScore    float64            `json:"highest_score"`
 	CompositeScore  float64            `json:"composite_score"`
@@ -293,10 +312,12 @@ type ContentModerationTestAuditResult struct {
 }
 
 type UpdateContentModerationConfigInput struct {
-	Enabled *bool   `json:"enabled"`
-	Mode    *string `json:"mode"`
-	BaseURL *string `json:"base_url"`
-	Model   *string `json:"model"`
+	Enabled             *bool   `json:"enabled"`
+	Mode                *string `json:"mode"`
+	Protocol            *string `json:"protocol"`
+	ControversialAction *string `json:"controversial_action"`
+	BaseURL             *string `json:"base_url"`
+	Model               *string `json:"model"`
 	// ProxyID nil 表示不修改；<=0 表示清除代理（恢复直连）；>0 表示指定代理。
 	ProxyID                        *int64                        `json:"proxy_id"`
 	APIKey                         *string                       `json:"api_key"`
@@ -678,6 +699,12 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 	if input.Mode != nil {
 		cfg.Mode = strings.TrimSpace(*input.Mode)
 	}
+	if input.Protocol != nil {
+		cfg.Protocol = strings.TrimSpace(*input.Protocol)
+	}
+	if input.ControversialAction != nil {
+		cfg.ControversialAction = strings.TrimSpace(*input.ControversialAction)
+	}
 	if input.BaseURL != nil {
 		cfg.BaseURL = strings.TrimSpace(*input.BaseURL)
 	}
@@ -837,6 +864,12 @@ func (s *ContentModerationService) TestAPIKeys(ctx context.Context, input TestCo
 	}
 	if strings.TrimSpace(input.BaseURL) != "" {
 		cfg.BaseURL = input.BaseURL
+	}
+	if strings.TrimSpace(input.Protocol) != "" {
+		cfg.Protocol = input.Protocol
+	}
+	if strings.TrimSpace(input.ControversialAction) != "" {
+		cfg.ControversialAction = input.ControversialAction
 	}
 	if strings.TrimSpace(input.Model) != "" {
 		cfg.Model = input.Model
@@ -1163,6 +1196,9 @@ func (s *ContentModerationService) checkSync(ctx context.Context, input ContentM
 	}
 
 	flagged, highestCategory, highestScore := evaluateModerationScores(result.CategoryScores, cfg.Thresholds)
+	if result.Severity != "" {
+		flagged = result.Flagged
+	}
 	action := ContentModerationActionAllow
 	blocked := false
 	if allowBlock && flagged && cfg.Mode == ContentModerationModePreBlock {
@@ -1741,8 +1777,18 @@ func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *Cont
 	default:
 		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_MODE", "内容审计模式无效")
 	}
+	switch cfg.Protocol {
+	case ContentModerationProtocolOpenAIModeration, ContentModerationProtocolQwen3GuardChat:
+	default:
+		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_PROTOCOL", "内容审计协议无效")
+	}
+	switch cfg.ControversialAction {
+	case ContentModerationControversialActionAllow, ContentModerationControversialActionBlock:
+	default:
+		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_CONTROVERSIAL_ACTION", "争议内容处理方式无效")
+	}
 	if _, err := url.ParseRequestURI(cfg.BaseURL); err != nil {
-		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_BASE_URL", "OpenAI Base URL 无效")
+		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_BASE_URL", "内容审计 Base URL 无效")
 	}
 	if cfg.ProxyID != nil && s.proxyRepo != nil {
 		if _, err := s.proxyRepo.GetByID(ctx, *cfg.ProxyID); err != nil {
@@ -1817,6 +1863,9 @@ func (s *ContentModerationService) callModeration(ctx context.Context, cfg *Cont
 }
 
 func (s *ContentModerationService) callModerationOnceWithInput(ctx context.Context, cfg *ContentModerationConfig, apiKey string, input any, httpStatus *int) (*moderationAPIResult, error) {
+	if cfg.Protocol == ContentModerationProtocolQwen3GuardChat {
+		return s.callQwen3GuardChatOnce(ctx, cfg, apiKey, input, httpStatus)
+	}
 	base := strings.TrimRight(cfg.BaseURL, "/")
 	endpoint, err := url.JoinPath(base, "/v1/moderations")
 	if err != nil {
@@ -2167,6 +2216,8 @@ func defaultContentModerationConfig() *ContentModerationConfig {
 	return &ContentModerationConfig{
 		Enabled:              false,
 		Mode:                 ContentModerationModePreBlock,
+		Protocol:             ContentModerationProtocolOpenAIModeration,
+		ControversialAction:  ContentModerationControversialActionAllow,
 		BaseURL:              defaultContentModerationBaseURL,
 		Model:                defaultContentModerationModel,
 		TimeoutMS:            defaultContentModerationTimeoutMS,
@@ -2232,12 +2283,24 @@ func (cfg *ContentModerationConfig) normalize() {
 	if cfg.Mode == "" {
 		cfg.Mode = ContentModerationModePreBlock
 	}
+	if cfg.Protocol == "" {
+		cfg.Protocol = ContentModerationProtocolOpenAIModeration
+	}
+	cfg.Protocol = strings.ToLower(strings.TrimSpace(cfg.Protocol))
+	if cfg.ControversialAction == "" {
+		cfg.ControversialAction = ContentModerationControversialActionAllow
+	}
+	cfg.ControversialAction = strings.ToLower(strings.TrimSpace(cfg.ControversialAction))
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = defaultContentModerationBaseURL
 	}
 	cfg.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
 	if cfg.Model == "" {
-		cfg.Model = defaultContentModerationModel
+		if cfg.Protocol == ContentModerationProtocolQwen3GuardChat {
+			cfg.Model = defaultQwen3GuardModel
+		} else {
+			cfg.Model = defaultContentModerationModel
+		}
 	}
 	cfg.Model = strings.TrimSpace(cfg.Model)
 	if cfg.ProxyID != nil && *cfg.ProxyID <= 0 {
@@ -2530,6 +2593,8 @@ func (s *ContentModerationService) configView(cfg *ContentModerationConfig) *Con
 	return &ContentModerationConfigView{
 		Enabled:                        cfg.Enabled,
 		Mode:                           cfg.Mode,
+		Protocol:                       cfg.Protocol,
+		ControversialAction:            cfg.ControversialAction,
 		BaseURL:                        cfg.BaseURL,
 		Model:                          cfg.Model,
 		ProxyID:                        cloneInt64Ptr(cfg.ProxyID),
@@ -2776,9 +2841,14 @@ func buildContentModerationTestAuditResult(result *moderationAPIResult, threshol
 	}
 	thresholdSnapshot := mergeContentModerationThresholds(ContentModerationDefaultThresholds(), thresholds)
 	flagged, highestCategory, highestScore := evaluateModerationScores(scores, thresholdSnapshot)
+	if result.Severity != "" {
+		flagged = result.Flagged
+	}
 	compositeScore := highestScore
 	return &ContentModerationTestAuditResult{
 		Flagged:         flagged,
+		Severity:        string(result.Severity),
+		Categories:      append([]string(nil), result.Categories...),
 		HighestCategory: highestCategory,
 		HighestScore:    highestScore,
 		CompositeScore:  compositeScore,
@@ -2809,6 +2879,8 @@ type moderationAPIResponse struct {
 type moderationAPIResult struct {
 	Flagged        bool               `json:"flagged"`
 	CategoryScores map[string]float64 `json:"category_scores"`
+	Severity       qwen3GuardSeverity `json:"-"`
+	Categories     []string           `json:"-"`
 }
 
 func evaluateModerationScores(scores map[string]float64, thresholds map[string]float64) (bool, string, float64) {

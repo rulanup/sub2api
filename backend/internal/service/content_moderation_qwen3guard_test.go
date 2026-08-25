@@ -1,6 +1,12 @@
 package service
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -74,4 +80,168 @@ func TestQwen3GuardCategoryMapping(t *testing.T) {
 	for source, expected := range tests {
 		require.Equal(t, expected, normalizeQwen3GuardCategory(source))
 	}
+}
+
+func TestContentModerationQwen3GuardChatRequest(t *testing.T) {
+	var got struct {
+		Model    string `json:"model"`
+		Messages []struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"messages"`
+		Stream      bool    `json:"stream"`
+		Temperature float64 `json:"temperature"`
+		MaxTokens   int     `json:"max_tokens"`
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodPost, r.Method)
+		require.Equal(t, "/v1/chat/completions", r.URL.Path)
+		require.Equal(t, "Bearer qwen-test-key", r.Header.Get("Authorization"))
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"Safety: Unsafe\nCategories: Jailbreak"}}]}`))
+	}))
+	defer server.Close()
+
+	status := 0
+	result, err := (&ContentModerationService{}).callModerationOnceWithInput(
+		context.Background(),
+		&ContentModerationConfig{
+			Protocol:  contentModerationProtocolQwen3GuardChat,
+			BaseURL:   server.URL,
+			Model:     "Qwen3Guard-Gen-8B",
+			TimeoutMS: 1000,
+		},
+		"qwen-test-key",
+		"synthetic audit input",
+		&status,
+	)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.True(t, result.Flagged)
+	require.Equal(t, qwen3GuardSeverityUnsafe, result.Severity)
+	require.Equal(t, []string{"jailbreak"}, result.Categories)
+	require.Equal(t, 1.0, result.CategoryScores["jailbreak"])
+	require.Equal(t, "Qwen3Guard-Gen-8B", got.Model)
+	require.Len(t, got.Messages, 1)
+	require.Equal(t, "user", got.Messages[0].Role)
+	require.Equal(t, "synthetic audit input", got.Messages[0].Content)
+	require.False(t, got.Stream)
+	require.Zero(t, got.Temperature)
+	require.Equal(t, 128, got.MaxTokens)
+}
+
+func TestContentModerationQwen3GuardRejectsMalformedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"not a classification"}}]}`))
+	}))
+	defer server.Close()
+
+	_, err := (&ContentModerationService{}).callModerationOnceWithInput(
+		context.Background(),
+		&ContentModerationConfig{
+			Protocol:  contentModerationProtocolQwen3GuardChat,
+			BaseURL:   server.URL,
+			Model:     "Qwen3Guard-Gen-8B",
+			TimeoutMS: 1000,
+		},
+		"qwen-test-key",
+		"synthetic audit input",
+		nil,
+	)
+	require.Error(t, err)
+	require.True(t, strings.Contains(err.Error(), "Safety"))
+}
+
+func TestContentModerationConfigDefaultsAndQwenRoundTrip(t *testing.T) {
+	defaultCfg, err := parseContentModerationConfig("")
+	require.NoError(t, err)
+	require.Equal(t, ContentModerationProtocolOpenAIModeration, defaultCfg.Protocol)
+	require.Equal(t, ContentModerationControversialActionAllow, defaultCfg.ControversialAction)
+	require.Equal(t, "omni-moderation-latest", defaultCfg.Model)
+
+	qwenCfg, err := parseContentModerationConfig(`{"protocol":"qwen3guard_chat","controversial_action":"block","base_url":"https://ai.gitee.com","model":""}`)
+	require.NoError(t, err)
+	require.Equal(t, ContentModerationProtocolQwen3GuardChat, qwenCfg.Protocol)
+	require.Equal(t, ContentModerationControversialActionBlock, qwenCfg.ControversialAction)
+	require.Equal(t, defaultQwen3GuardModel, qwenCfg.Model)
+}
+
+func TestContentModerationQwen3GuardControversialAction(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"Safety: Controversial\nCategories: Politically Sensitive Topics"}}]}`))
+	}))
+	defer server.Close()
+
+	for _, tt := range []struct {
+		action  string
+		flagged bool
+	}{
+		{action: ContentModerationControversialActionAllow, flagged: false},
+		{action: ContentModerationControversialActionBlock, flagged: true},
+	} {
+		result, err := (&ContentModerationService{}).callQwen3GuardChatOnce(
+			context.Background(),
+			&ContentModerationConfig{
+				BaseURL:             server.URL,
+				Model:               defaultQwen3GuardModel,
+				TimeoutMS:           1000,
+				ControversialAction: tt.action,
+			},
+			"qwen-test-key",
+			"synthetic audit input",
+			nil,
+		)
+		require.NoError(t, err)
+		require.Equal(t, tt.flagged, result.Flagged)
+		require.Equal(t, qwen3GuardSeverityControversial, result.Severity)
+		require.Equal(t, []string{"political"}, result.Categories)
+	}
+}
+
+func TestContentModerationQwen3GuardImageInputFailsOpenAtAuditBoundary(t *testing.T) {
+	var calls atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+	}))
+	defer server.Close()
+
+	_, err := (&ContentModerationService{}).callQwen3GuardChatOnce(
+		context.Background(),
+		&ContentModerationConfig{BaseURL: server.URL, Model: defaultQwen3GuardModel, TimeoutMS: 1000},
+		"qwen-test-key",
+		[]moderationAPIInputPart{
+			{Type: "text", Text: "synthetic audit input"},
+			{Type: "image_url", ImageURL: &moderationAPIImageURLRef{URL: "data:image/png;base64,AA=="}},
+		},
+		nil,
+	)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "does not support image input")
+	require.Zero(t, calls.Load())
+}
+
+func TestContentModerationQwen3GuardHTTP400DoesNotFreezeAPIKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"暂不支持该接口"}}`))
+	}))
+	defer server.Close()
+
+	svc := &ContentModerationService{}
+	_, err := svc.callModeration(context.Background(), &ContentModerationConfig{
+		Protocol:            ContentModerationProtocolQwen3GuardChat,
+		BaseURL:             server.URL,
+		Model:               defaultQwen3GuardModel,
+		TimeoutMS:           1000,
+		ControversialAction: ContentModerationControversialActionAllow,
+		APIKeys:             []string{"qwen-test-key"},
+	}, "synthetic audit input")
+	require.Error(t, err)
+	statuses := svc.apiKeyStatuses([]string{"qwen-test-key"})
+	require.Len(t, statuses, 1)
+	require.Equal(t, http.StatusBadRequest, statuses[0].LastHTTPStatus)
+	require.Nil(t, statuses[0].FrozenUntil)
 }
