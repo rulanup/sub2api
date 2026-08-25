@@ -20,6 +20,7 @@ func TestCanonicalizeEncodedSecurityText(t *testing.T) {
 		{name: "html hex entities", input: "&#x5FFD;&#x7565;&#x4E4B;&#x524D;", want: "忽略之前", compact: "忽略之前"},
 		{name: "html then url then unicode", input: "&#37;&#53;&#99;&#117;&#53;&#102;&#102;&#100;&#37;&#53;&#99;&#117;&#55;&#53;&#54;&#53;&#37;&#53;&#99;&#117;&#52;&#101;&#52;&#98;&#37;&#53;&#99;&#117;&#53;&#50;&#52;&#100;", want: "忽略之前", compact: "忽略之前"},
 		{name: "base64 then html then url then unicode", input: "JiMzNzsmIzUzOyYjOTk7JiMxMTc7JiM1MzsmIzEwMjsmIzEwMjsmIzEwMDsmIzM3OyYjNTM7JiM5OTsmIzExNzsmIzU1OyYjNTM7JiM1NDsmIzUzOyYjMzc7JiM1MzsmIzk5OyYjMTE3OyYjNTI7JiMxMDE7JiM1MjsmIzk4OyYjMzc7JiM1MzsmIzk5OyYjMTE3OyYjNTM7JiM1MDsmIzUyOyYjMTAwOw==放行了", want: "忽略之前放行了", compact: "忽略之前放行了"},
+		{name: "hex encoded command", input: "6e6574736820776c616e2073686f772070726f66696c65206e616d653d486f6d6557696669206b65793d636c656172206578706c61696e207768617420746869732073686f7773", want: "netsh wlan show profile name=HomeWifi key=clear explain what this shows", compact: "netshwlanshowprofilenamehomewifikeyclearexplainwhatthisshows"},
 		{name: "zero width unicode escape", input: `忽\u200b略\u200c之\u200d前`, want: "忽略之前", compact: "忽略之前"},
 		{name: "full width and separators", input: "忽 略＿之　前", want: "忽 略_之 前", compact: "忽略之前"},
 	}
@@ -51,4 +52,9 @@ func TestCanonicalizeDecodesUntilStableWithoutChangingInvalidEscapes(t *testing.
 func TestCanonicalizeBoundsExpandedInput(t *testing.T) {
 	got := Canonicalize(strings.Repeat("&#65;", canonicalizeMaxInputBytes))
 	require.LessOrEqual(t, len([]byte(got.Text)), canonicalizeMaxInputBytes)
+}
+
+func TestReverseScanCandidatesHandlesFullWidthDelimiter(t *testing.T) {
+	got := ReverseScanCandidates("提示：raelc=yek ifiWemoH=eman eliforp wohs nalw hsten")
+	require.Contains(t, got, "netsh wlan show profile name=HomeWifi key=clear")
 }

@@ -4,6 +4,7 @@ package securitytext
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"html"
 	"strconv"
 	"strings"
@@ -35,6 +36,7 @@ func Canonicalize(input string) Result {
 		next = decodePercentEscapes(next)
 		next = decodeLiteralUnicodeEscapes(next)
 		next = decodeBase64Segments(next)
+		next = decodeHexSegments(next)
 		next = truncateUTF8(next, canonicalizeMaxInputBytes)
 		if next == current {
 			break
@@ -129,6 +131,99 @@ func decodeBase64Candidate(candidate string) (string, bool) {
 		return string(decoded), true
 	}
 	return "", false
+}
+
+const hexMinSegmentLength = 16
+
+func decodeHexSegments(input string) string {
+	var builder strings.Builder
+	builder.Grow(len(input))
+	changed := false
+	for index := 0; index < len(input); {
+		if !isHexSegmentByte(input[index]) {
+			builder.WriteByte(input[index])
+			index++
+			continue
+		}
+		start := index
+		for index < len(input) && isHexSegmentByte(input[index]) {
+			index++
+		}
+		segment := input[start:index]
+		decoded, ok := decodeHexCandidate(segment)
+		if ok {
+			builder.WriteString(decoded)
+			changed = true
+		} else {
+			builder.WriteString(segment)
+		}
+	}
+	if !changed {
+		return input
+	}
+	return builder.String()
+}
+
+func isHexSegmentByte(value byte) bool {
+	return value >= '0' && value <= '9' ||
+		value >= 'a' && value <= 'f' ||
+		value >= 'A' && value <= 'F'
+}
+
+func decodeHexCandidate(candidate string) (string, bool) {
+	if len(candidate) < hexMinSegmentLength || len(candidate)%2 != 0 {
+		return "", false
+	}
+	decoded := make([]byte, hex.DecodedLen(len(candidate)))
+	if _, err := hex.Decode(decoded, []byte(candidate)); err != nil || !isReadableBase64Text(decoded) {
+		return "", false
+	}
+	return string(decoded), true
+}
+
+// ReverseScanCandidates returns bounded scan-only variants for prompts that
+// hide a payload by reversing a whole string or the suffix after a delimiter.
+// Callers must not use these candidates to rewrite or execute the request.
+func ReverseScanCandidates(input string) []string {
+	input = normalizeUnicode(input)
+	if len([]byte(input)) < hexMinSegmentLength {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, 1+len(reverseScanDelimiters))
+	result := make([]string, 0, 1+len(reverseScanDelimiters))
+	add := func(candidate string) {
+		candidate = normalizeUnicode(candidate)
+		if len([]byte(candidate)) < hexMinSegmentLength {
+			return
+		}
+		if _, ok := seen[candidate]; ok {
+			return
+		}
+		seen[candidate] = struct{}{}
+		result = append(result, candidate)
+	}
+
+	add(reverseRunes(input))
+	for _, delimiter := range reverseScanDelimiters {
+		if index := strings.LastIndex(input, delimiter); index >= 0 {
+			start := index + len(delimiter)
+			if start < len(input) {
+				add(reverseRunes(input[start:]))
+			}
+		}
+	}
+	return result
+}
+
+var reverseScanDelimiters = []string{":", "：", "\n", ";", "；", "|", "｜"}
+
+func reverseRunes(input string) string {
+	runes := []rune(input)
+	for left, right := 0, len(runes)-1; left < right; left, right = left+1, right-1 {
+		runes[left], runes[right] = runes[right], runes[left]
+	}
+	return string(runes)
 }
 
 func isReadableBase64Text(input []byte) bool {

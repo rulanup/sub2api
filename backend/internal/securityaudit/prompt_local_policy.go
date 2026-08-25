@@ -101,6 +101,22 @@ func EvaluateLocalPolicyText(text string) LocalPolicyDecision {
 		return LocalPolicyDecision{}
 	}
 	canonical := securitytext.Canonicalize(text)
+	scanTexts := append([]string{canonical.Text}, securitytext.ReverseScanCandidates(canonical.Text)...)
+	var review LocalPolicyDecision
+	for _, scanText := range scanTexts {
+		decision := evaluateCanonicalLocalPolicy(scanText)
+		if decision.Blocked {
+			return decision
+		}
+		if decision.NeedsAI && !review.NeedsAI {
+			review = decision
+		}
+	}
+	return review
+}
+
+func evaluateCanonicalLocalPolicy(text string) LocalPolicyDecision {
+	canonical := securitytext.Canonicalize(text)
 	normalized, compact := canonical.Text, canonical.Compact
 	if normalized == "" {
 		return LocalPolicyDecision{}
