@@ -125,6 +125,9 @@ func RegisterAdminRoutes(
 		// 独立提示词输入审计
 		registerPromptAuditRoutes(admin, h)
 
+		// 上游错误提示词记录
+		registerPromptErrorRoutes(admin, h)
+
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
 
@@ -152,6 +155,19 @@ func registerPromptAuditRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		promptAudit.POST("/events/batch-delete", h.Admin.PromptAudit.BatchDelete)
 		promptAudit.POST("/events/delete-preview", h.Admin.PromptAudit.DeletePreview)
 		promptAudit.POST("/events/delete-by-filter", h.Admin.PromptAudit.DeleteByFilter)
+	}
+}
+
+func registerPromptErrorRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	records := admin.Group("/prompt-error-records")
+	{
+		records.GET("", h.Admin.PromptError.List)
+		records.GET("/export", h.Admin.PromptError.ExportCSV)
+		records.GET("/:id", h.Admin.PromptError.Get)
+		records.DELETE("/:id", h.Admin.PromptError.Delete)
+		records.POST("/batch-delete", h.Admin.PromptError.BatchDelete)
+		records.POST("/delete-preview", h.Admin.PromptError.DeletePreview)
+		records.POST("/delete-by-filter", h.Admin.PromptError.DeleteByFilter)
 	}
 }
 

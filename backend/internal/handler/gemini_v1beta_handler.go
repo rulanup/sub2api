@@ -646,6 +646,9 @@ func (h *GatewayHandler) handleGeminiFailoverExhausted(c *gin.Context, failoverE
 		googleError(c, http.StatusBadGateway, "Upstream request failed")
 		return
 	}
+	if h.promptErrorService != nil {
+		tryRecordPromptErrorFromContext(c, h.promptErrorService, failoverErr.StatusCode, string(failoverErr.ResponseBody))
+	}
 
 	statusCode := failoverErr.StatusCode
 	responseBody := failoverErr.ResponseBody

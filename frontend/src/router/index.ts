@@ -708,6 +708,19 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/prompt-error-records',
+    name: 'AdminPromptErrorRecords',
+    component: () => import('@/features/prompt-error-records/PromptErrorRecordsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Error Prompt Records',
+      titleKey: 'admin.promptErrorRecords.title',
+      descriptionKey: 'admin.promptErrorRecords.description',
+      requiresRiskControl: true
+    }
+  },
+  {
     path: '/admin/usage',
     name: 'AdminUsage',
     component: () => import('@/views/admin/UsageView.vue'),

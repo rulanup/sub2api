@@ -51,6 +51,7 @@ type GatewayHandler struct {
 	errorPassthroughService   *service.ErrorPassthroughService
 	contentModerationService  *service.ContentModerationService
 	securityAuditCoordinator  *securityaudit.Coordinator
+	promptErrorService        *securityaudit.PromptErrorService
 	concurrencyHelper         *ConcurrencyHelper
 	userMsgQueueHelper        *UserMsgQueueHelper
 	maxAccountSwitches        int
@@ -218,6 +219,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply system prompt policy")
 		return
 	}
+	storePromptErrorContext(c, body, apiKey, subject, service.ContentModerationProtocolAnthropicMessages, reqModel)
 	finishModelResponseCapture := beginModelResponseCapture(c, h.securityAuditCoordinator, apiKey.GroupID, "http")
 	defer finishModelResponseCapture()
 
@@ -1821,6 +1823,9 @@ func (h *GatewayHandler) handleConcurrencyError(c *gin.Context, err error, slotT
 func (h *GatewayHandler) handleFailoverExhausted(c *gin.Context, failoverErr *service.UpstreamFailoverError, platform string, streamStarted bool) {
 	statusCode := failoverErr.StatusCode
 	responseBody := failoverErr.ResponseBody
+	if h.promptErrorService != nil {
+		tryRecordPromptErrorFromContext(c, h.promptErrorService, statusCode, string(responseBody))
+	}
 	if failoverErr.Platform != "" {
 		platform = failoverErr.Platform
 	}
