@@ -651,6 +651,7 @@ export interface SystemSettings {
   // Payment configuration
   payment_enabled: boolean;
   risk_control_enabled: boolean;
+  default_audit_policies_enabled: boolean;
   checkin_enabled: boolean;
   checkin_min_amount: number;
   checkin_max_amount: number;
@@ -970,6 +971,7 @@ export interface UpdateSettingsRequest {
   // Payment configuration
   payment_enabled?: boolean;
   risk_control_enabled?: boolean;
+  default_audit_policies_enabled?: boolean;
   checkin_enabled?: boolean;
   checkin_min_amount?: number;
   checkin_max_amount?: number;

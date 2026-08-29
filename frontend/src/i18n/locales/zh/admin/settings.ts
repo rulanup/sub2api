@@ -64,6 +64,8 @@ export default {
           configureLink: '前往 风控中心 配置内容审计',
           enabled: '启用风控中心',
           enabledHint: '关闭后管理员侧边栏入口隐藏，网关内容审计不会执行。',
+          defaultAuditPolicies: '内置默认审查策略',
+          defaultAuditPoliciesHint: '控制无需配置即默认生效的策略：本地安全策略初筛（可疑内容送审查模型裁决，未配置模型时放行）、用户风险画像记录、上游错误提示词记录。关闭后仅保留显式配置的审查能力。',
           cyberSessionBlock: 'cyber 会话自动屏蔽',
           cyberSessionBlockHint: '开启后,被上游网络安全策略(cyber_policy)拦截的会话将在 TTL 内被本地屏蔽,不再发往上游。仅屏蔽该会话,不影响同 Key 其他会话。',
           cyberSessionBlockTTL: '屏蔽时长(秒)',

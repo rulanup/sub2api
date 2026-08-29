@@ -330,6 +330,9 @@ type SystemSettings struct {
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 
+	// 内置默认审查策略开关（本地安全策略初筛、上游错误提示词记录）
+	DefaultAuditPoliciesEnabled bool `json:"default_audit_policies_enabled"`
+
 	// 每日签到
 	CheckinEnabled   bool    `json:"checkin_enabled"`
 	CheckinMinAmount float64 `json:"checkin_min_amount"`

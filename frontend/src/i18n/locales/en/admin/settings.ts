@@ -64,6 +64,8 @@ export default {
           configureLink: 'Configure content moderation in Risk Control',
           enabled: 'Enable Risk Control',
           enabledHint: 'When off, the admin sidebar entry is hidden and gateway moderation is skipped.',
+          defaultAuditPolicies: 'Built-in default audit policies',
+          defaultAuditPoliciesHint: 'Controls policies that are active without any configuration: local security-policy screening (suspicious content is decided by the configured audit model, or allowed when none is configured), user risk-profile recording, and upstream error prompt recording. When off, only explicitly configured moderation applies.',
           cyberSessionBlock: 'Cyber session auto-block',
           cyberSessionBlockHint: 'When enabled, sessions hit by upstream cyber_policy are blocked locally for the TTL and no longer forwarded. Only the offending session is blocked; other sessions on the same key are unaffected.',
           cyberSessionBlockTTL: 'Block TTL (seconds)',

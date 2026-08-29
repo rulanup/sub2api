@@ -499,6 +499,7 @@ type ContentModerationCleanupResult struct {
 type ContentModerationRuntimeStatus struct {
 	Enabled                      bool                            `json:"enabled"`
 	RiskControlEnabled           bool                            `json:"risk_control_enabled"`
+	DefaultAuditPoliciesEnabled  bool                            `json:"default_audit_policies_enabled"`
 	Mode                         string                          `json:"mode"`
 	WorkerCount                  int                             `json:"worker_count"`
 	MaxWorkers                   int                             `json:"max_workers"`
@@ -602,11 +603,12 @@ type ContentModerationService struct {
 }
 
 type contentModerationRuntimeSnapshot struct {
-	riskControlEnabled bool
-	config             *ContentModerationConfig
-	keywordMatcher     *contentModerationKeywordMatcher
-	configDigest       [sha256.Size]byte
-	loadedAt           time.Time
+	riskControlEnabled          bool
+	defaultAuditPoliciesEnabled bool
+	config                      *ContentModerationConfig
+	keywordMatcher              *contentModerationKeywordMatcher
+	configDigest                [sha256.Size]byte
+	loadedAt                    time.Time
 }
 
 type contentModerationTask struct {
@@ -1504,6 +1506,7 @@ func (s *ContentModerationService) GetStatus(ctx context.Context) (*ContentModer
 		return nil, err
 	}
 	riskEnabled := s.isRiskControlEnabled(ctx)
+	defaultAuditEnabled := s.DefaultAuditPoliciesEnabled(ctx)
 	active := int(s.asyncActive.Load())
 	if active < 0 {
 		active = 0
@@ -1544,6 +1547,7 @@ func (s *ContentModerationService) GetStatus(ctx context.Context) (*ContentModer
 	return &ContentModerationRuntimeStatus{
 		Enabled:                      cfg.Enabled,
 		RiskControlEnabled:           riskEnabled,
+		DefaultAuditPoliciesEnabled:  defaultAuditEnabled,
 		Mode:                         cfg.Mode,
 		WorkerCount:                  cfg.WorkerCount,
 		MaxWorkers:                   maxContentModerationWorkerCount,
@@ -1692,6 +1696,7 @@ func (s *ContentModerationService) runtimeRefreshDeferred() bool {
 func (s *ContentModerationService) refreshRuntimeSnapshot(ctx context.Context) (*contentModerationRuntimeSnapshot, error) {
 	values, err := s.settingRepo.GetMultiple(ctx, []string{
 		SettingKeyRiskControlEnabled,
+		SettingKeyDefaultAuditPoliciesEnabled,
 		SettingKeyContentModerationConfig,
 	})
 	if err != nil {
@@ -1701,11 +1706,12 @@ func (s *ContentModerationService) refreshRuntimeSnapshot(ctx context.Context) (
 	configDigest := sha256.Sum256([]byte(rawConfig))
 	if current := s.runtimeSnapshot.Load(); current != nil && current.configDigest == configDigest {
 		snapshot := &contentModerationRuntimeSnapshot{
-			riskControlEnabled: values[SettingKeyRiskControlEnabled] == "true",
-			config:             current.config,
-			keywordMatcher:     current.keywordMatcher,
-			configDigest:       configDigest,
-			loadedAt:           time.Now(),
+			riskControlEnabled:          values[SettingKeyRiskControlEnabled] == "true",
+			defaultAuditPoliciesEnabled: !isFalseSettingValue(values[SettingKeyDefaultAuditPoliciesEnabled]),
+			config:                      current.config,
+			keywordMatcher:              current.keywordMatcher,
+			configDigest:                configDigest,
+			loadedAt:                    time.Now(),
 		}
 		s.runtimeSnapshot.Store(snapshot)
 		s.runtimeRefreshRetryAt.Store(0)
@@ -1716,11 +1722,12 @@ func (s *ContentModerationService) refreshRuntimeSnapshot(ctx context.Context) (
 		return nil, err
 	}
 	snapshot := &contentModerationRuntimeSnapshot{
-		riskControlEnabled: values[SettingKeyRiskControlEnabled] == "true",
-		config:             cfg,
-		keywordMatcher:     newContentModerationKeywordMatcher(cfg.BlockedKeywords),
-		configDigest:       configDigest,
-		loadedAt:           time.Now(),
+		riskControlEnabled:          values[SettingKeyRiskControlEnabled] == "true",
+		defaultAuditPoliciesEnabled: !isFalseSettingValue(values[SettingKeyDefaultAuditPoliciesEnabled]),
+		config:                      cfg,
+		keywordMatcher:              newContentModerationKeywordMatcher(cfg.BlockedKeywords),
+		configDigest:                configDigest,
+		loadedAt:                    time.Now(),
 	}
 	s.runtimeSnapshot.Store(snapshot)
 	s.runtimeRefreshRetryAt.Store(0)
@@ -1772,6 +1779,20 @@ func (s *ContentModerationService) isRiskControlEnabled(ctx context.Context) boo
 		return false
 	}
 	return raw == "true"
+}
+
+// DefaultAuditPoliciesEnabled 报告内置默认审查策略（本地安全策略初筛、上游错误
+// 提示词记录）是否生效。键缺省或快照暂不可用时按开启处理，保持既有行为；
+// 仅当设置为显式 false/0/off/disabled 时返回 false。
+func (s *ContentModerationService) DefaultAuditPoliciesEnabled(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil {
+		return true
+	}
+	snapshot, err := s.loadRuntimeSnapshot(ctx)
+	if err != nil || snapshot == nil {
+		return true
+	}
+	return snapshot.defaultAuditPoliciesEnabled
 }
 
 func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *ContentModerationConfig) error {

@@ -5,10 +5,18 @@ import (
 	"github.com/google/wire"
 )
 
-func ProvideCoordinator(legacy LegacyEngine, prompt PromptEngine, risk service.RiskScoreRouter) *Coordinator {
+func ProvideCoordinator(legacy LegacyEngine, prompt PromptEngine, risk service.RiskScoreRouter, defaultAudit DefaultAuditGate) *Coordinator {
 	coordinator := NewCoordinator(legacy, prompt)
 	coordinator.SetRiskScoreRouter(risk)
+	coordinator.SetDefaultAuditGate(defaultAudit)
 	return coordinator
+}
+
+// NewGatedPromptErrorService 在标准构造之上挂载内置默认审查策略开关。
+func NewGatedPromptErrorService(repo PromptErrorRepository, defaultAudit DefaultAuditGate) *PromptErrorService {
+	svc := NewPromptErrorService(repo)
+	svc.SetDefaultAuditGate(defaultAudit)
+	return svc
 }
 
 var ProviderSet = wire.NewSet(
@@ -27,7 +35,8 @@ var ProviderSet = wire.NewSet(
 	NewPromptService,
 	wire.Bind(new(PromptEngine), new(*PromptService)),
 	wire.Bind(new(PromptAdminService), new(*PromptService)),
-	NewPromptErrorService,
+	wire.Bind(new(DefaultAuditGate), new(*service.ContentModerationService)),
+	NewGatedPromptErrorService,
 	NewPromptErrorAdminHandler,
 	NewLegacyModerationAdapter,
 	ProvideCoordinator,

@@ -12,12 +12,21 @@ import (
 
 // PromptErrorService handles upstream-error prompt recording and admin operations.
 type PromptErrorService struct {
-	repo  PromptErrorRepository
-	clock Clock
+	repo         PromptErrorRepository
+	clock        Clock
+	defaultAudit DefaultAuditGate
 }
 
 func NewPromptErrorService(repo PromptErrorRepository) *PromptErrorService {
 	return &PromptErrorService{repo: repo, clock: realClock{}}
+}
+
+// SetDefaultAuditGate attaches the switch that can disable upstream error
+// prompt recording. nil gate keeps stock behavior (recording enabled).
+func (s *PromptErrorService) SetDefaultAuditGate(gate DefaultAuditGate) {
+	if s != nil {
+		s.defaultAudit = gate
+	}
 }
 
 // RecordUpstreamError extracts prompt snapshot from request and persists a record.
@@ -25,6 +34,9 @@ func NewPromptErrorService(repo PromptErrorRepository) *PromptErrorService {
 func (s *PromptErrorService) RecordUpstreamError(ctx context.Context, req Request, errorStatus int, errorBody string) error {
 	if s == nil || s.repo == nil {
 		return errors.New("prompt error service unavailable")
+	}
+	if s.defaultAudit != nil && !s.defaultAudit.DefaultAuditPoliciesEnabled(ctx) {
+		return nil
 	}
 	snapshot, err := ExtractPromptSnapshot(req)
 	if err != nil {

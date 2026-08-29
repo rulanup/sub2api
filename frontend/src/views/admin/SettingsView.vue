@@ -7268,6 +7268,18 @@
             <div class="flex items-center justify-between">
               <div>
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('admin.settings.features.riskControl.defaultAuditPolicies') }}
+                </label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('admin.settings.features.riskControl.defaultAuditPoliciesHint') }}
+                </p>
+              </div>
+              <Toggle v-model="form.default_audit_policies_enabled" />
+            </div>
+
+            <div class="flex items-center justify-between">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('admin.settings.features.riskControl.cyberSessionBlock') }}
                 </label>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
@@ -9934,6 +9946,7 @@ const form = reactive<SettingsForm>({
   hide_ccs_import_button: false,
   payment_enabled: false,
   risk_control_enabled: false,
+  default_audit_policies_enabled: true,
   checkin_enabled: false,
   checkin_min_amount: 0.01,
   checkin_max_amount: 0.10,
@@ -11768,6 +11781,7 @@ async function saveSettings() {
       // Payment configuration
       payment_enabled: form.payment_enabled,
       risk_control_enabled: form.risk_control_enabled,
+      default_audit_policies_enabled: form.default_audit_policies_enabled,
       checkin_enabled: form.checkin_enabled,
       checkin_min_amount: checkinMinAmount,
       checkin_max_amount: checkinMaxAmount,

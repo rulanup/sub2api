@@ -363,6 +363,9 @@ type UpdateSettingsRequest struct {
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
 
+	// 内置默认审查策略开关（本地安全策略初筛、上游错误提示词记录）
+	DefaultAuditPoliciesEnabled *bool `json:"default_audit_policies_enabled"`
+
 	// 每日签到
 	CheckinEnabled   *bool    `json:"checkin_enabled"`
 	CheckinMinAmount *float64 `json:"checkin_min_amount"`
@@ -1987,6 +1990,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.RiskControlEnabled
 		}(),
+		DefaultAuditPoliciesEnabled: func() bool {
+			if req.DefaultAuditPoliciesEnabled != nil {
+				return *req.DefaultAuditPoliciesEnabled
+			}
+			return previousSettings.DefaultAuditPoliciesEnabled
+		}(),
 		CheckinEnabled:   boolValueOrDefault(req.CheckinEnabled, previousSettings.CheckinEnabled),
 		CheckinMinAmount: checkinMinAmount,
 		CheckinMaxAmount: checkinMaxAmount,
@@ -2410,6 +2419,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
+		DefaultAuditPoliciesEnabled: updatedSettings.DefaultAuditPoliciesEnabled,
 		CheckinEnabled:              updatedSettings.CheckinEnabled,
 		CheckinMinAmount:            updatedSettings.CheckinMinAmount,
 		CheckinMaxAmount:            updatedSettings.CheckinMaxAmount,

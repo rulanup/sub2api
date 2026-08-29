@@ -209,6 +209,7 @@ const (
 	SettingKeyAffiliateRebatePerInviteeCap        = "affiliate_rebate_per_invitee_cap" // 单人返利上限（0=无上限）
 	SettingKeyAffiliateAdminRechargeEnabled       = "affiliate_admin_recharge_enabled" // 管理员充值是否产生返利
 	SettingKeyRiskControlEnabled                  = "risk_control_enabled"             // 是否启用风控中心入口与审计链路
+	SettingKeyDefaultAuditPoliciesEnabled         = "default_audit_policies_enabled"   // 是否启用内置默认审查策略（本地安全策略初筛、上游错误提示词记录）
 	SettingKeyContentModerationConfig             = "content_moderation_config"        // 内容审计配置（JSON）
 	SettingKeyCheckinEnabled                      = "checkin_enabled"                  // 是否启用每日签到
 	SettingKeyCheckinMinAmount                    = "checkin_min_amount"               // 签到最小额度（美元）
