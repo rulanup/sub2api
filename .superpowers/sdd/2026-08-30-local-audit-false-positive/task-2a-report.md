@@ -27,3 +27,10 @@ Follow-up: updated prompt_local_policy_test.go so ddos_defense and encoded_ddos_
 GREEN:
 - cd backend && go test ./internal/securityaudit -run TestLocalSecurityPolicy -count=1
 - PASS (all targeted local policy tests).
+
+
+Review follow-up (round 1):
+- Added ASCII period sentence splitting and regression coverage for protective English context followed by a malicious sentence.
+- Reused strict boundary-aware matching for protective terms; added regressions for contest/latest false positives.
+- Command: cd backend && go test ./internal/securityaudit -run 'TestLocalSecurityPolicy' -count=1
+- Output: PASS (ok github.com/Wei-Shaw/sub2api/internal/securityaudit).

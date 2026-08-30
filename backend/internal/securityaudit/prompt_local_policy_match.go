@@ -27,7 +27,7 @@ func splitLocalPolicySegments(text string) []string {
 	var out []string
 	for _, part := range strings.FieldsFunc(text, func(r rune) bool {
 		switch r {
-		case '\n', '\r', '。', '？', '?', '！', '!', '；', ';', '：', ':', '|', '｜':
+		case '\n', '\r', '.', '。', '？', '?', '！', '!', '；', ';', '：', ':', '|', '｜':
 			return true
 		}
 		return false

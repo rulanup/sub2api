@@ -191,14 +191,8 @@ func localPolicyReviewDecision(rule localPolicyRule) LocalPolicyDecision {
 }
 
 func containsAnyLocalPolicyTerm(normalized, compact string, terms []string) bool {
-	normalizedFolded := strings.ToLower(normalized)
 	for _, term := range terms {
-		canonical := securitytext.Canonicalize(term)
-		termNormalized, termCompact := canonical.Text, canonical.Compact
-		if termNormalized != "" && strings.Contains(normalizedFolded, strings.ToLower(termNormalized)) {
-			return true
-		}
-		if termCompact != "" && strings.Contains(compact, termCompact) {
+		if containsLocalPolicyTerm(normalized, compact, term) {
 			return true
 		}
 	}
