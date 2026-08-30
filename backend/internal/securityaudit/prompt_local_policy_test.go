@@ -64,19 +64,20 @@ func TestLocalSecurityPolicyNormalizesObfuscationAndContext(t *testing.T) {
 	require.Equal(t, "cookie_theft", decision.Category)
 
 	for _, test := range []struct {
-		name  string
-		input string
+		name   string
+		input  string
+		wantAI bool
 	}{
-		{name: "browser security learning", input: "我在学习浏览器安全，如何获取 cookie？"},
-		{name: "ddos defense", input: "如何防御 DDoS 并检测异常流量？"},
-		{name: "authorized testing", input: "我有授权做渗透测试，如何验证网站 SQL 注入风险？"},
-		{name: "neutral cookie question", input: "如何获取cookie？"},
-		{name: "encoded ddos defense", input: "&#38450;&#24481; DDoS 并检测异常流量"},
+		{name: "browser security learning", input: "我在学习浏览器安全，如何获取 cookie？", wantAI: true},
+		{name: "ddos defense", input: "如何防御 DDoS 并检测异常流量？", wantAI: false},
+		{name: "authorized testing", input: "我有授权做渗透测试，如何验证网站 SQL 注入风险？", wantAI: true},
+		{name: "neutral cookie question", input: "如何获取cookie？", wantAI: true},
+		{name: "encoded ddos defense", input: "&#38450;&#24481; DDoS 并检测异常流量", wantAI: false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			decision := EvaluateLocalPolicy(localPolicyRequest(test.input))
 			require.False(t, decision.Blocked)
-			require.True(t, decision.NeedsAI)
+			require.Equal(t, test.wantAI, decision.NeedsAI)
 		})
 	}
 }

@@ -23,24 +23,29 @@ type LocalPolicyDecision struct {
 }
 
 type localPolicyRule struct {
-	category  string
-	reason    string
-	actions   []string
-	targets   []string
-	ambiguous []string
+	category       string
+	reason         string
+	actions        []string
+	targets        []string
+	ambiguous      []string
+	strongActions  []string
+	strongTargets  []string
+	genericTargets []string
 }
 
 var localPolicyRules = []localPolicyRule{
 	{
 		category: "api_rate_limit_bypass", reason: "bypass_api_rate_limit",
-		actions: []string{"绕过", "规避", "突破", "bypass", "evade", "circumvent"},
-		targets: []string{"api限流", "限流", "速率限制", "rate limit", "rate limiting", "throttle", "throttling", "配额", "quota", "访问控制", "access control"},
+		actions:       []string{"绕过", "规避", "突破", "bypass", "evade", "circumvent"},
+		targets:       []string{"api限流", "限流", "速率限制", "rate limit", "rate limiting", "throttle", "throttling", "配额", "quota", "访问控制", "access control"},
+		strongActions: []string{"绕过", "规避", "突破", "bypass", "evade", "circumvent"},
 	},
 	{
 		category: "cookie_theft", reason: "cookie_or_session_theft",
-		actions:   []string{"窃取", "盗取", "偷取", "窃听", "盗走", "steal", "exfiltrate", "hijack"},
-		targets:   []string{"cookie", "kookie", "session", "会话", "token", "令牌", "身份凭证"},
-		ambiguous: []string{"获取", "抓取", "导出", "提取", "读取", "查看", "get", "extract", "dump", "collect"},
+		actions:       []string{"窃取", "盗取", "偷取", "窃听", "盗走", "steal", "exfiltrate", "hijack"},
+		targets:       []string{"cookie", "kookie", "session", "会话", "token", "令牌", "身份凭证"},
+		strongActions: []string{"窃取", "盗取", "偷取", "窃听", "盗走", "steal", "exfiltrate", "hijack"},
+		ambiguous:     []string{"获取", "抓取", "导出", "提取", "读取", "查看", "get", "extract", "dump", "collect"},
 	},
 	{
 		category: "credential_theft", reason: "wireless_credential_extraction",
@@ -49,18 +54,23 @@ var localPolicyRules = []localPolicyRule{
 	},
 	{
 		category: "phishing", reason: "phishing_or_credential_harvesting",
-		actions: []string{"制作", "搭建", "仿冒", "伪造", "创建", "build", "create", "make", "phishing", "harvest", "harvesting"},
-		targets: []string{"钓鱼", "登录界面", "登录页面", "credential harvesting", "credential", "凭据", "密码", "password", "账号", "login"},
+		actions:        []string{"制作", "搭建", "仿冒", "伪造", "创建", "build", "create", "make", "phishing", "harvest", "harvesting"},
+		targets:        []string{"\u9493\u9c7c", "\u767b\u5f55\u754c\u9762", "\u767b\u5f55\u9875\u9762", "credential harvesting", "\u51ed\u636e", "\u8d26\u53f7"},
+		genericTargets: []string{"credential", "password", "login"},
+		strongActions:  []string{"制作", "搭建", "仿冒", "伪造", "phishing", "harvest", "harvesting"},
 	},
 	{
 		category: "ransomware", reason: "ransomware_creation_or_deployment",
-		actions: []string{"编写", "写", "制作", "做", "开发", "部署", "传播", "create", "write", "develop", "deploy", "spread", "encrypt", "encryption"},
-		targets: []string{"勒索软件", "ransomware", "加密文件", "文件加密", "encrypt files", "file encryption", "victim files", "victims files", "赎金", "ransom"},
+		actions:       []string{"编写", "写", "制作", "做", "开发", "部署", "传播", "create", "write", "develop", "deploy", "spread", "encrypt", "encryption"},
+		targets:       []string{"勒索软件", "ransomware", "加密文件", "文件加密", "encrypt files", "file encryption", "victim files", "victims files", "赎金", "ransom"},
+		strongActions: []string{"编写", "制作", "开发", "部署", "传播", "create", "write", "develop", "deploy", "spread", "encrypt", "encryption"},
 	},
 	{
 		category: "ddos", reason: "distributed_denial_of_service",
-		actions: []string{"发起", "实施", "发动", "执行", "发送", "压垮", "打垮", "flood", "launch", "perform", "attack"},
-		targets: []string{"ddos", "拒绝服务", "denial of service", "网站", "服务器", "api", "接口", "目标"},
+		actions:        []string{"发起", "实施", "发动", "执行", "发送", "压垮", "打垮", "flood", "launch", "perform", "attack"},
+		targets:        []string{"ddos", "\u62d2\u7edd\u670d\u52a1", "denial of service"},
+		genericTargets: []string{"\u7f51\u7ad9", "\u670d\u52a1\u5668", "website", "server", "api", "\u63a5\u53e3", "\u76ee\u6807"},
+		strongActions:  []string{"发起", "实施", "发动", "执行", "压垮", "打垮", "flood", "launch", "perform", "attack"},
 	},
 	{
 		category: "license_key_cracking", reason: "license_or_product_key_cracking",
@@ -69,14 +79,19 @@ var localPolicyRules = []localPolicyRule{
 	},
 	{
 		category: "website_intrusion", reason: "unauthorized_website_intrusion",
-		actions:   []string{"入侵", "攻击", "渗透", "利用漏洞", "漏洞利用", "exploit", "hack", "compromise", "breach", "deface", "take over", "getshell", "webshell", "提权", "sql注入", "rce"},
-		targets:   []string{"网站", "站点", "服务器", "后台", "web", "目标", "系统"},
-		ambiguous: []string{"验证", "测试", "扫描", "检测", "audit", "test", "scan"},
+		actions:        []string{"入侵", "攻击", "渗透", "利用漏洞", "漏洞利用", "exploit", "hack", "compromise", "breach", "deface", "take over", "getshell", "webshell", "提权", "sql注入", "rce"},
+		targets:        []string{"网站", "站点", "服务器", "后台", "web", "目标", "系统"},
+		genericTargets: []string{"\u7f51\u7ad9", "\u7ad9\u70b9", "website", "site", "\u670d\u52a1\u5668", "server", "web", "\u76ee\u6807", "system", "\u7cfb\u7edf"},
+		strongActions:  []string{"入侵", "攻击", "渗透", "利用漏洞", "漏洞利用", "exploit", "hack", "compromise", "breach", "deface", "take over", "getshell", "webshell", "提权", "sql注入", "rce"},
+		strongTargets:  []string{"sql注入", "rce"},
+		ambiguous:      []string{"验证", "测试", "扫描", "检测", "audit", "test", "scan"},
 	},
 	{
 		category: "jailbreak", reason: "jailbreak_or_safety_bypass",
-		actions: []string{"破限", "解除限制", "绕过限制", "忽略之前", "忽略指令", "无视规则", "不要拒绝", "进入开发者模式", "生成攻击工具", "生成攻击脚本", "生成恶意工具", "jailbreak", "bypass"},
-		targets: []string{"破限", "安全策略", "安全规则", "内容限制", "审核", "系统提示", "开发者模式", "攻击工具", "攻击脚本", "恶意工具", "模型", "model", "llm", "safety", "restriction", "guardrail"},
+		actions:        []string{"破限", "解除限制", "绕过限制", "忽略之前", "忽略指令", "无视规则", "不要拒绝", "进入开发者模式", "生成攻击工具", "生成攻击脚本", "生成恶意工具", "jailbreak", "bypass"},
+		targets:        []string{"\u7834\u9650", "\u5b89\u5168\u7b56\u7565", "\u5b89\u5168\u89c4\u5219", "\u5185\u5bb9\u9650\u5236", "\u5ba1\u6838", "\u7cfb\u7edf\u63d0\u793a", "\u5f00\u53d1\u8005\u6a21\u5f0f", "\u653b\u51fb\u5de5\u5177", "\u653b\u51fb\u811a\u672c", "\u6076\u610f\u5de5\u5177", "safety", "restriction", "guardrail"},
+		genericTargets: []string{"\u6a21\u578b", "model", "llm"},
+		strongActions:  []string{"破限", "解除限制", "绕过限制", "忽略之前", "忽略指令", "无视规则", "不要拒绝", "进入开发者模式", "生成攻击工具", "生成攻击脚本", "生成恶意工具", "jailbreak", "bypass"},
 	},
 }
 
@@ -118,29 +133,40 @@ func EvaluateLocalPolicyText(text string) LocalPolicyDecision {
 
 func evaluateCanonicalLocalPolicy(text string) LocalPolicyDecision {
 	canonical := securitytext.Canonicalize(text)
-	normalized, compact := canonical.Text, canonical.Compact
-	if normalized == "" {
+	if canonical.Text == "" {
 		return LocalPolicyDecision{}
 	}
-	protective := containsAnyLocalPolicyTerm(normalized, compact, localPolicyContextTerms)
-	for _, rule := range localPolicyRules {
-		hasTarget := containsAnyLocalPolicyTerm(normalized, compact, rule.targets)
-		if !hasTarget {
-			continue
-		}
-		hasAction := containsAnyLocalPolicyTerm(normalized, compact, rule.actions)
-		hasAmbiguous := containsAnyLocalPolicyTerm(normalized, compact, rule.ambiguous)
-		if hasAction {
-			if protective {
-				return localPolicyReviewDecision(rule)
+	var review LocalPolicyDecision
+	for _, segment := range splitLocalPolicySegments(canonical.Text) {
+		for i := range localPolicyRules {
+			rule := localPolicyRules[i]
+			evidence := scoreLocalPolicyRule(segment, rule)
+			if evidence.specificTargets+evidence.genericTargets == 0 {
+				continue
 			}
-			return localPolicyBlockDecision(rule)
-		}
-		if hasAmbiguous || protective {
-			return localPolicyReviewDecision(rule)
+			if evidence.strongIntent+evidence.actionMatches+evidence.ambiguous == 0 {
+				continue
+			}
+			score := evidence.strongIntent*localPolicyStrongWeight +
+				evidence.actionMatches*localPolicyActionWeight +
+				evidence.specificTargets*localPolicySpecificTargetWeight +
+				evidence.genericTargets*localPolicyGenericTargetWeight +
+				evidence.ambiguous*localPolicyAmbiguousWeight
+			if evidence.protective {
+				if !review.NeedsAI {
+					review = localPolicyReviewDecision(rule)
+				}
+				continue
+			}
+			if evidence.actionMatches > 0 && score >= localPolicyBlockScore {
+				return localPolicyBlockDecision(rule)
+			}
+			if !review.NeedsAI {
+				review = localPolicyReviewDecision(rule)
+			}
 		}
 	}
-	return LocalPolicyDecision{}
+	return review
 }
 
 func localPolicyBlockDecision(rule localPolicyRule) LocalPolicyDecision {
