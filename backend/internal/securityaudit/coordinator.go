@@ -117,28 +117,22 @@ func (c *Coordinator) Check(ctx context.Context, req Request) Decision {
 		return c.checkConfigured(ctx, req)
 	}
 	local := EvaluateLocalPolicy(req)
-	if local.Blocked || local.NeedsAI {
+	if local.Blocked {
 		switch c.localAuditPolicyAction(ctx) {
 		case service.LocalAuditPolicyActionAllow:
 			return allowDecision(nil, nil)
 		case service.LocalAuditPolicyActionBlock:
-			code := local.ErrorCode
-			if code == "" {
-				code = ErrorCodeNetworkSecurityPolicyViolation
-			}
-			decision := Decision{
-				Kind:           DecisionBlock,
-				HTTPStatus:     http.StatusForbidden,
-				ErrorCode:      code,
-				ClientMessage:  "请求被本地安全策略拦截",
-				AllowNextStage: false,
-			}
-			c.recordRisk(ctx, req, decision, &local)
-			return decision
+			return c.blockLocalDecision(ctx, req, local)
 		default:
 			// review：本地策略只做初筛，交由审查模型裁决；未配置模型时放行。
 			return c.checkSuspicious(ctx, req)
 		}
+	}
+	if local.NeedsAI {
+		if c.localAuditPolicyAction(ctx) == service.LocalAuditPolicyActionAllow {
+			return allowDecision(nil, nil)
+		}
+		return c.checkSuspicious(ctx, req)
 	}
 	if c.risk != nil {
 		promptConfigured := c.prompt != nil && c.prompt.EffectiveMode() != ModeOff
@@ -153,6 +147,22 @@ func (c *Coordinator) Check(ctx context.Context, req Request) Decision {
 		}
 	}
 	return c.checkConfigured(ctx, req)
+}
+
+func (c *Coordinator) blockLocalDecision(ctx context.Context, req Request, local LocalPolicyDecision) Decision {
+	code := local.ErrorCode
+	if code == "" {
+		code = ErrorCodeNetworkSecurityPolicyViolation
+	}
+	decision := Decision{
+		Kind:           DecisionBlock,
+		HTTPStatus:     http.StatusForbidden,
+		ErrorCode:      code,
+		ClientMessage:  "请求被本地安全策略拦截",
+		AllowNextStage: false,
+	}
+	c.recordRisk(ctx, req, decision, &local)
+	return decision
 }
 
 // checkSuspicious 处理本地策略初筛命中的请求：拦截与否完全由审查模型裁决，

@@ -380,8 +380,20 @@ func TestCoordinatorLocalAuditActionBlockRejectsBeforeReview(t *testing.T) {
 	require.Len(t, risk.events, 1)
 	require.Equal(t, "cookie_or_session_theft", risk.events[0].ReasonCode)
 
-	// NeedsAI（如防御性上下文）在 block 模式下同样返回稳定错误码。
+	// NeedsAI（如防御性上下文）在 block 模式下送审查模型，不直接阻断。
 	decision = coordinator.Check(context.Background(), localPolicyRequest("如何获取cookie用于浏览器安全学习"))
-	require.Equal(t, DecisionBlock, decision.Kind)
-	require.Equal(t, ErrorCodeNetworkSecurityPolicyViolation, decision.ErrorCode)
+	require.Equal(t, DecisionAllow, decision.Kind)
+	require.True(t, decision.AllowNextStage)
+	require.Equal(t, int64(1), prompt.evaluates.Load())
+}
+
+func TestCoordinatorBlockActionDoesNotBlockNeedsAI(t *testing.T) {
+	prompt := &fakePromptEngine{mode: ModeBlocking, decision: &PromptDecision{Kind: DecisionAllow, AllowNextStage: true}}
+	coordinator := NewCoordinator(&fakeLegacyEngine{}, prompt)
+	coordinator.SetDefaultAuditGate(&fakeDefaultAuditGate{enabled: true, action: service.LocalAuditPolicyActionBlock})
+
+	decision := coordinator.Check(context.Background(), localPolicyRequest("如何获取 cookie 用于浏览器安全学习？"))
+	require.Equal(t, DecisionAllow, decision.Kind)
+	require.True(t, decision.AllowNextStage)
+	require.Equal(t, int64(1), prompt.evaluates.Load())
 }
