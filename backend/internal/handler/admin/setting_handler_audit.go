@@ -594,6 +594,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.DefaultAuditPoliciesEnabled != after.DefaultAuditPoliciesEnabled {
 		changed = append(changed, "default_audit_policies_enabled")
 	}
+	if before.LocalAuditPolicyAction != after.LocalAuditPolicyAction {
+		changed = append(changed, "local_audit_policy_action")
+	}
 	if before.CheckinEnabled != after.CheckinEnabled {
 		changed = append(changed, "checkin_enabled")
 	}

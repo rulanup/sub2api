@@ -7277,6 +7277,35 @@
               <Toggle v-model="form.default_audit_policies_enabled" />
             </div>
 
+            <div v-if="form.default_audit_policies_enabled">
+              <label class="input-label">
+                {{ t('admin.settings.features.riskControl.localAuditAction') }}
+              </label>
+              <div
+                class="grid grid-cols-3 overflow-hidden rounded-md border border-gray-200 dark:border-gray-700"
+                role="radiogroup"
+                :aria-label="t('admin.settings.features.riskControl.localAuditAction')"
+              >
+                <button
+                  v-for="action in ['allow', 'review', 'block'] as const"
+                  :key="action"
+                  type="button"
+                  role="radio"
+                  :aria-checked="form.local_audit_policy_action === action"
+                  class="min-h-10 border-r border-gray-200 px-3 py-2 text-sm font-medium transition-colors last:border-r-0 dark:border-gray-700"
+                  :class="form.local_audit_policy_action === action
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'"
+                  @click="form.local_audit_policy_action = action"
+                >
+                  {{ t(`admin.settings.features.riskControl.localAuditActionOptions.${action}`) }}
+                </button>
+              </div>
+              <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                {{ t(`admin.settings.features.riskControl.localAuditActionHints.${form.local_audit_policy_action}`) }}
+              </p>
+            </div>
+
             <div class="flex items-center justify-between">
               <div>
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -9947,6 +9976,7 @@ const form = reactive<SettingsForm>({
   payment_enabled: false,
   risk_control_enabled: false,
   default_audit_policies_enabled: true,
+  local_audit_policy_action: 'review' as 'allow' | 'review' | 'block',
   checkin_enabled: false,
   checkin_min_amount: 0.01,
   checkin_max_amount: 0.10,
@@ -11782,6 +11812,7 @@ async function saveSettings() {
       payment_enabled: form.payment_enabled,
       risk_control_enabled: form.risk_control_enabled,
       default_audit_policies_enabled: form.default_audit_policies_enabled,
+      local_audit_policy_action: form.local_audit_policy_action,
       checkin_enabled: form.checkin_enabled,
       checkin_min_amount: checkinMinAmount,
       checkin_max_amount: checkinMaxAmount,

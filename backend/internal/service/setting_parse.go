@@ -216,8 +216,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
 
-		// 内置默认审查策略（默认开启保持既有行为；显式关闭后仅保留显式配置的审查能力）
+		// 内置默认审查策略（默认开启保持既有行为；命中默认送审查模型裁决）
 		SettingKeyDefaultAuditPoliciesEnabled: "true",
+		SettingKeyLocalAuditPolicyAction:      LocalAuditPolicyActionReview,
 
 		// cyber 会话屏蔽（默认关闭，TTL 默认 3600s）
 		SettingKeyCyberSessionBlockEnabled:    "false",
@@ -842,6 +843,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// 内置默认审查策略（默认开启，仅显式 false/0/off/disabled 才关闭）
 	result.DefaultAuditPoliciesEnabled = !isFalseSettingValue(settings[SettingKeyDefaultAuditPoliciesEnabled])
+	result.LocalAuditPolicyAction = NormalizeLocalAuditPolicyAction(settings[SettingKeyLocalAuditPolicyAction])
 	result.CheckinEnabled = settings[SettingKeyCheckinEnabled] == "true"
 	result.CheckinMinAmount, result.CheckinMaxAmount = parseCheckinAmountRange(
 		settings[SettingKeyCheckinMinAmount],
@@ -1012,6 +1014,17 @@ func clampAffiliateRebateRate(value float64) float64 {
 		return AffiliateRebateRateMax
 	}
 	return value
+}
+
+func NormalizeLocalAuditPolicyAction(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case LocalAuditPolicyActionAllow:
+		return LocalAuditPolicyActionAllow
+	case LocalAuditPolicyActionBlock:
+		return LocalAuditPolicyActionBlock
+	default:
+		return LocalAuditPolicyActionReview
+	}
 }
 
 func isFalseSettingValue(value string) bool {

@@ -79,7 +79,9 @@ func TestQwen3GuardCategoryMapping(t *testing.T) {
 
 	for source, expected := range tests {
 		require.Equal(t, expected, normalizeQwen3GuardCategory(source))
+		require.Equal(t, expected, normalizeQwen3GuardCategory(strings.ToLower(source)))
 	}
+	require.Equal(t, "qwen3guard", normalizeQwen3GuardCategory("Future Risk Category"))
 }
 
 func TestContentModerationQwen3GuardChatRequest(t *testing.T) {
@@ -240,6 +242,41 @@ func TestContentModerationQwen3GuardControversialAction(t *testing.T) {
 		require.Equal(t, tt.flagged, result.Flagged)
 		require.Equal(t, qwen3GuardSeverityControversial, result.Severity)
 		require.Equal(t, []string{"political"}, result.Categories)
+	}
+}
+
+func TestContentModerationQwen3GuardControversialUsesCategoryThreshold(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"Safety: Controversial\nCategories: Politically Sensitive Topics"}}]}`))
+	}))
+	defer server.Close()
+
+	for _, tt := range []struct {
+		name               string
+		politicalThreshold float64
+		blocked            bool
+	}{
+		{name: "default 65 percent allows 50 percent score", politicalThreshold: 0.65, blocked: false},
+		{name: "50 percent threshold blocks 50 percent score", politicalThreshold: 0.50, blocked: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := defaultContentModerationConfig()
+			cfg.Enabled = true
+			cfg.Protocol = ContentModerationProtocolQwen3GuardChat
+			cfg.BaseURL = server.URL
+			cfg.APIKeys = []string{"qwen-test-key"}
+			cfg.ControversialAction = ContentModerationControversialActionBlock
+			cfg.Thresholds["political"] = tt.politicalThreshold
+
+			svc := NewContentModerationService(nil, nil, nil, nil, nil, nil, nil, nil)
+			content := ContentModerationInput{Text: "子代理"}
+			decision := svc.checkSync(context.Background(), ContentModerationCheckInput{RequestID: "qwen-subagent-regression"}, cfg, content, content.Hash(), nil, true)
+			require.Equal(t, tt.blocked, decision.Blocked)
+			require.Equal(t, tt.blocked, decision.Flagged)
+			require.Equal(t, "political", decision.HighestCategory)
+			require.Equal(t, 0.5, decision.HighestScore)
+		})
 	}
 }
 

@@ -22,6 +22,30 @@ describe('risk control locale copy', () => {
     expect(en.admin.riskControl.preBlockAPIKeyLoadHint).not.toContain('worker pool')
   })
 
+  it('keeps Aliyun Guardrails configuration copy complete in both locales', () => {
+    for (const key of [
+      'protocolAliyunGuardrails',
+      'aliyunProtocolHint',
+      'aliyunRegion',
+      'aliyunService',
+      'aliyunEndpoint',
+      'aliyunCredentials',
+      'aliyunAccessKeyId',
+      'aliyunAccessKeySecret',
+      'clearAliyunCredentials',
+      'aliyunTextOnlyTitle',
+      'aliyunTextOnlyHint',
+      'testAliyunConnection',
+    ] as const) {
+      expect(zh.admin.riskControl[key]).toBeTruthy()
+      expect(en.admin.riskControl[key]).toBeTruthy()
+    }
+    expect(zh.admin.riskControl.aliyunTextOnlyHint).toContain('图片')
+    expect(zh.admin.riskControl.aliyunTextOnlyHint).toContain('错误')
+    expect(en.admin.riskControl.aliyunTextOnlyHint).toContain('Images')
+    expect(en.admin.riskControl.aliyunTextOnlyHint).toContain('error')
+  })
+
   it('keeps Qwen3Guard protocol and endpoint diagnostics localized', () => {
     for (const key of [
       'protocol',

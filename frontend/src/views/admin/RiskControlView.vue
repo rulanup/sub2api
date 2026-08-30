@@ -405,21 +405,30 @@
                 <label class="input-label">{{ t('admin.riskControl.protocol') }}</label>
                 <Select v-model="configForm.protocol" :options="protocolOptions" data-test="moderation-protocol" />
                 <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                  {{ configForm.protocol === 'qwen3guard_chat' ? t('admin.riskControl.qwenProtocolHint') : t('admin.riskControl.openaiModerationProtocolHint') }}
+                  {{ protocolHint }}
                 </p>
               </div>
-              <div v-if="configForm.protocol === 'qwen3guard_chat'">
+              <div v-if="isAliyunProtocol">
                 <label class="input-label">{{ t('admin.riskControl.controversialAction') }}</label>
                 <Select v-model="configForm.controversial_action" :options="controversialActionOptions" data-test="controversial-action" />
                 <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.controversialActionHint') }}</p>
               </div>
-              <div>
-                <label class="input-label">{{ t('admin.riskControl.baseUrl') }}</label>
-                <input v-model.trim="configForm.base_url" type="url" class="input" placeholder="https://api.openai.com" />
+              <div v-if="isAliyunProtocol">
+                <label class="input-label">{{ t('admin.riskControl.aliyunRegion') }}</label>
+                <Select v-model="configForm.aliyun_region_id" :options="aliyunRegionOptions" data-test="aliyun-region" />
+              </div>
+              <div v-if="isAliyunProtocol">
+                <label class="input-label">{{ t('admin.riskControl.aliyunService') }}</label>
+                <Select v-model="configForm.aliyun_service" :options="aliyunServiceOptions" data-test="aliyun-service" />
+                <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.aliyunServiceHint') }}</p>
               </div>
               <div>
+                <label class="input-label">{{ isAliyunProtocol ? t('admin.riskControl.aliyunEndpoint') : t('admin.riskControl.baseUrl') }}</label>
+                <input v-model.trim="configForm.base_url" type="url" class="input" :placeholder="protocolDefaultEndpoint" data-test="moderation-base-url" />
+              </div>
+              <div v-if="!isAliyunProtocol">
                 <label class="input-label">{{ t('admin.riskControl.model') }}</label>
-                <input v-model.trim="configForm.model" type="text" class="input" :placeholder="configForm.protocol === 'qwen3guard_chat' ? 'Qwen3Guard-Gen-8B' : 'omni-moderation-latest'" />
+                <input v-model.trim="configForm.model" type="text" class="input" :placeholder="configForm.protocol === 'qwen3guard_chat' ? 'Qwen3Guard-Gen-8B' : 'omni-moderation-latest'" data-test="moderation-model" />
                 <p v-if="configForm.protocol === 'qwen3guard_chat'" class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.qwenModelHint') }}</p>
               </div>
               <div>
@@ -444,7 +453,7 @@
               </div>
             </div>
 
-            <div class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-800">
+            <div v-if="!isAliyunProtocol" class="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-800" data-test="api-key-pool">
               <div class="flex flex-col gap-4 border-b border-gray-100 bg-gray-50 px-4 py-4 dark:border-dark-700 dark:bg-dark-800/60 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex items-start gap-3">
                   <span class="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300">
@@ -718,6 +727,103 @@
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="overflow-hidden rounded-lg border border-gray-100 bg-white dark:border-dark-700 dark:bg-dark-800" data-test="aliyun-credentials">
+              <div class="flex flex-col gap-3 border-b border-gray-100 bg-gray-50 px-4 py-4 dark:border-dark-700 dark:bg-dark-800/60 sm:flex-row sm:items-start sm:justify-between">
+                <div class="flex items-start gap-3">
+                  <span class="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300">
+                    <Icon name="key" size="md" />
+                  </span>
+                  <div>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.aliyunCredentials') }}</p>
+                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.aliyunCredentialsHint') }}</p>
+                  </div>
+                </div>
+                <span
+                  class="inline-flex w-fit items-center rounded-md px-2.5 py-1 text-xs font-medium"
+                  :class="configForm.clear_aliyun_credentials
+                    ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
+                    : configForm.aliyun_access_key_configured
+                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300'
+                      : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300'"
+                  data-test="aliyun-credential-status"
+                >
+                  {{ aliyunCredentialStatus }}
+                </span>
+              </div>
+
+              <div class="space-y-4 p-4">
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div>
+                    <label class="input-label">{{ t('admin.riskControl.aliyunAccessKeyId') }}</label>
+                    <input
+                      v-model.trim="configForm.aliyun_access_key_id"
+                      type="text"
+                      class="input font-mono"
+                      autocomplete="off"
+                      :disabled="configForm.clear_aliyun_credentials"
+                      :placeholder="configForm.aliyun_access_key_id_masked || t('admin.riskControl.aliyunAccessKeyIdPlaceholder')"
+                      data-test="aliyun-access-key-id"
+                    />
+                    <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.aliyunAccessKeyIdHint') }}</p>
+                  </div>
+                  <div>
+                    <label class="input-label">{{ t('admin.riskControl.aliyunAccessKeySecret') }}</label>
+                    <input
+                      v-model="configForm.aliyun_access_key_secret"
+                      type="password"
+                      class="input font-mono"
+                      autocomplete="new-password"
+                      :disabled="configForm.clear_aliyun_credentials"
+                      :placeholder="t('admin.riskControl.aliyunAccessKeySecretPlaceholder')"
+                      data-test="aliyun-access-key-secret"
+                    />
+                    <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.aliyunAccessKeySecretHint') }}</p>
+                  </div>
+                </div>
+
+                <div v-if="configForm.aliyun_access_key_configured" class="flex flex-wrap items-center gap-3">
+                  <button type="button" class="btn btn-secondary inline-flex items-center gap-2" @click="toggleClearAliyunCredentials">
+                    <Icon :name="configForm.clear_aliyun_credentials ? 'x' : 'trash'" size="sm" />
+                    {{ configForm.clear_aliyun_credentials ? t('admin.riskControl.keepAliyunCredentials') : t('admin.riskControl.clearAliyunCredentials') }}
+                  </button>
+                  <span v-if="configForm.clear_aliyun_credentials" class="text-xs font-medium text-red-600 dark:text-red-300" data-test="aliyun-clear-pending">
+                    {{ t('admin.riskControl.aliyunCredentialsWillClear') }}
+                  </span>
+                </div>
+
+                <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200" data-test="aliyun-text-only-notice">
+                  <p class="font-semibold">{{ t('admin.riskControl.aliyunTextOnlyTitle') }}</p>
+                  <p class="mt-1 text-xs leading-5">{{ t('admin.riskControl.aliyunTextOnlyHint') }}</p>
+                </div>
+
+                <div class="rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-dark-700 dark:bg-dark-900/30">
+                  <label class="input-label">{{ t('admin.riskControl.auditTestInput') }}</label>
+                  <textarea
+                    v-model="moderationTestPrompt"
+                    class="input min-h-24 resize-y text-sm"
+                    :placeholder="t('admin.riskControl.auditTestPromptPlaceholder')"
+                    data-test="aliyun-test-prompt"
+                  ></textarea>
+                  <div class="mt-3 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      class="btn btn-secondary inline-flex items-center gap-2"
+                      :disabled="apiKeyTesting || configForm.clear_aliyun_credentials"
+                      data-test="test-aliyun-connection"
+                      @click="testAliyunConnection"
+                    >
+                      <Icon name="beaker" size="sm" :class="apiKeyTesting ? 'animate-pulse' : ''" />
+                      {{ apiKeyTesting ? t('admin.riskControl.testingAliyunConnection') : t('admin.riskControl.testAliyunConnection') }}
+                    </button>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.riskControl.aliyunTestHint') }}</span>
+                  </div>
+                  <p v-if="moderationTestResult" class="mt-3 text-sm font-medium" :class="moderationTestResult.flagged ? 'text-red-600 dark:text-red-300' : 'text-emerald-600 dark:text-emerald-300'" data-test="aliyun-test-result">
+                    {{ moderationTestResult.flagged ? t('admin.riskControl.auditTestFlagged') : t('admin.riskControl.auditTestPassed') }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1211,7 +1317,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -1273,6 +1379,16 @@ const maxModerationTestImages = 1
 const maxModerationTestImageSize = 8 * 1024 * 1024
 const maxVisibleApiKeyRows: number = 3
 const blockedKeywordMax = 10000
+const openAIDefaultEndpoint = 'https://api.openai.com'
+const qwenDefaultEndpoint = openAIDefaultEndpoint
+const aliyunDefaultEndpoint = 'https://green-cip.cn-shanghai.aliyuncs.com'
+const aliyunDefaultRegion = 'cn-shanghai'
+const aliyunDefaultService = 'query_security_check_pro'
+const protocolDefaultEndpoints: Record<ModerationProtocol, string> = {
+  openai_moderation: openAIDefaultEndpoint,
+  qwen3guard_chat: qwenDefaultEndpoint,
+  aliyun_guardrails: aliyunDefaultEndpoint,
+}
 const riskThresholdDefaults: Record<string, number> = {
   harassment: 98,
   'harassment/threatening': 90,
@@ -1287,6 +1403,12 @@ const riskThresholdDefaults: Record<string, number> = {
   'sexual/minors': 65,
   violence: 95,
   'violence/graphic': 95,
+  pii: 65,
+  unethical: 65,
+  jailbreak: 65,
+  copyright: 65,
+  political: 65,
+  qwen3guard: 65,
 }
 const riskThresholdCategories = Object.keys(riskThresholdDefaults)
 
@@ -1323,8 +1445,15 @@ const configForm = reactive({
   mode: 'pre_block' as ModerationMode,
   protocol: 'openai_moderation' as ModerationProtocol,
   controversial_action: 'allow' as ControversialAction,
-  base_url: 'https://api.openai.com',
+  base_url: openAIDefaultEndpoint,
   model: 'omni-moderation-latest',
+  aliyun_region_id: aliyunDefaultRegion,
+  aliyun_service: aliyunDefaultService,
+  aliyun_access_key_id: '',
+  aliyun_access_key_secret: '',
+  aliyun_access_key_configured: false,
+  aliyun_access_key_id_masked: '',
+  clear_aliyun_credentials: false,
   proxy_id: null as number | null,
   api_keys_text: '',
   api_key_configured: false,
@@ -1404,7 +1533,76 @@ const modeOptions = computed<SelectOption[]>(() => [
 const protocolOptions = computed<SelectOption[]>(() => [
   { value: 'openai_moderation', label: t('admin.riskControl.protocolOpenAIModeration') },
   { value: 'qwen3guard_chat', label: t('admin.riskControl.protocolQwen3Guard') },
+  { value: 'aliyun_guardrails', label: t('admin.riskControl.protocolAliyunGuardrails') },
 ])
+
+const aliyunRegionOptions = computed<SelectOption[]>(() => [
+  { value: 'cn-shanghai', label: t('admin.riskControl.aliyunRegionShanghai') },
+  { value: 'cn-beijing', label: t('admin.riskControl.aliyunRegionBeijing') },
+  { value: 'cn-hangzhou', label: t('admin.riskControl.aliyunRegionHangzhou') },
+  { value: 'cn-shenzhen', label: t('admin.riskControl.aliyunRegionShenzhen') },
+  { value: 'cn-chengdu', label: t('admin.riskControl.aliyunRegionChengdu') },
+  { value: 'ap-southeast-1', label: t('admin.riskControl.aliyunRegionSingapore') },
+  { value: 'eu-central-1', label: t('admin.riskControl.aliyunRegionFrankfurt') },
+])
+
+const aliyunServiceOptions = computed<SelectOption[]>(() => [
+  { value: 'query_security_check_pro', label: 'query_security_check_pro' },
+  { value: 'query_security_check', label: 'query_security_check' },
+  { value: 'query_security_check_cb', label: 'query_security_check_cb' },
+])
+
+const isAliyunProtocol = computed(() => configForm.protocol === 'aliyun_guardrails')
+
+const aliyunEndpointForRegion = (region: string) => `https://green-cip.${region || aliyunDefaultRegion}.aliyuncs.com`
+
+const isAliyunDefaultEndpoint = (endpoint: string) => /^https:\/\/green-cip\.[a-z0-9-]+\.aliyuncs\.com\/?$/i.test(endpoint.trim())
+
+const protocolDefaultEndpoint = computed(() => protocolDefaultEndpoints[configForm.protocol])
+
+const protocolHint = computed(() => {
+  if (isAliyunProtocol.value) return t('admin.riskControl.aliyunProtocolHint')
+  if (configForm.protocol === 'qwen3guard_chat') return t('admin.riskControl.qwenProtocolHint')
+  return t('admin.riskControl.openaiModerationProtocolHint')
+})
+
+const aliyunCredentialStatus = computed(() => {
+  if (configForm.clear_aliyun_credentials) return t('admin.riskControl.aliyunCredentialsPendingClear')
+  if (configForm.aliyun_access_key_configured) {
+    return configForm.aliyun_access_key_id_masked
+      ? t('admin.riskControl.aliyunCredentialsConfiguredMasked', { id: configForm.aliyun_access_key_id_masked })
+      : t('admin.riskControl.aliyunCredentialsConfigured')
+  }
+  return t('admin.riskControl.notConfigured')
+})
+
+watch(
+  () => configForm.protocol,
+  (protocol, previousProtocol) => {
+    if (!previousProtocol) return
+    const targetDefault = protocol === 'aliyun_guardrails'
+      ? aliyunEndpointForRegion(configForm.aliyun_region_id)
+      : protocolDefaultEndpoints[protocol]
+    const currentEndpointIsDefault = Object.values(protocolDefaultEndpoints).includes(configForm.base_url)
+      || isAliyunDefaultEndpoint(configForm.base_url)
+    if (!configForm.base_url || currentEndpointIsDefault) {
+      configForm.base_url = targetDefault
+    }
+    moderationTestResult.value = null
+  }
+)
+
+watch(
+  () => configForm.aliyun_region_id,
+  (region, previousRegion) => {
+    if (!isAliyunProtocol.value) return
+    const previousDefault = aliyunEndpointForRegion(previousRegion || aliyunDefaultRegion)
+    if (!configForm.base_url || configForm.base_url === previousDefault || isAliyunDefaultEndpoint(configForm.base_url)) {
+      configForm.base_url = aliyunEndpointForRegion(region)
+    }
+    moderationTestResult.value = null
+  }
+)
 
 const controversialActionOptions = computed<SelectOption[]>(() => [
   { value: 'allow', label: t('admin.riskControl.controversialActionAllow') },
@@ -1827,8 +2025,15 @@ function applyConfig(config: ContentModerationConfig) {
   configForm.mode = config.mode
   configForm.protocol = config.protocol || 'openai_moderation'
   configForm.controversial_action = config.controversial_action || 'allow'
-  configForm.base_url = config.base_url || 'https://api.openai.com'
+  configForm.base_url = config.base_url || protocolDefaultEndpoints[configForm.protocol]
   configForm.model = config.model || (configForm.protocol === 'qwen3guard_chat' ? 'Qwen3Guard-Gen-8B' : 'omni-moderation-latest')
+  configForm.aliyun_region_id = config.aliyun_region_id || aliyunDefaultRegion
+  configForm.aliyun_service = config.aliyun_service || aliyunDefaultService
+  configForm.aliyun_access_key_id = ''
+  configForm.aliyun_access_key_secret = ''
+  configForm.aliyun_access_key_configured = config.aliyun_access_key_configured ?? false
+  configForm.aliyun_access_key_id_masked = config.aliyun_access_key_id_masked || ''
+  configForm.clear_aliyun_credentials = false
   configForm.proxy_id = config.proxy_id || null
   configForm.api_keys_text = ''
   configForm.api_key_configured = config.api_key_configured
@@ -1934,7 +2139,6 @@ async function saveConfig() {
       protocol: configForm.protocol,
       controversial_action: configForm.controversial_action,
       base_url: configForm.base_url,
-      model: configForm.model,
       // 后端语义：0 清除代理（直连），>0 指定代理
       proxy_id: configForm.proxy_id ?? 0,
       timeout_ms: Number(configForm.timeout_ms) || 3000,
@@ -1943,7 +2147,6 @@ async function saveConfig() {
       all_groups: configForm.all_groups,
       group_ids: configForm.all_groups ? [] : [...configForm.group_ids],
       record_non_hits: configForm.record_non_hits,
-      clear_api_key: configForm.clear_api_key,
       worker_count: Number(configForm.worker_count) || 4,
       queue_size: Number(configForm.queue_size) || 32768,
       block_status: Number(configForm.block_status) || 403,
@@ -1970,20 +2173,33 @@ async function saveConfig() {
       cyber_usage_ban_threshold: Math.min(1000000, Math.max(1, Math.trunc(Number(configForm.cyber_usage_ban_threshold) || 3))),
       cyber_usage_window_hours: Math.min(8760, Math.max(1, Math.trunc(Number(configForm.cyber_usage_window_hours) || 24))),
     }
+    if (!isAliyunProtocol.value) {
+      payload.model = configForm.model
+      payload.clear_api_key = configForm.clear_api_key
+    }
+    if (isAliyunProtocol.value) {
+      payload.aliyun_region_id = configForm.aliyun_region_id
+      payload.aliyun_service = configForm.aliyun_service
+      payload.aliyun_access_key_id = configForm.aliyun_access_key_id
+      payload.aliyun_access_key_secret = configForm.aliyun_access_key_secret
+      payload.clear_aliyun_credentials = configForm.clear_aliyun_credentials
+    }
+
     const keys = parseApiKeys(configForm.api_keys_text)
-    if (!payload.clear_api_key && configForm.api_keys_mode === 'replace' && keys.length === 0) {
+    if (!isAliyunProtocol.value && !payload.clear_api_key && configForm.api_keys_mode === 'replace' && keys.length === 0) {
       appStore.showError(t('admin.riskControl.apiKeysReplaceNoInput'))
       return
     }
-    if (keys.length > 0) {
+    if (!isAliyunProtocol.value && keys.length > 0) {
       payload.api_keys = keys
       payload.api_keys_mode = configForm.api_keys_mode
       payload.clear_api_key = false
     }
-    if (!payload.clear_api_key && configForm.api_keys_mode !== 'replace' && pendingDeleteApiKeyHashes.value.length > 0) {
+    if (!isAliyunProtocol.value && !payload.clear_api_key && configForm.api_keys_mode !== 'replace' && pendingDeleteApiKeyHashes.value.length > 0) {
       payload.delete_api_key_hashes = [...pendingDeleteApiKeyHashes.value]
     }
 
+    configForm.aliyun_access_key_secret = ''
     const updated = await adminAPI.riskControl.updateConfig(payload)
     applyConfig(updated)
     settingsOpen.value = false
@@ -2107,6 +2323,14 @@ function onPageSizeChange(pageSize: number) {
   void loadLogs()
 }
 
+function toggleClearAliyunCredentials() {
+  configForm.clear_aliyun_credentials = !configForm.clear_aliyun_credentials
+  if (configForm.clear_aliyun_credentials) {
+    configForm.aliyun_access_key_id = ''
+    configForm.aliyun_access_key_secret = ''
+  }
+}
+
 function toggleClearApiKey() {
   configForm.clear_api_key = !configForm.clear_api_key
   if (configForm.clear_api_key) {
@@ -2155,6 +2379,32 @@ function isUnsupportedAuditEndpointError(err: unknown): boolean {
     .filter((item): item is string => typeof item === 'string')
     .join(' ')
   return status === 400 && /unsupported\s+(interface|endpoint)|暂不支持该接口/i.test(messages)
+}
+
+async function testAliyunConnection() {
+  apiKeyTesting.value = true
+  try {
+    const accessKeySecret = configForm.aliyun_access_key_secret
+    configForm.aliyun_access_key_secret = ''
+    const result = await adminAPI.riskControl.testAPIKeys({
+      protocol: 'aliyun_guardrails',
+      controversial_action: configForm.controversial_action,
+      aliyun_region_id: configForm.aliyun_region_id,
+      aliyun_service: configForm.aliyun_service,
+      aliyun_access_key_id: configForm.aliyun_access_key_id,
+      aliyun_access_key_secret: accessKeySecret,
+      base_url: configForm.base_url,
+      timeout_ms: Number(configForm.timeout_ms) || 3000,
+      proxy_id: configForm.proxy_id ?? 0,
+      prompt: moderationTestPrompt.value,
+    })
+    moderationTestResult.value = result.audit_result ?? null
+    appStore.showSuccess(t('admin.riskControl.aliyunConnectionTestDone'))
+  } catch (err: unknown) {
+    appStore.showError(extractApiErrorMessage(err, t('admin.riskControl.aliyunConnectionTestFailed')))
+  } finally {
+    apiKeyTesting.value = false
+  }
 }
 
 async function testApiKeys(useInputKeys: boolean) {

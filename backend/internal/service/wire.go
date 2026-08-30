@@ -388,10 +388,17 @@ func ProvideContentModerationService(
 	proxyRepo ProxyRepository,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
 	emailService *EmailService,
+	secretEncryptor SecretEncryptor,
+	cfg *config.Config,
 	lockCache LeaderLockCache,
 	db *sql.DB,
 ) *ContentModerationService {
-	svc := NewContentModerationService(settingRepo, repo, hashCache, groupRepo, userRepo, proxyRepo, authCacheInvalidator, emailService)
+	encryptionKeyConfigured := cfg != nil && cfg.Totp.EncryptionKeyConfigured
+	svc := newContentModerationServiceWithAliyun(
+		settingRepo, repo, hashCache, groupRepo, userRepo, proxyRepo,
+		authCacheInvalidator, emailService, secretEncryptor, encryptionKeyConfigured,
+		NewAliyunGuardrailsClientFactory(),
+	)
 	svc.SetLeaderLock(lockCache, db)
 	return svc
 }

@@ -37,15 +37,15 @@ var (
 )
 
 var qwen3GuardCategoryMap = map[string]string{
-	"Violent":                       "violence",
-	"Non-violent Illegal Acts":      "illicit",
-	"Sexual Content or Sexual Acts": "sexual",
-	"PII":                           "pii",
-	"Suicide & Self-Harm":           "self-harm",
-	"Unethical Acts":                "unethical",
-	"Jailbreak":                     "jailbreak",
-	"Copyright Violation":           "copyright",
-	"Politically Sensitive Topics":  "political",
+	"violent":                       "violence",
+	"non violent illegal acts":      "illicit",
+	"sexual content or sexual acts": "sexual",
+	"pii":                           "pii",
+	"suicide self harm":             "self-harm",
+	"unethical acts":                "unethical",
+	"jailbreak":                     "jailbreak",
+	"copyright violation":           "copyright",
+	"politically sensitive topics":  "political",
 }
 
 func parseQwen3GuardOutput(output string) (*qwen3GuardOutput, error) {
@@ -87,11 +87,13 @@ func parseQwen3GuardOutput(output string) (*qwen3GuardOutput, error) {
 }
 
 func normalizeQwen3GuardCategory(category string) string {
-	category = strings.TrimSpace(category)
+	category = strings.ToLower(strings.TrimSpace(category))
+	category = strings.NewReplacer("-", " ", "_", " ", "&", " ").Replace(category)
+	category = strings.Join(strings.Fields(category), " ")
 	if mapped, ok := qwen3GuardCategoryMap[category]; ok {
 		return mapped
 	}
-	return strings.ToLower(strings.NewReplacer(" ", "-", "_", "-").Replace(category))
+	return "qwen3guard"
 }
 
 type qwen3GuardChatRequest struct {

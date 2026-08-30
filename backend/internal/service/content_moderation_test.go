@@ -891,6 +891,21 @@ func TestContentModerationUpdateConfig_SavesCustomThresholds(t *testing.T) {
 	require.NotContains(t, saved.Thresholds, "unknown")
 }
 
+func TestContentModerationUpdateConfig_PartialThresholdsPreserveExistingValues(t *testing.T) {
+	cfg := defaultContentModerationConfig()
+	cfg.Thresholds["sexual"] = 0.22
+	rawCfg, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	repo := &contentModerationTestSettingRepo{values: map[string]string{SettingKeyContentModerationConfig: string(rawCfg)}}
+	svc := NewContentModerationService(repo, nil, nil, nil, nil, nil, nil, nil)
+	thresholds := map[string]float64{"political": 0.8}
+
+	view, err := svc.UpdateConfig(context.Background(), UpdateContentModerationConfigInput{Thresholds: &thresholds})
+	require.NoError(t, err)
+	require.Equal(t, 0.22, view.Thresholds["sexual"])
+	require.Equal(t, 0.8, view.Thresholds["political"])
+}
+
 func TestExtractContentModerationInput_AnthropicImageSourceOnlyParticipatesInMemory(t *testing.T) {
 	body := []byte(`{
 		"messages": [

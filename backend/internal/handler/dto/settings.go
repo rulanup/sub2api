@@ -331,7 +331,8 @@ type SystemSettings struct {
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 
 	// 内置默认审查策略开关（本地安全策略初筛、上游错误提示词记录）
-	DefaultAuditPoliciesEnabled bool `json:"default_audit_policies_enabled"`
+	DefaultAuditPoliciesEnabled bool   `json:"default_audit_policies_enabled"`
+	LocalAuditPolicyAction      string `json:"local_audit_policy_action"`
 
 	// 每日签到
 	CheckinEnabled   bool    `json:"checkin_enabled"`

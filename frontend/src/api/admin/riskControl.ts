@@ -1,7 +1,7 @@
 import { apiClient } from '../client'
 
 export type ModerationMode = 'off' | 'observe' | 'pre_block'
-export type ModerationProtocol = 'openai_moderation' | 'qwen3guard_chat'
+export type ModerationProtocol = 'openai_moderation' | 'qwen3guard_chat' | 'aliyun_guardrails'
 export type ControversialAction = 'allow' | 'block'
 export type KeywordBlockingMode = 'keyword_only' | 'keyword_and_api' | 'api_only'
 export type ContentModerationModelFilterType = 'all' | 'include' | 'exclude'
@@ -18,6 +18,10 @@ export interface ContentModerationConfig {
   controversial_action: ControversialAction
   base_url: string
   model: string
+  aliyun_region_id: string
+  aliyun_service: string
+  aliyun_access_key_configured: boolean
+  aliyun_access_key_id_masked: string
   proxy_id: number | null
   api_key_configured: boolean
   api_key_masked: string
@@ -81,6 +85,10 @@ export interface TestContentModerationAPIKeysPayload {
   controversial_action?: ControversialAction
   base_url?: string
   model?: string
+  aliyun_region_id?: string
+  aliyun_service?: string
+  aliyun_access_key_id?: string
+  aliyun_access_key_secret?: string
   timeout_ms?: number
   // null/undefined 沿用已保存配置的代理；0 强制直连；>0 指定代理
   proxy_id?: number
@@ -114,6 +122,11 @@ export interface UpdateContentModerationConfig {
   controversial_action?: ControversialAction
   base_url?: string
   model?: string
+  aliyun_region_id?: string
+  aliyun_service?: string
+  aliyun_access_key_id?: string
+  aliyun_access_key_secret?: string
+  clear_aliyun_credentials?: boolean
   // undefined 不修改；0 清除（直连）；>0 指定代理
   proxy_id?: number
   api_key?: string

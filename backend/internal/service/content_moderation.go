@@ -59,6 +59,7 @@ const (
 	ContentModerationProtocolOpenAIImages      = "openai_images"
 	ContentModerationProtocolOpenAIModeration  = "openai_moderation"
 	ContentModerationProtocolQwen3GuardChat    = "qwen3guard_chat"
+	ContentModerationProtocolAliyunGuardrails  = "aliyun_guardrails"
 
 	ContentModerationControversialActionAllow = "allow"
 	ContentModerationControversialActionBlock = "block"
@@ -66,6 +67,11 @@ const (
 	defaultContentModerationBaseURL   = "https://api.openai.com"
 	defaultContentModerationModel     = "omni-moderation-latest"
 	defaultQwen3GuardModel            = "Qwen3Guard-Gen-8B"
+	defaultAliyunGuardrailsRegion     = "cn-shanghai"
+	defaultAliyunGuardrailsService    = "query_security_check_pro"
+	defaultAliyunGuardrailsEndpoint   = "https://green-cip.cn-shanghai.aliyuncs.com"
+	aliyunGuardrailsServiceStandard   = "query_security_check"
+	aliyunGuardrailsServiceOverseas   = "query_security_check_cb"
 	defaultContentModerationTimeoutMS = 3000
 	maxContentModerationTimeoutMS     = 30000
 	maxModerationInputRunes           = 12000
@@ -132,6 +138,7 @@ var contentModerationCategoryOrder = []string{
 	"jailbreak",
 	"copyright",
 	"political",
+	"qwen3guard",
 }
 
 func ContentModerationDefaultThresholds() map[string]float64 {
@@ -154,6 +161,7 @@ func ContentModerationDefaultThresholds() map[string]float64 {
 		"jailbreak":              0.65,
 		"copyright":              0.65,
 		"political":              0.65,
+		"qwen3guard":             0.65,
 	}
 }
 
@@ -171,10 +179,15 @@ type ContentModerationConfig struct {
 	BaseURL             string `json:"base_url"`
 	Model               string `json:"model"`
 	// ProxyID 指定审计请求使用的代理服务器（IP管理-代理服务器），nil 表示直连。
-	ProxyID                    *int64                       `json:"proxy_id,omitempty"`
-	APIKey                     string                       `json:"api_key,omitempty"`
-	APIKeys                    []string                     `json:"api_keys,omitempty"`
-	TimeoutMS                  int                          `json:"timeout_ms"`
+	ProxyID               *int64   `json:"proxy_id,omitempty"`
+	APIKey                string   `json:"api_key,omitempty"`
+	APIKeys               []string `json:"api_keys,omitempty"`
+	AliyunAccessKeyID     string   `json:"aliyun_access_key_id,omitempty"`
+	AliyunAccessKeySecret string   `json:"aliyun_access_key_secret_encrypted,omitempty"`
+	AliyunRegionID        string   `json:"aliyun_region_id,omitempty"`
+	AliyunService         string   `json:"aliyun_service,omitempty"`
+	TimeoutMS             int      `json:"timeout_ms"`
+
 	SampleRate                 int                          `json:"sample_rate"`
 	AllGroups                  bool                         `json:"all_groups"`
 	GroupIDs                   []int64                      `json:"group_ids"`
@@ -208,6 +221,8 @@ type ContentModerationConfig struct {
 	// 当次不判定封号，且历史 cyber 行在 CountFlaggedByUserSince 中被排除。
 	// 默认 false（计入，与历史行为一致；旧配置 JSON 无此字段时反序列化为 false）。
 	CyberPolicyExcludeFromBanCount bool `json:"cyber_policy_exclude_from_ban_count"`
+
+	aliyunAccessKeySecretPlaintext string
 }
 
 type ContentModerationConfigView struct {
@@ -223,6 +238,10 @@ type ContentModerationConfigView struct {
 	APIKeyCount                    int                             `json:"api_key_count"`
 	APIKeyMasks                    []string                        `json:"api_key_masks"`
 	APIKeyStatuses                 []ContentModerationAPIKeyStatus `json:"api_key_statuses"`
+	AliyunAccessKeyConfigured      bool                            `json:"aliyun_access_key_configured"`
+	AliyunAccessKeyIDMasked        string                          `json:"aliyun_access_key_id_masked"`
+	AliyunRegionID                 string                          `json:"aliyun_region_id"`
+	AliyunService                  string                          `json:"aliyun_service"`
 	TimeoutMS                      int                             `json:"timeout_ms"`
 	SampleRate                     int                             `json:"sample_rate"`
 	AllGroups                      bool                            `json:"all_groups"`
@@ -297,6 +316,11 @@ type TestContentModerationAPIKeysInput struct {
 	ProxyID *int64   `json:"proxy_id"`
 	Prompt  string   `json:"prompt"`
 	Images  []string `json:"images"`
+
+	AliyunAccessKeyID     string `json:"aliyun_access_key_id"`
+	AliyunAccessKeySecret string `json:"aliyun_access_key_secret"`
+	AliyunRegionID        string `json:"aliyun_region_id"`
+	AliyunService         string `json:"aliyun_service"`
 }
 
 type TestContentModerationAPIKeysResult struct {
@@ -332,6 +356,11 @@ type UpdateContentModerationConfigInput struct {
 	APIKeysMode                    string                        `json:"api_keys_mode"`
 	DeleteAPIKeyHashes             *[]string                     `json:"delete_api_key_hashes"`
 	ClearAPIKey                    bool                          `json:"clear_api_key"`
+	AliyunAccessKeyID              *string                       `json:"aliyun_access_key_id"`
+	AliyunAccessKeySecret          *string                       `json:"aliyun_access_key_secret"`
+	ClearAliyunCredentials         bool                          `json:"clear_aliyun_credentials"`
+	AliyunRegionID                 *string                       `json:"aliyun_region_id"`
+	AliyunService                  *string                       `json:"aliyun_service"`
 	TimeoutMS                      *int                          `json:"timeout_ms"`
 	SampleRate                     *int                          `json:"sample_rate"`
 	AllGroups                      *bool                         `json:"all_groups"`
@@ -500,6 +529,7 @@ type ContentModerationRuntimeStatus struct {
 	Enabled                      bool                            `json:"enabled"`
 	RiskControlEnabled           bool                            `json:"risk_control_enabled"`
 	DefaultAuditPoliciesEnabled  bool                            `json:"default_audit_policies_enabled"`
+	LocalAuditPolicyAction       string                          `json:"local_audit_policy_action"`
 	Mode                         string                          `json:"mode"`
 	WorkerCount                  int                             `json:"worker_count"`
 	MaxWorkers                   int                             `json:"max_workers"`
@@ -523,6 +553,7 @@ type ContentModerationRuntimeStatus struct {
 	PreBlockAPIKeyTotalCalls     int64                           `json:"pre_block_api_key_total_calls"`
 	PreBlockAPIKeyLoads          []ContentModerationAPIKeyLoad   `json:"pre_block_api_key_loads"`
 	APIKeyStatuses               []ContentModerationAPIKeyStatus `json:"api_key_statuses"`
+	AliyunAccessKeyConfigured    bool                            `json:"aliyun_access_key_configured"`
 	FlaggedHashCount             int64                           `json:"flagged_hash_count"`
 	LastCleanupAt                *time.Time                      `json:"last_cleanup_at,omitempty"`
 	LastCleanupDeletedHit        int64                           `json:"last_cleanup_deleted_hit"`
@@ -600,11 +631,15 @@ type ContentModerationService struct {
 	lockCache                LeaderLockCache
 	db                       *sql.DB
 	instanceID               string
+	secretEncryptor          SecretEncryptor
+	encryptionKeyConfigured  bool
+	aliyunGuardrailsFactory  AliyunGuardrailsClientFactory
 }
 
 type contentModerationRuntimeSnapshot struct {
 	riskControlEnabled          bool
 	defaultAuditPoliciesEnabled bool
+	localAuditPolicyAction      string
 	config                      *ContentModerationConfig
 	keywordMatcher              *contentModerationKeywordMatcher
 	configDigest                [sha256.Size]byte
@@ -650,19 +685,44 @@ func NewContentModerationService(
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
 	emailService *EmailService,
 ) *ContentModerationService {
+	return newContentModerationServiceWithAliyun(
+		settingRepo, repo, hashCache, groupRepo, userRepo, proxyRepo,
+		authCacheInvalidator, emailService, nil, false, NewAliyunGuardrailsClientFactory(),
+	)
+}
+
+func newContentModerationServiceWithAliyun(
+	settingRepo SettingRepository,
+	repo ContentModerationRepository,
+	hashCache ContentModerationHashCache,
+	groupRepo GroupRepository,
+	userRepo UserRepository,
+	proxyRepo ProxyRepository,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	emailService *EmailService,
+	encryptor SecretEncryptor,
+	encryptionKeyConfigured bool,
+	factory AliyunGuardrailsClientFactory,
+) *ContentModerationService {
+	if factory == nil {
+		factory = NewAliyunGuardrailsClientFactory()
+	}
 	svc := &ContentModerationService{
-		settingRepo:          settingRepo,
-		repo:                 repo,
-		hashCache:            hashCache,
-		groupRepo:            groupRepo,
-		userRepo:             userRepo,
-		proxyRepo:            proxyRepo,
-		authCacheInvalidator: authCacheInvalidator,
-		emailService:         emailService,
-		workerCount:          maxContentModerationWorkerCount,
-		asyncQueue:           make(chan contentModerationTask, maxContentModerationQueueSize),
-		keyHealth:            make(map[string]*contentModerationKeyHealth),
-		instanceID:           uuid.NewString(),
+		settingRepo:             settingRepo,
+		repo:                    repo,
+		hashCache:               hashCache,
+		groupRepo:               groupRepo,
+		userRepo:                userRepo,
+		proxyRepo:               proxyRepo,
+		authCacheInvalidator:    authCacheInvalidator,
+		emailService:            emailService,
+		workerCount:             maxContentModerationWorkerCount,
+		asyncQueue:              make(chan contentModerationTask, maxContentModerationQueueSize),
+		keyHealth:               make(map[string]*contentModerationKeyHealth),
+		instanceID:              uuid.NewString(),
+		secretEncryptor:         encryptor,
+		encryptionKeyConfigured: encryptionKeyConfigured,
+		aliyunGuardrailsFactory: factory,
 	}
 	if settingRepo != nil && repo != nil {
 		for i := 0; i < svc.workerCount; i++ {
@@ -690,7 +750,7 @@ func (s *ContentModerationService) SetLeaderLock(lockCache LeaderLockCache, db *
 }
 
 func (s *ContentModerationService) GetConfig(ctx context.Context) (*ContentModerationConfigView, error) {
-	cfg, err := s.loadConfig(ctx)
+	cfg, err := s.loadStoredConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -698,7 +758,7 @@ func (s *ContentModerationService) GetConfig(ctx context.Context) (*ContentModer
 }
 
 func (s *ContentModerationService) UpdateConfig(ctx context.Context, input UpdateContentModerationConfigInput) (*ContentModerationConfigView, error) {
-	cfg, err := s.loadConfig(ctx)
+	cfg, err := s.loadStoredConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -709,7 +769,12 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 		cfg.Mode = strings.TrimSpace(*input.Mode)
 	}
 	if input.Protocol != nil {
+		previousProtocol := cfg.Protocol
+		previousDefaultEndpoint := defaultContentModerationEndpointForProtocol(previousProtocol)
 		cfg.Protocol = strings.TrimSpace(*input.Protocol)
+		if input.BaseURL == nil && (strings.TrimSpace(cfg.BaseURL) == "" || strings.EqualFold(strings.TrimSpace(cfg.BaseURL), previousDefaultEndpoint) || previousProtocol == ContentModerationProtocolAliyunGuardrails && isAliyunGuardrailsRegionalEndpoint(cfg.BaseURL)) {
+			cfg.BaseURL = defaultContentModerationEndpointForProtocol(cfg.Protocol)
+		}
 	}
 	if input.ControversialAction != nil {
 		cfg.ControversialAction = strings.TrimSpace(*input.ControversialAction)
@@ -719,6 +784,35 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 	}
 	if input.Model != nil {
 		cfg.Model = strings.TrimSpace(*input.Model)
+	}
+	if input.AliyunAccessKeyID != nil && strings.TrimSpace(*input.AliyunAccessKeyID) != "" {
+		cfg.AliyunAccessKeyID = strings.TrimSpace(*input.AliyunAccessKeyID)
+	}
+	if input.AliyunRegionID != nil {
+		previousRegion := cfg.AliyunRegionID
+		cfg.AliyunRegionID = strings.TrimSpace(*input.AliyunRegionID)
+		if input.BaseURL == nil && shouldReplaceAliyunEndpointForRegion(cfg.BaseURL, previousRegion) {
+			cfg.BaseURL = aliyunGuardrailsEndpointForRegion(cfg.AliyunRegionID)
+		}
+	}
+	if input.AliyunService != nil {
+		cfg.AliyunService = strings.TrimSpace(*input.AliyunService)
+	}
+	if input.ClearAliyunCredentials {
+		cfg.AliyunAccessKeyID = ""
+		cfg.AliyunAccessKeySecret = ""
+		cfg.aliyunAccessKeySecretPlaintext = ""
+	} else if input.AliyunAccessKeySecret != nil && strings.TrimSpace(*input.AliyunAccessKeySecret) != "" {
+		if !s.encryptionKeyConfigured || s.secretEncryptor == nil {
+			return nil, ErrSecretEncryptionKeyNotConfigured
+		}
+		secret := strings.TrimSpace(*input.AliyunAccessKeySecret)
+		encrypted, err := s.secretEncryptor.Encrypt(secret)
+		if err != nil {
+			return nil, fmt.Errorf("encrypt Aliyun access key secret: %w", err)
+		}
+		cfg.AliyunAccessKeySecret = encrypted
+		cfg.aliyunAccessKeySecretPlaintext = secret
 	}
 	if input.ProxyID != nil {
 		if *input.ProxyID > 0 {
@@ -819,7 +913,7 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 		cfg.CyberUsageWindowHours = *input.CyberUsageWindowHours
 	}
 	if input.Thresholds != nil {
-		cfg.Thresholds = mergeContentModerationThresholds(ContentModerationDefaultThresholds(), *input.Thresholds)
+		cfg.Thresholds = mergeContentModerationThresholds(cfg.Thresholds, *input.Thresholds)
 	}
 	if input.ClearAPIKey {
 		cfg.APIKey = ""
@@ -843,6 +937,11 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 			cfg.APIKey = ""
 		}
 	}
+	if cfg.Protocol == ContentModerationProtocolAliyunGuardrails && strings.TrimSpace(cfg.AliyunAccessKeySecret) != "" && strings.TrimSpace(cfg.aliyunAccessKeySecretPlaintext) == "" {
+		if err := s.decryptAliyunAccessKeySecret(cfg); err != nil {
+			return nil, err
+		}
+	}
 	if err := s.validateConfig(ctx, cfg); err != nil {
 		return nil, err
 	}
@@ -861,7 +960,7 @@ func (s *ContentModerationService) UpdateConfig(ctx context.Context, input Updat
 }
 
 func (s *ContentModerationService) TestAPIKeys(ctx context.Context, input TestContentModerationAPIKeysInput) (*TestContentModerationAPIKeysResult, error) {
-	cfg, err := s.loadConfig(ctx)
+	cfg, err := s.loadStoredConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -875,13 +974,34 @@ func (s *ContentModerationService) TestAPIKeys(ctx context.Context, input TestCo
 		cfg.BaseURL = input.BaseURL
 	}
 	if strings.TrimSpace(input.Protocol) != "" {
+		previousProtocol := cfg.Protocol
+		previousDefaultEndpoint := defaultContentModerationEndpointForProtocol(previousProtocol)
 		cfg.Protocol = input.Protocol
+		if strings.TrimSpace(input.BaseURL) == "" && (strings.TrimSpace(cfg.BaseURL) == "" || strings.EqualFold(strings.TrimSpace(cfg.BaseURL), previousDefaultEndpoint) || previousProtocol == ContentModerationProtocolAliyunGuardrails && isAliyunGuardrailsRegionalEndpoint(cfg.BaseURL)) {
+			cfg.BaseURL = defaultContentModerationEndpointForProtocol(cfg.Protocol)
+		}
 	}
 	if strings.TrimSpace(input.ControversialAction) != "" {
 		cfg.ControversialAction = input.ControversialAction
 	}
 	if strings.TrimSpace(input.Model) != "" {
 		cfg.Model = input.Model
+	}
+	if strings.TrimSpace(input.AliyunAccessKeyID) != "" {
+		cfg.AliyunAccessKeyID = strings.TrimSpace(input.AliyunAccessKeyID)
+	}
+	if strings.TrimSpace(input.AliyunAccessKeySecret) != "" {
+		cfg.aliyunAccessKeySecretPlaintext = strings.TrimSpace(input.AliyunAccessKeySecret)
+	}
+	if strings.TrimSpace(input.AliyunRegionID) != "" {
+		previousRegion := cfg.AliyunRegionID
+		cfg.AliyunRegionID = input.AliyunRegionID
+		if strings.TrimSpace(input.BaseURL) == "" && shouldReplaceAliyunEndpointForRegion(cfg.BaseURL, previousRegion) {
+			cfg.BaseURL = aliyunGuardrailsEndpointForRegion(cfg.AliyunRegionID)
+		}
+	}
+	if strings.TrimSpace(input.AliyunService) != "" {
+		cfg.AliyunService = input.AliyunService
 	}
 	if input.TimeoutMS > 0 {
 		cfg.TimeoutMS = input.TimeoutMS
@@ -898,6 +1018,42 @@ func (s *ContentModerationService) TestAPIKeys(ctx context.Context, input TestCo
 	testInput, imageCount, err := buildModerationTestInput(input.Prompt, input.Images)
 	if err != nil {
 		return nil, err
+	}
+	if cfg.Protocol == ContentModerationProtocolAliyunGuardrails {
+		if strings.TrimSpace(cfg.aliyunAccessKeySecretPlaintext) == "" && strings.TrimSpace(cfg.AliyunAccessKeySecret) != "" {
+			if err := s.decryptAliyunAccessKeySecret(cfg); err != nil {
+				return nil, err
+			}
+		}
+		if len(input.Images) > 0 {
+			return nil, infraerrors.BadRequest("ALIYUN_GUARDRAILS_IMAGES_NOT_SUPPORTED", "阿里云 AI 安全护栏首期不支持图片审核")
+		}
+		if strings.TrimSpace(cfg.AliyunAccessKeyID) == "" || strings.TrimSpace(cfg.aliyunAccessKeySecretPlaintext) == "" {
+			return nil, infraerrors.BadRequest("ALIYUN_GUARDRAILS_CREDENTIALS_REQUIRED", "阿里云 AI 安全护栏 AccessKey ID 和 Secret 必须完整配置")
+		}
+		start := time.Now()
+		httpStatus := 0
+		result, callErr := s.callAliyunGuardrailsOnce(ctx, cfg, testInput, &httpStatus)
+		item := ContentModerationAPIKeyStatus{
+			Index:          0,
+			KeyHash:        moderationAPIKeyHash(cfg.AliyunAccessKeyID),
+			Masked:         maskSecretTail(cfg.AliyunAccessKeyID),
+			Status:         "ok",
+			LastLatencyMS:  int(time.Since(start).Milliseconds()),
+			LastHTTPStatus: httpStatus,
+			LastTested:     true,
+			Configured:     strings.TrimSpace(input.AliyunAccessKeyID) == "" && strings.TrimSpace(input.AliyunAccessKeySecret) == "",
+		}
+		if callErr != nil {
+			item.Status = "error"
+			item.LastError = trimRunes(redactContentModerationSecrets(callErr.Error()), 180)
+			return &TestContentModerationAPIKeysResult{Items: []ContentModerationAPIKeyStatus{item}, ImageCount: imageCount}, nil
+		}
+		return &TestContentModerationAPIKeysResult{
+			Items:       []ContentModerationAPIKeyStatus{item},
+			AuditResult: buildContentModerationTestAuditResult(result, cfg.Thresholds),
+			ImageCount:  imageCount,
+		}, nil
 	}
 	auditOnly := contentModerationTestHasAuditInput(input.Prompt, input.Images)
 	if configured && auditOnly {
@@ -989,6 +1145,7 @@ func (s *ContentModerationService) Check(ctx context.Context, input ContentModer
 		"in_model_scope", inModelScope,
 		"sample_rate", cfg.SampleRate,
 		"api_key_count", len(cfg.apiKeys()),
+		"aliyun_guardrails_configured", cfg.hasModerationCredentials() && cfg.Protocol == ContentModerationProtocolAliyunGuardrails,
 		"pre_hash_check_enabled", cfg.PreHashCheckEnabled,
 		"record_non_hits", cfg.RecordNonHits)
 	if !cfg.Enabled {
@@ -1142,7 +1299,7 @@ func (s *ContentModerationService) Check(ctx context.Context, input ContentModer
 			"sample_rate", cfg.SampleRate)
 		return allow, nil
 	}
-	if len(cfg.apiKeys()) == 0 {
+	if !cfg.hasModerationCredentials() {
 		if cfg.Mode == ContentModerationModePreBlock {
 			s.recordPreBlockSyncMetric(0, ContentModerationActionError)
 		}
@@ -1197,15 +1354,15 @@ func (s *ContentModerationService) checkSync(ctx context.Context, input ContentM
 		if queueDelay != nil {
 			s.asyncErrors.Add(1)
 		}
-		if cfg.RecordNonHits {
+		if cfg.RecordNonHits || errors.Is(err, errAliyunGuardrailsImagesNotSupported) {
 			log := s.buildLog(input, cfg, ContentModerationActionError, false, "", 0, nil, content.ExcerptText(), &latency, queueDelay, err.Error())
-			_ = s.repo.CreateLog(ctx, log)
+			s.persistContentModerationLog(ctx, cfg, log, hashText, false, false)
 		}
 		return allow
 	}
 
 	flagged, highestCategory, highestScore := evaluateModerationScores(result.CategoryScores, cfg.Thresholds)
-	if result.Severity != "" {
+	if result.UseProviderDecision {
 		flagged = result.Flagged
 	}
 	action := ContentModerationActionAllow
@@ -1385,7 +1542,7 @@ func (s *ContentModerationService) worker(id int) {
 				s.asyncProcessed.Add(1)
 				return
 			}
-			if !cfg.Enabled || cfg.Mode == ContentModerationModeOff || len(cfg.apiKeys()) == 0 {
+			if !cfg.Enabled || cfg.Mode == ContentModerationModeOff || !cfg.hasModerationCredentials() {
 				return
 			}
 			if !cfg.includesGroup(task.input.GroupID) {
@@ -1507,6 +1664,7 @@ func (s *ContentModerationService) GetStatus(ctx context.Context) (*ContentModer
 	}
 	riskEnabled := s.isRiskControlEnabled(ctx)
 	defaultAuditEnabled := s.DefaultAuditPoliciesEnabled(ctx)
+	localAuditAction := s.LocalAuditPolicyAction(ctx)
 	active := int(s.asyncActive.Load())
 	if active < 0 {
 		active = 0
@@ -1548,6 +1706,7 @@ func (s *ContentModerationService) GetStatus(ctx context.Context) (*ContentModer
 		Enabled:                      cfg.Enabled,
 		RiskControlEnabled:           riskEnabled,
 		DefaultAuditPoliciesEnabled:  defaultAuditEnabled,
+		LocalAuditPolicyAction:       localAuditAction,
 		Mode:                         cfg.Mode,
 		WorkerCount:                  cfg.WorkerCount,
 		MaxWorkers:                   maxContentModerationWorkerCount,
@@ -1571,6 +1730,7 @@ func (s *ContentModerationService) GetStatus(ctx context.Context) (*ContentModer
 		PreBlockAPIKeyTotalCalls:     s.preBlockAPIKeyTotalCalls(cfg.apiKeys()),
 		PreBlockAPIKeyLoads:          s.preBlockAPIKeyLoads(cfg.apiKeys()),
 		APIKeyStatuses:               s.apiKeyStatuses(cfg.apiKeys()),
+		AliyunAccessKeyConfigured:    cfg.Protocol == ContentModerationProtocolAliyunGuardrails && cfg.hasModerationCredentials(),
 		FlaggedHashCount:             flaggedHashCount,
 		LastCleanupAt:                lastCleanupAt,
 		LastCleanupDeletedHit:        s.lastCleanupDeletedHit.Load(),
@@ -1615,7 +1775,7 @@ func (s *ContentModerationService) runCleanupOnce() {
 	s.lastCleanupDeletedNonHit.Store(result.DeletedNonHit)
 }
 
-func (s *ContentModerationService) loadConfig(ctx context.Context) (*ContentModerationConfig, error) {
+func (s *ContentModerationService) loadStoredConfig(ctx context.Context) (*ContentModerationConfig, error) {
 	raw, err := s.settingRepo.GetValue(ctx, SettingKeyContentModerationConfig)
 	if err != nil {
 		if errors.Is(err, ErrSettingNotFound) {
@@ -1626,6 +1786,32 @@ func (s *ContentModerationService) loadConfig(ctx context.Context) (*ContentMode
 	return parseContentModerationConfig(raw)
 }
 
+func (s *ContentModerationService) loadConfig(ctx context.Context) (*ContentModerationConfig, error) {
+	cfg, err := s.loadStoredConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.decryptAliyunAccessKeySecret(cfg); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func (s *ContentModerationService) decryptAliyunAccessKeySecret(cfg *ContentModerationConfig) error {
+	if cfg == nil || strings.TrimSpace(cfg.AliyunAccessKeySecret) == "" {
+		return nil
+	}
+	if s == nil || s.secretEncryptor == nil {
+		return errors.New("content moderation secret encryptor unavailable")
+	}
+	secret, err := s.secretEncryptor.Decrypt(cfg.AliyunAccessKeySecret)
+	if err != nil {
+		return fmt.Errorf("decrypt Aliyun access key secret: %w", err)
+	}
+	cfg.aliyunAccessKeySecretPlaintext = secret
+	return nil
+}
+
 func parseContentModerationConfig(raw string) (*ContentModerationConfig, error) {
 	cfg := defaultContentModerationConfig()
 	if strings.TrimSpace(raw) == "" {
@@ -1634,6 +1820,12 @@ func parseContentModerationConfig(raw string) (*ContentModerationConfig, error) 
 	}
 	if err := json.Unmarshal([]byte(raw), cfg); err != nil {
 		return nil, infraerrors.BadRequest("INVALID_CONTENT_MODERATION_CONFIG", "内容审计配置不是有效 JSON")
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &fields); err == nil && strings.EqualFold(strings.TrimSpace(cfg.Protocol), ContentModerationProtocolAliyunGuardrails) {
+		if _, exists := fields["base_url"]; !exists {
+			cfg.BaseURL = defaultAliyunGuardrailsEndpoint
+		}
 	}
 	cfg.normalize()
 	return cfg, nil
@@ -1697,6 +1889,7 @@ func (s *ContentModerationService) refreshRuntimeSnapshot(ctx context.Context) (
 	values, err := s.settingRepo.GetMultiple(ctx, []string{
 		SettingKeyRiskControlEnabled,
 		SettingKeyDefaultAuditPoliciesEnabled,
+		SettingKeyLocalAuditPolicyAction,
 		SettingKeyContentModerationConfig,
 	})
 	if err != nil {
@@ -1708,6 +1901,7 @@ func (s *ContentModerationService) refreshRuntimeSnapshot(ctx context.Context) (
 		snapshot := &contentModerationRuntimeSnapshot{
 			riskControlEnabled:          values[SettingKeyRiskControlEnabled] == "true",
 			defaultAuditPoliciesEnabled: !isFalseSettingValue(values[SettingKeyDefaultAuditPoliciesEnabled]),
+			localAuditPolicyAction:      NormalizeLocalAuditPolicyAction(values[SettingKeyLocalAuditPolicyAction]),
 			config:                      current.config,
 			keywordMatcher:              current.keywordMatcher,
 			configDigest:                configDigest,
@@ -1721,9 +1915,13 @@ func (s *ContentModerationService) refreshRuntimeSnapshot(ctx context.Context) (
 	if err != nil {
 		return nil, err
 	}
+	if err := s.decryptAliyunAccessKeySecret(cfg); err != nil {
+		return nil, err
+	}
 	snapshot := &contentModerationRuntimeSnapshot{
 		riskControlEnabled:          values[SettingKeyRiskControlEnabled] == "true",
 		defaultAuditPoliciesEnabled: !isFalseSettingValue(values[SettingKeyDefaultAuditPoliciesEnabled]),
+		localAuditPolicyAction:      NormalizeLocalAuditPolicyAction(values[SettingKeyLocalAuditPolicyAction]),
 		config:                      cfg,
 		keywordMatcher:              newContentModerationKeywordMatcher(cfg.BlockedKeywords),
 		configDigest:                configDigest,
@@ -1755,11 +1953,13 @@ func (s *ContentModerationService) replaceRuntimeConfig(cfg *ContentModerationCo
 		return
 	}
 	s.runtimeSnapshot.Store(&contentModerationRuntimeSnapshot{
-		riskControlEnabled: current.riskControlEnabled,
-		config:             config,
-		keywordMatcher:     keywordMatcher,
-		configDigest:       configDigest,
-		loadedAt:           time.Now(),
+		riskControlEnabled:          current.riskControlEnabled,
+		defaultAuditPoliciesEnabled: current.defaultAuditPoliciesEnabled,
+		localAuditPolicyAction:      current.localAuditPolicyAction,
+		config:                      config,
+		keywordMatcher:              keywordMatcher,
+		configDigest:                configDigest,
+		loadedAt:                    time.Now(),
 	})
 }
 
@@ -1795,6 +1995,19 @@ func (s *ContentModerationService) DefaultAuditPoliciesEnabled(ctx context.Conte
 	return snapshot.defaultAuditPoliciesEnabled
 }
 
+// LocalAuditPolicyAction 返回本地内置策略命中后的处理动作。
+// 配置缺失或读取失败时使用 review，避免升级过程中恢复旧的直接拦截行为。
+func (s *ContentModerationService) LocalAuditPolicyAction(ctx context.Context) string {
+	if s == nil || s.settingRepo == nil {
+		return LocalAuditPolicyActionReview
+	}
+	snapshot, err := s.loadRuntimeSnapshot(ctx)
+	if err != nil || snapshot == nil {
+		return LocalAuditPolicyActionReview
+	}
+	return NormalizeLocalAuditPolicyAction(snapshot.localAuditPolicyAction)
+}
+
 func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *ContentModerationConfig) error {
 	if cfg == nil {
 		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_CONFIG", "内容审计配置不能为空")
@@ -1806,7 +2019,7 @@ func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *Cont
 		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_MODE", "内容审计模式无效")
 	}
 	switch cfg.Protocol {
-	case ContentModerationProtocolOpenAIModeration, ContentModerationProtocolQwen3GuardChat:
+	case ContentModerationProtocolOpenAIModeration, ContentModerationProtocolQwen3GuardChat, ContentModerationProtocolAliyunGuardrails:
 	default:
 		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_PROTOCOL", "内容审计协议无效")
 	}
@@ -1814,6 +2027,16 @@ func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *Cont
 	case ContentModerationControversialActionAllow, ContentModerationControversialActionBlock:
 	default:
 		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_CONTROVERSIAL_ACTION", "争议内容处理方式无效")
+	}
+	if cfg.Protocol == ContentModerationProtocolAliyunGuardrails {
+		switch cfg.AliyunService {
+		case defaultAliyunGuardrailsService, aliyunGuardrailsServiceStandard, aliyunGuardrailsServiceOverseas:
+		default:
+			return infraerrors.BadRequest("INVALID_ALIYUN_GUARDRAILS_SERVICE", "阿里云 AI 安全护栏仅支持输入审核 service")
+		}
+		if _, err := normalizeAliyunGuardrailsEndpoint(cfg.BaseURL); err != nil {
+			return infraerrors.BadRequest("INVALID_ALIYUN_GUARDRAILS_ENDPOINT", "阿里云 AI 安全护栏 endpoint 无效")
+		}
 	}
 	if _, err := url.ParseRequestURI(cfg.BaseURL); err != nil {
 		return infraerrors.BadRequest("INVALID_CONTENT_MODERATION_BASE_URL", "内容审计 Base URL 无效")
@@ -1840,6 +2063,9 @@ func (s *ContentModerationService) validateConfig(ctx context.Context, cfg *Cont
 }
 
 func (s *ContentModerationService) callModeration(ctx context.Context, cfg *ContentModerationConfig, input any, trackKeyLoad ...bool) (*moderationAPIResult, error) {
+	if cfg.Protocol == ContentModerationProtocolAliyunGuardrails {
+		return s.callAliyunGuardrailsWithRetry(ctx, cfg, input)
+	}
 	attempts := cfg.RetryCount + 1
 	if attempts <= 0 {
 		attempts = 1
@@ -1891,6 +2117,9 @@ func (s *ContentModerationService) callModeration(ctx context.Context, cfg *Cont
 }
 
 func (s *ContentModerationService) callModerationOnceWithInput(ctx context.Context, cfg *ContentModerationConfig, apiKey string, input any, httpStatus *int) (*moderationAPIResult, error) {
+	if cfg.Protocol == ContentModerationProtocolAliyunGuardrails {
+		return s.callAliyunGuardrailsOnce(ctx, cfg, input, httpStatus)
+	}
 	if cfg.Protocol == ContentModerationProtocolQwen3GuardChat {
 		return s.callQwen3GuardChatOnce(ctx, cfg, apiKey, input, httpStatus)
 	}
@@ -2279,6 +2508,8 @@ func defaultContentModerationConfig() *ContentModerationConfig {
 		CyberUsageWhitelistUserIDs:     []int64{},
 		CyberUsageBanThreshold:         defaultCyberUsageBanThreshold,
 		CyberUsageWindowHours:          defaultCyberUsageWindowHours,
+		AliyunRegionID:                 defaultAliyunGuardrailsRegion,
+		AliyunService:                  defaultAliyunGuardrailsService,
 	}
 }
 
@@ -2288,6 +2519,7 @@ func cloneContentModerationConfig(cfg *ContentModerationConfig) *ContentModerati
 	}
 	clone := *cfg
 	clone.ProxyID = cloneInt64Ptr(cfg.ProxyID)
+	clone.aliyunAccessKeySecretPlaintext = cfg.aliyunAccessKeySecretPlaintext
 	clone.APIKeys = append([]string(nil), cfg.APIKeys...)
 	clone.GroupIDs = append([]int64(nil), cfg.GroupIDs...)
 	clone.SyncAbuseWhitelistUserIDs = append([]int64(nil), cfg.SyncAbuseWhitelistUserIDs...)
@@ -2299,6 +2531,35 @@ func cloneContentModerationConfig(cfg *ContentModerationConfig) *ContentModerati
 		Models: append([]string(nil), cfg.ModelFilter.Models...),
 	}
 	return &clone
+}
+
+func aliyunGuardrailsEndpointForRegion(region string) string {
+	region = strings.TrimSpace(region)
+	if region == "" {
+		region = defaultAliyunGuardrailsRegion
+	}
+	return "https://green-cip." + region + ".aliyuncs.com"
+}
+
+func shouldReplaceAliyunEndpointForRegion(endpoint, previousRegion string) bool {
+	endpoint = strings.TrimRight(strings.TrimSpace(endpoint), "/")
+	return endpoint == "" || strings.EqualFold(endpoint, strings.TrimRight(aliyunGuardrailsEndpointForRegion(previousRegion), "/"))
+}
+
+func isAliyunGuardrailsRegionalEndpoint(endpoint string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(endpoint))
+	if err != nil || !strings.EqualFold(parsed.Scheme, "https") || parsed.Path != "" && parsed.Path != "/" {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return strings.HasPrefix(host, "green-cip.") && strings.HasSuffix(host, ".aliyuncs.com")
+}
+
+func defaultContentModerationEndpointForProtocol(protocol string) string {
+	if strings.EqualFold(strings.TrimSpace(protocol), ContentModerationProtocolAliyunGuardrails) {
+		return defaultAliyunGuardrailsEndpoint
+	}
+	return defaultContentModerationBaseURL
 }
 
 func (cfg *ContentModerationConfig) normalize() {
@@ -2315,12 +2576,27 @@ func (cfg *ContentModerationConfig) normalize() {
 		cfg.Protocol = ContentModerationProtocolOpenAIModeration
 	}
 	cfg.Protocol = strings.ToLower(strings.TrimSpace(cfg.Protocol))
+	cfg.AliyunAccessKeyID = strings.TrimSpace(cfg.AliyunAccessKeyID)
+	cfg.AliyunAccessKeySecret = strings.TrimSpace(cfg.AliyunAccessKeySecret)
+	cfg.aliyunAccessKeySecretPlaintext = strings.TrimSpace(cfg.aliyunAccessKeySecretPlaintext)
+	if strings.TrimSpace(cfg.AliyunRegionID) == "" {
+		cfg.AliyunRegionID = defaultAliyunGuardrailsRegion
+	}
+	cfg.AliyunRegionID = strings.TrimSpace(cfg.AliyunRegionID)
+	if strings.TrimSpace(cfg.AliyunService) == "" {
+		cfg.AliyunService = defaultAliyunGuardrailsService
+	}
+	cfg.AliyunService = strings.TrimSpace(cfg.AliyunService)
 	if cfg.ControversialAction == "" {
 		cfg.ControversialAction = ContentModerationControversialActionAllow
 	}
 	cfg.ControversialAction = strings.ToLower(strings.TrimSpace(cfg.ControversialAction))
 	if cfg.BaseURL == "" {
-		cfg.BaseURL = defaultContentModerationBaseURL
+		if cfg.Protocol == ContentModerationProtocolAliyunGuardrails {
+			cfg.BaseURL = defaultAliyunGuardrailsEndpoint
+		} else {
+			cfg.BaseURL = defaultContentModerationBaseURL
+		}
 	}
 	cfg.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/")
 	if cfg.Model == "" {
@@ -2471,6 +2747,16 @@ func (cfg *ContentModerationConfig) shouldSample(hashText string) bool {
 		return true
 	}
 	return int(binary.BigEndian.Uint16(raw[:2])%100) < cfg.SampleRate
+}
+
+func (cfg *ContentModerationConfig) hasModerationCredentials() bool {
+	if cfg == nil {
+		return false
+	}
+	if cfg.Protocol == ContentModerationProtocolAliyunGuardrails {
+		return strings.TrimSpace(cfg.AliyunAccessKeyID) != "" && strings.TrimSpace(cfg.aliyunAccessKeySecretPlaintext) != ""
+	}
+	return len(cfg.apiKeys()) > 0
 }
 
 func (cfg *ContentModerationConfig) apiKeys() []string {
@@ -2631,6 +2917,10 @@ func (s *ContentModerationService) configView(cfg *ContentModerationConfig) *Con
 		APIKeyCount:                    len(keys),
 		APIKeyMasks:                    masks,
 		APIKeyStatuses:                 s.apiKeyStatuses(keys),
+		AliyunAccessKeyConfigured:      strings.TrimSpace(cfg.AliyunAccessKeyID) != "" && strings.TrimSpace(cfg.AliyunAccessKeySecret) != "",
+		AliyunAccessKeyIDMasked:        maskSecretTail(cfg.AliyunAccessKeyID),
+		AliyunRegionID:                 cfg.AliyunRegionID,
+		AliyunService:                  cfg.AliyunService,
 		TimeoutMS:                      cfg.TimeoutMS,
 		SampleRate:                     cfg.SampleRate,
 		AllGroups:                      cfg.AllGroups,
@@ -2869,7 +3159,7 @@ func buildContentModerationTestAuditResult(result *moderationAPIResult, threshol
 	}
 	thresholdSnapshot := mergeContentModerationThresholds(ContentModerationDefaultThresholds(), thresholds)
 	flagged, highestCategory, highestScore := evaluateModerationScores(scores, thresholdSnapshot)
-	if result.Severity != "" {
+	if result.UseProviderDecision {
 		flagged = result.Flagged
 	}
 	compositeScore := highestScore
@@ -2905,10 +3195,11 @@ type moderationAPIResponse struct {
 }
 
 type moderationAPIResult struct {
-	Flagged        bool               `json:"flagged"`
-	CategoryScores map[string]float64 `json:"category_scores"`
-	Severity       qwen3GuardSeverity `json:"-"`
-	Categories     []string           `json:"-"`
+	Flagged             bool               `json:"flagged"`
+	CategoryScores      map[string]float64 `json:"category_scores"`
+	Severity            qwen3GuardSeverity `json:"-"`
+	Categories          []string           `json:"-"`
+	UseProviderDecision bool               `json:"-"`
 }
 
 func evaluateModerationScores(scores map[string]float64, thresholds map[string]float64) (bool, string, float64) {

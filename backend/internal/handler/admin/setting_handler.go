@@ -269,6 +269,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		DefaultBalance:                                         settings.DefaultBalance,
 		RiskControlEnabled:                                     settings.RiskControlEnabled,
 		DefaultAuditPoliciesEnabled:                            settings.DefaultAuditPoliciesEnabled,
+		LocalAuditPolicyAction:                                 settings.LocalAuditPolicyAction,
 		CheckinEnabled:                                         settings.CheckinEnabled,
 		CheckinMinAmount:                                       settings.CheckinMinAmount,
 		CheckinMaxAmount:                                       settings.CheckinMaxAmount,

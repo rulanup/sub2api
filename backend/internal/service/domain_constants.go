@@ -189,6 +189,13 @@ const WeChatConnectSyntheticEmailDomain = "@wechat-connect.invalid"
 // DingTalkConnectSyntheticEmailDomain 是 DingTalk Connect 用户的合成邮箱后缀（RFC 保留域名）。
 const DingTalkConnectSyntheticEmailDomain = "@dingtalk-connect.invalid"
 
+// 本地内置审查策略命中后的动作。
+const (
+	LocalAuditPolicyActionAllow  = "allow"
+	LocalAuditPolicyActionReview = "review"
+	LocalAuditPolicyActionBlock  = "block"
+)
+
 // Setting keys
 const (
 	// 注册设置
@@ -210,6 +217,7 @@ const (
 	SettingKeyAffiliateAdminRechargeEnabled       = "affiliate_admin_recharge_enabled" // 管理员充值是否产生返利
 	SettingKeyRiskControlEnabled                  = "risk_control_enabled"             // 是否启用风控中心入口与审计链路
 	SettingKeyDefaultAuditPoliciesEnabled         = "default_audit_policies_enabled"   // 是否启用内置默认审查策略（本地安全策略初筛、上游错误提示词记录）
+	SettingKeyLocalAuditPolicyAction              = "local_audit_policy_action"        // 本地内置策略命中动作：allow/review/block
 	SettingKeyContentModerationConfig             = "content_moderation_config"        // 内容审计配置（JSON）
 	SettingKeyCheckinEnabled                      = "checkin_enabled"                  // 是否启用每日签到
 	SettingKeyCheckinMinAmount                    = "checkin_min_amount"               // 签到最小额度（美元）

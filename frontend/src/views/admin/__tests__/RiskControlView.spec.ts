@@ -82,6 +82,10 @@ const baseConfig = (): ContentModerationConfig => ({
   controversial_action: 'allow',
   base_url: 'https://api.openai.com',
   model: 'omni-moderation-latest',
+  aliyun_region_id: 'cn-shanghai',
+  aliyun_service: 'query_security_check_pro',
+  aliyun_access_key_configured: false,
+  aliyun_access_key_id_masked: '',
   proxy_id: null,
   api_key_configured: false,
   api_key_masked: '',
@@ -218,6 +222,23 @@ const SearchableUserAllowlistSelectorStub = defineComponent({
   },
 })
 
+function mountRiskControlView() {
+  return mount(RiskControlView, {
+    global: {
+      stubs: {
+        AppLayout: AppLayoutStub,
+        BaseDialog: BaseDialogStub,
+        Icon: true,
+        Select: true,
+        Toggle: true,
+        Pagination: true,
+        ModelWhitelistSelector: ModelWhitelistSelectorStub,
+        ProxySelector: true,
+      },
+    },
+  })
+}
+
 function findButtonByText(wrapper: VueWrapper, text: string): DOMWrapper<HTMLButtonElement> {
   const button = wrapper.findAll<HTMLButtonElement>('button').find((item) => item.text().includes(text))
   if (!button) {
@@ -251,10 +272,192 @@ describe('admin RiskControlView', () => {
       api_key_count: 0,
       api_key_masks: [],
       api_key_statuses: [],
+      aliyun_access_key_configured: payload.clear_aliyun_credentials
+        ? false
+        : Boolean(payload.aliyun_access_key_id || baseConfig().aliyun_access_key_configured),
+      aliyun_access_key_id_masked: payload.aliyun_access_key_id ? 'LTAI...test' : baseConfig().aliyun_access_key_id_masked,
     }))
   })
 
-  it('submits Qwen3Guard protocol and controversial action settings', async () => {
+  it('shows Aliyun fields with defaults and hides model and the API key pool', async () => {
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+
+    const vm = wrapper.vm as typeof wrapper.vm & {
+      configForm: { protocol: string; base_url: string; aliyun_region_id: string; aliyun_service: string }
+    }
+    vm.configForm.protocol = 'aliyun_guardrails'
+    await wrapper.vm.$nextTick()
+
+    expect(vm.configForm.base_url).toBe('https://green-cip.cn-shanghai.aliyuncs.com')
+    expect(vm.configForm.aliyun_region_id).toBe('cn-shanghai')
+    expect(vm.configForm.aliyun_service).toBe('query_security_check_pro')
+    expect(wrapper.find('[data-test="aliyun-credentials"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="api-key-pool"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="controversial-action"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="aliyun-text-only-notice"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="moderation-model"]').exists()).toBe(false)
+
+    vm.configForm.aliyun_region_id = 'cn-beijing'
+    await wrapper.vm.$nextTick()
+    expect(vm.configForm.base_url).toBe('https://green-cip.cn-beijing.aliyuncs.com')
+
+    vm.configForm.protocol = 'openai_moderation'
+    await wrapper.vm.$nextTick()
+    expect(vm.configForm.base_url).toBe('https://api.openai.com')
+  })
+
+  it('preserves custom endpoints while switching protocols', async () => {
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+    const vm = wrapper.vm as typeof wrapper.vm & { configForm: { protocol: string; base_url: string } }
+
+    vm.configForm.base_url = 'https://moderation.example.com'
+    vm.configForm.protocol = 'aliyun_guardrails'
+    await wrapper.vm.$nextTick()
+    expect(vm.configForm.base_url).toBe('https://moderation.example.com')
+
+    vm.configForm.base_url = ''
+    vm.configForm.protocol = 'openai_moderation'
+    await wrapper.vm.$nextTick()
+    expect(vm.configForm.base_url).toBe('https://api.openai.com')
+  })
+
+  it('does not echo saved Aliyun credentials and preserves them with empty inputs', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      protocol: 'aliyun_guardrails',
+      base_url: 'https://green-cip.cn-shanghai.aliyuncs.com',
+      aliyun_access_key_configured: true,
+      aliyun_access_key_id_masked: 'LTAI****7890',
+    })
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+
+    const idInput = wrapper.get<HTMLInputElement>('[data-test="aliyun-access-key-id"]')
+    const secretInput = wrapper.get<HTMLInputElement>('[data-test="aliyun-access-key-secret"]')
+    expect(idInput.element.value).toBe('')
+    expect(idInput.attributes('placeholder')).toBe('LTAI****7890')
+    expect(secretInput.element.type).toBe('password')
+    expect(secretInput.element.value).toBe('')
+
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      protocol: 'aliyun_guardrails',
+      aliyun_access_key_id: '',
+      aliyun_access_key_secret: '',
+      clear_aliyun_credentials: false,
+    }))
+    expect(updateConfig.mock.calls[0]?.[0]).not.toHaveProperty('clear_api_key')
+  })
+
+  it('replaces Aliyun credentials and clears the Secret after saving', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      protocol: 'aliyun_guardrails',
+      aliyun_access_key_configured: true,
+      aliyun_access_key_id_masked: 'LTAI****old',
+    })
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    const secretInput = wrapper.get<HTMLInputElement>('[data-test="aliyun-access-key-secret"]')
+
+    await wrapper.get('[data-test="aliyun-access-key-id"]').setValue('LTAI-replacement')
+    await secretInput.setValue('replacement-secret')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      aliyun_access_key_id: 'LTAI-replacement',
+      aliyun_access_key_secret: 'replacement-secret',
+      clear_aliyun_credentials: false,
+    }))
+    expect(secretInput.element.value).toBe('')
+    await flushPromises()
+  })
+
+  it('marks configured Aliyun credentials for explicit clearing', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      protocol: 'aliyun_guardrails',
+      aliyun_access_key_configured: true,
+      aliyun_access_key_id_masked: 'LTAI****7890',
+    })
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await findButtonByText(wrapper, 'admin.riskControl.clearAliyunCredentials').trigger('click')
+
+    expect(wrapper.find('[data-test="aliyun-clear-pending"]').exists()).toBe(true)
+    expect(wrapper.get('[data-test="aliyun-credential-status"]').text()).toContain('admin.riskControl.aliyunCredentialsPendingClear')
+    await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
+    await flushPromises()
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      clear_aliyun_credentials: true,
+      aliyun_access_key_id: '',
+      aliyun_access_key_secret: '',
+    }))
+  })
+
+  it('reuses saved Aliyun credentials when connection test inputs are empty', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      protocol: 'aliyun_guardrails',
+      base_url: 'https://green-cip.cn-shanghai.aliyuncs.com',
+      aliyun_access_key_configured: true,
+      aliyun_access_key_id_masked: 'LTAI****7890',
+    })
+    testAPIKeys.mockResolvedValueOnce({ items: [], image_count: 0 })
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    await wrapper.get('[data-test="test-aliyun-connection"]').trigger('click')
+
+    expect(testAPIKeys).toHaveBeenCalledWith(expect.objectContaining({
+      aliyun_access_key_id: '',
+      aliyun_access_key_secret: '',
+    }))
+    await flushPromises()
+  })
+
+  it('tests Aliyun with the exact text-only payload and clears the Secret', async () => {
+    getConfig.mockResolvedValue({
+      ...baseConfig(),
+      protocol: 'aliyun_guardrails',
+      base_url: 'https://green-cip.cn-shanghai.aliyuncs.com',
+      aliyun_access_key_configured: true,
+      aliyun_access_key_id_masked: 'LTAI****7890',
+    })
+    testAPIKeys.mockResolvedValueOnce({ items: [], image_count: 0 })
+    const wrapper = mountRiskControlView()
+    await flushPromises()
+    await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
+    const secretInput = wrapper.get<HTMLInputElement>('[data-test="aliyun-access-key-secret"]')
+    await wrapper.get('[data-test="aliyun-access-key-id"]').setValue('LTAI-test')
+    await secretInput.setValue('test-secret')
+    await wrapper.get('[data-test="aliyun-test-prompt"]').setValue('test prompt')
+    await wrapper.get('[data-test="test-aliyun-connection"]').trigger('click')
+
+    expect(testAPIKeys).toHaveBeenCalledWith({
+      protocol: 'aliyun_guardrails',
+      controversial_action: 'allow',
+      aliyun_region_id: 'cn-shanghai',
+      aliyun_service: 'query_security_check_pro',
+      aliyun_access_key_id: 'LTAI-test',
+      aliyun_access_key_secret: 'test-secret',
+      base_url: 'https://green-cip.cn-shanghai.aliyuncs.com',
+      timeout_ms: 3000,
+      proxy_id: 0,
+      prompt: 'test prompt',
+    })
+    expect(secretInput.element.value).toBe('')
+    await flushPromises()
+  })
+
+  it('submits Qwen3Guard protocol while using category thresholds', async () => {
     const wrapper = mount(RiskControlView, {
       global: {
         stubs: {
@@ -273,19 +476,18 @@ describe('admin RiskControlView', () => {
     await flushPromises()
     await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
     const vm = wrapper.vm as typeof wrapper.vm & {
-      configForm: { protocol: string; model: string; controversial_action: string }
+      configForm: { protocol: string; model: string }
     }
     vm.configForm.protocol = 'qwen3guard_chat'
     vm.configForm.model = 'Qwen3Guard-Gen-8B'
-    vm.configForm.controversial_action = 'block'
     await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-test="controversial-action"]').exists()).toBe(false)
     await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
     await flushPromises()
 
     expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
       protocol: 'qwen3guard_chat',
       model: 'Qwen3Guard-Gen-8B',
-      controversial_action: 'block',
     }))
   })
 
@@ -414,8 +616,12 @@ describe('admin RiskControlView', () => {
 
     await findButtonByText(wrapper, 'admin.riskControl.openSettings').trigger('click')
     await findButtonByText(wrapper, 'admin.riskControl.tabs.riskThresholds').trigger('click')
+    for (const category of ['pii', 'unethical', 'jailbreak', 'copyright', 'political', 'qwen3guard']) {
+      expect(wrapper.find(`[data-test="risk-threshold-${category}"]`).exists()).toBe(true)
+    }
     await wrapper.get('[data-test="risk-threshold-sexual"]').setValue('72')
     await wrapper.get('[data-test="risk-threshold-harassment"]').setValue('99')
+    await wrapper.get('[data-test="risk-threshold-political"]').setValue('80')
     await findButtonByText(wrapper, 'admin.riskControl.saveConfig').trigger('click')
     await flushPromises()
 
@@ -423,6 +629,12 @@ describe('admin RiskControlView', () => {
       thresholds: expect.objectContaining({
         sexual: 0.72,
         harassment: 0.99,
+        political: 0.8,
+        pii: 0.65,
+        unethical: 0.65,
+        jailbreak: 0.65,
+        copyright: 0.65,
+        qwen3guard: 0.65,
       }),
     }))
     expect(showError).not.toHaveBeenCalled()

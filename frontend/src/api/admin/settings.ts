@@ -652,6 +652,7 @@ export interface SystemSettings {
   payment_enabled: boolean;
   risk_control_enabled: boolean;
   default_audit_policies_enabled: boolean;
+  local_audit_policy_action: "allow" | "review" | "block";
   checkin_enabled: boolean;
   checkin_min_amount: number;
   checkin_max_amount: number;
@@ -972,6 +973,7 @@ export interface UpdateSettingsRequest {
   payment_enabled?: boolean;
   risk_control_enabled?: boolean;
   default_audit_policies_enabled?: boolean;
+  local_audit_policy_action?: "allow" | "review" | "block";
   checkin_enabled?: boolean;
   checkin_min_amount?: number;
   checkin_max_amount?: number;

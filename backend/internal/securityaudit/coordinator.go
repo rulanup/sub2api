@@ -36,6 +36,7 @@ type systemPromptPolicyProvider interface {
 // gate 为 nil 时按启用处理，保持既有行为。
 type DefaultAuditGate interface {
 	DefaultAuditPoliciesEnabled(ctx context.Context) bool
+	LocalAuditPolicyAction(ctx context.Context) string
 }
 
 type Coordinator struct {
@@ -67,6 +68,13 @@ func (c *Coordinator) SetDefaultAuditGate(gate DefaultAuditGate) {
 
 func (c *Coordinator) defaultAuditPoliciesEnabled(ctx context.Context) bool {
 	return c == nil || c.defaultAudit == nil || c.defaultAudit.DefaultAuditPoliciesEnabled(ctx)
+}
+
+func (c *Coordinator) localAuditPolicyAction(ctx context.Context) string {
+	if c == nil || c.defaultAudit == nil {
+		return service.LocalAuditPolicyActionReview
+	}
+	return service.NormalizeLocalAuditPolicyAction(c.defaultAudit.LocalAuditPolicyAction(ctx))
 }
 
 func (c *Coordinator) SystemPromptPolicy(groupID *int64) SystemPromptPolicy {
@@ -110,9 +118,27 @@ func (c *Coordinator) Check(ctx context.Context, req Request) Decision {
 	}
 	local := EvaluateLocalPolicy(req)
 	if local.Blocked || local.NeedsAI {
-		// 本地策略只做初筛：可疑内容不直接拦截，交由审查模型裁决；
-		// 未配置审查模型时直接放行。
-		return c.checkSuspicious(ctx, req)
+		switch c.localAuditPolicyAction(ctx) {
+		case service.LocalAuditPolicyActionAllow:
+			return allowDecision(nil, nil)
+		case service.LocalAuditPolicyActionBlock:
+			code := local.ErrorCode
+			if code == "" {
+				code = ErrorCodeNetworkSecurityPolicyViolation
+			}
+			decision := Decision{
+				Kind:           DecisionBlock,
+				HTTPStatus:     http.StatusForbidden,
+				ErrorCode:      code,
+				ClientMessage:  "请求被本地安全策略拦截",
+				AllowNextStage: false,
+			}
+			c.recordRisk(ctx, req, decision, &local)
+			return decision
+		default:
+			// review：本地策略只做初筛，交由审查模型裁决；未配置模型时放行。
+			return c.checkSuspicious(ctx, req)
+		}
 	}
 	if c.risk != nil {
 		promptConfigured := c.prompt != nil && c.prompt.EffectiveMode() != ModeOff

@@ -452,6 +452,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
 	updates[SettingKeyDefaultAuditPoliciesEnabled] = strconv.FormatBool(settings.DefaultAuditPoliciesEnabled)
+	updates[SettingKeyLocalAuditPolicyAction] = NormalizeLocalAuditPolicyAction(settings.LocalAuditPolicyAction)
 	updates[SettingKeyCheckinEnabled] = strconv.FormatBool(settings.CheckinEnabled)
 	updates[SettingKeyCheckinMinAmount] = strconv.FormatFloat(settings.CheckinMinAmount, 'f', -1, 64)
 	updates[SettingKeyCheckinMaxAmount] = strconv.FormatFloat(settings.CheckinMaxAmount, 'f', -1, 64)
