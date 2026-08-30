@@ -63,6 +63,10 @@ func TestLocalSecurityPolicyNormalizesObfuscationAndContext(t *testing.T) {
 	require.True(t, decision.Blocked)
 	require.Equal(t, "cookie_theft", decision.Category)
 
+	decision = EvaluateLocalPolicy(localPolicyRequest("窃取 c ookie"))
+	require.True(t, decision.Blocked)
+	require.Equal(t, "cookie_theft", decision.Category)
+
 	for _, test := range []struct {
 		name   string
 		input  string

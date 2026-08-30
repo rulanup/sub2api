@@ -3,6 +3,7 @@ package securityaudit
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/securitytext"
 )
@@ -94,7 +95,8 @@ func containsLocalPolicyTerm(normalized, compact, term string) bool {
 			ci = j + 1
 			continue
 		}
-		if compactOccurrenceSeparated(normalized, tc, j) {
+		compactRuneStart := utf8.RuneCountInString(c[:j])
+		if compactOccurrenceSeparated(normalized, tc, compactRuneStart) {
 			return true
 		}
 		ci = j + 1
@@ -122,14 +124,14 @@ func asciiBoundaries(s string, start, end int) bool {
 func isASCIIWord(b byte) bool {
 	return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9'
 }
-func compactOccurrenceSeparated(normalized, term string, compactStart int) bool {
+func compactOccurrenceSeparated(normalized, term string, compactRuneStart int) bool {
 	ci := 0
 	inMatch := false
 	sawSep := false
-	matchEnd := compactStart + len([]rune(term))
+	matchEnd := compactRuneStart + utf8.RuneCountInString(term)
 	for _, r := range normalized {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			if ci >= compactStart && ci < matchEnd {
+			if ci >= compactRuneStart && ci < matchEnd {
 				inMatch = true
 			}
 			ci++
