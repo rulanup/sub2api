@@ -120,6 +120,7 @@ backend/.installed
 # ===================
 # 其他
 # ===================
+.worktrees/
 tests
 !deploy/tests/
 !deploy/tests/**
