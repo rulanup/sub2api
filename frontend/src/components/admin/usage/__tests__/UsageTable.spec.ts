@@ -185,6 +185,69 @@ describe('admin UsageTable tooltip', () => {
     expect(wrapper.text()).toContain('Cache hit rate: 33.3%')
   })
 
+  it('shows 0.0% for creation-only cache usage', () => {
+    const wrapper = mountTokenRow({
+      ...tokenRow,
+      request_id: 'req-cache-rate-creation-only',
+      input_tokens: 0,
+      cache_read_tokens: 0,
+      cache_creation_tokens: 500,
+    })
+
+    expect(wrapper.text()).toContain('Cache hit rate: 0.0%')
+  })
+
+  it.each([
+    ['input', 'input_tokens', 0, 100, 0, '100.0%'],
+    ['cache read', 'cache_read_tokens', 1000, 0, 0, '0.0%'],
+    ['cache creation', 'cache_creation_tokens', 500, 500, 0, '50.0%'],
+  ] as const)('normalizes invalid %s token counts to zero', (_label, field, inputTokens, cacheReadTokens, cacheCreationTokens, expectedRate) => {
+    const invalidTokenCounts = [
+      ['null', null],
+      ['undefined', undefined],
+      ['negative', -1],
+      ['NaN', Number.NaN],
+      ['positive infinity', Number.POSITIVE_INFINITY],
+      ['negative infinity', Number.NEGATIVE_INFINITY],
+    ] as const
+
+    for (const [valueLabel, invalidTokenCount] of invalidTokenCounts) {
+      const wrapper = mountTokenRow({
+        ...tokenRow,
+        request_id: `req-cache-rate-invalid-${field}-${valueLabel}`,
+        input_tokens: inputTokens,
+        cache_read_tokens: cacheReadTokens,
+        cache_creation_tokens: cacheCreationTokens,
+        [field]: invalidTokenCount,
+      })
+      const text = wrapper.text()
+
+      expect(text).toContain(`Cache hit rate: ${expectedRate}`)
+      expect(text).not.toContain('Cache hit rate: NaN%')
+      expect(text).not.toContain('Cache hit rate: Infinity%')
+      expect(text).not.toContain('Cache hit rate: -Infinity%')
+    }
+  })
+
+  it.each([
+    ['null', null],
+    ['undefined', undefined],
+    ['negative', -1],
+    ['NaN', Number.NaN],
+    ['positive infinity', Number.POSITIVE_INFINITY],
+    ['negative infinity', Number.NEGATIVE_INFINITY],
+  ] as const)('does not render a cache rate when all token counts are %s', (_label, invalidTokenCount) => {
+    const wrapper = mountTokenRow({
+      ...tokenRow,
+      request_id: `req-cache-rate-all-invalid-${_label}`,
+      input_tokens: invalidTokenCount,
+      cache_read_tokens: invalidTokenCount,
+      cache_creation_tokens: invalidTokenCount,
+    })
+
+    expect(wrapper.text()).not.toContain('Cache hit rate')
+  })
+
   it('does not render an invalid cache hit rate when all token counts are zero', () => {
     const wrapper = mountTokenRow({ ...tokenRow, request_id: 'req-cache-rate-no-tokens', input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_creation_tokens: 0 })
     expect(wrapper.text()).not.toContain('NaN')
@@ -208,6 +271,28 @@ describe('admin UsageTable tooltip', () => {
     })
 
     expect(wrapper.text()).not.toContain('Cache hit rate')
+  })
+
+  it('does not show cache hit rate for video usage rows', () => {
+    const wrapper = mountTokenRow({
+      ...tokenRow,
+      request_id: 'req-video-no-cache-rate',
+      billing_mode: 'video',
+      image_count: 1,
+    })
+
+    expect(wrapper.text()).not.toContain('Cache hit rate')
+  })
+
+  it('shows cache hit rate for historical token rows without a billing mode', () => {
+    const wrapper = mountTokenRow({
+      ...tokenRow,
+      request_id: 'req-historical-token-cache-rate',
+      billing_mode: null,
+      image_count: 0,
+    })
+
+    expect(wrapper.text()).toContain('Cache hit rate: 99.5%')
   })
 
   it('marks only usage rows that actually applied long-context billing', () => {
