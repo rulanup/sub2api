@@ -102,11 +102,11 @@ var localPolicyContextTerms = []string{
 }
 
 func EvaluateLocalPolicy(req Request) LocalPolicyDecision {
-	snapshot, err := ExtractPromptSnapshot(req)
+	text, err := extractLatestUserPromptText(req)
 	if err != nil {
 		return LocalPolicyDecision{}
 	}
-	return EvaluateLocalPolicyText(snapshot.ScanText)
+	return EvaluateLocalPolicyText(text)
 }
 
 // EvaluateLocalPolicyText applies the deterministic network security policy to

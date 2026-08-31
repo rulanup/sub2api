@@ -27,6 +27,56 @@ type promptSegment struct {
 	text string
 	user bool
 	role string
+	// messageStart marks the first text (or an empty boundary marker) from one
+	// protocol message. It is ignored when building full audit snapshots.
+	messageStart bool
+}
+
+// extractLatestUserPromptText narrows synchronous local-policy evaluation to
+// the latest protocol-declared user turn. Full prompt snapshots intentionally
+// retain every client-controlled role for asynchronous auditing; this helper
+// must never feed system, assistant, tool, or function output text to the hard
+// local policy decision.
+func extractLatestUserPromptText(req Request) (string, error) {
+	var document any
+	if err := json.Unmarshal(req.Body, &document); err != nil {
+		return "", errors.New("prompt audit request JSON is invalid")
+	}
+	segments := extractProtocolSegments(req.Protocol, document)
+	start := latestUserSegmentStart(segments)
+	if start < 0 {
+		return "", ErrNoPromptText
+	}
+	end := start + 1
+	for end < len(segments) && isUserSegment(segments[end]) && !segments[end].messageStart {
+		end++
+	}
+	if trailingToolOnlySegments(segments[end:]) {
+		return "", ErrNoPromptText
+	}
+	texts := make([]string, 0, end-start)
+	for _, segment := range segments[start:end] {
+		if text := strings.TrimSpace(segment.text); text != "" {
+			texts = append(texts, text)
+		}
+	}
+	result := strings.TrimSpace(strings.Join(texts, "\n\n"))
+	if result == "" {
+		return "", ErrNoPromptText
+	}
+	return result, nil
+}
+
+func trailingToolOnlySegments(segments []promptSegment) bool {
+	if len(segments) == 0 {
+		return false
+	}
+	for _, segment := range segments {
+		if segment.role != "tool" {
+			return false
+		}
+	}
+	return true
 }
 
 func ExtractPromptSnapshot(req Request) (PromptSnapshot, error) {
@@ -152,8 +202,12 @@ func extractMessages(value any, wantedRoles ...string) []promptSegment {
 			continue
 		}
 		texts := contentTexts(message["content"])
-		for _, text := range texts {
-			result = append(result, promptSegment{text: text, user: role == "user", role: role})
+		if len(texts) == 0 {
+			result = append(result, promptSegment{user: role == "user", role: role, messageStart: true})
+			continue
+		}
+		for index, text := range texts {
+			result = append(result, promptSegment{text: text, user: role == "user", role: role, messageStart: index == 0})
 		}
 	}
 	return result
@@ -163,7 +217,7 @@ func extractInstructions(value any) []promptSegment {
 	switch typed := value.(type) {
 	case string:
 		if text := strings.TrimSpace(typed); text != "" {
-			return []promptSegment{{text: text, role: "system"}}
+			return []promptSegment{{text: text, role: "system", messageStart: true}}
 		}
 	case []any:
 		return systemPromptSegments(contentTexts(typed))
@@ -177,7 +231,7 @@ func extractAnthropicSystem(value any) []promptSegment {
 	switch typed := value.(type) {
 	case string:
 		if text := strings.TrimSpace(typed); text != "" {
-			return []promptSegment{{text: text, role: "system"}}
+			return []promptSegment{{text: text, role: "system", messageStart: true}}
 		}
 	case []any:
 		return systemPromptSegments(contentTexts(typed))
@@ -190,36 +244,102 @@ func extractAnthropicSystem(value any) []promptSegment {
 func extractResponses(value any) []promptSegment {
 	switch typed := value.(type) {
 	case string:
-		return []promptSegment{{text: typed, user: true, role: "user"}}
+		return []promptSegment{{text: typed, user: true, role: "user", messageStart: true}}
 	case []any:
 		result := make([]promptSegment, 0, len(typed))
 		for _, item := range typed {
 			switch entry := item.(type) {
 			case string:
-				result = append(result, promptSegment{text: entry, user: true, role: "user"})
+				result = append(result, promptSegment{text: entry, user: true, role: "user", messageStart: true})
 			case map[string]any:
 				role := strings.ToLower(stringValue(entry["role"]))
 				if role != "" && !isClientInstructionRole(role) {
 					continue
 				}
+				userEntry := role == "user" || (role == "" && responsesEntryIsUser(entry))
+				segmentRole := role
+				if segmentRole == "" && !userEntry {
+					segmentRole = "tool"
+				}
+				appended := false
 				if content, exists := entry["content"]; exists {
-					for _, text := range contentTexts(content) {
-						result = append(result, promptSegment{text: text, user: role == "" || role == "user", role: role})
+					for index, text := range contentTexts(content) {
+						result = append(result, promptSegment{text: text, user: userEntry, role: segmentRole, messageStart: index == 0})
+						appended = true
 					}
 				} else if text := stringValue(entry["text"]); text != "" {
-					result = append(result, promptSegment{text: text, user: role == "" || role == "user", role: role})
+					result = append(result, promptSegment{text: text, user: userEntry, role: segmentRole, messageStart: true})
+					appended = true
+				}
+				if !appended {
+					result = append(result, promptSegment{user: userEntry, role: segmentRole, messageStart: true})
 				}
 			}
 		}
 		return result
 	case map[string]any:
-		role := strings.ToLower(stringValue(typed["role"]))
-		if role != "" && !isClientInstructionRole(role) {
-			return nil
-		}
-		return promptSegmentsForRole(contentTexts(typed["content"]), role)
+		return extractResponses([]any{typed})
 	default:
 		return nil
+	}
+}
+
+func responsesEntryIsUser(entry map[string]any) bool {
+	typeName := strings.ToLower(strings.TrimSpace(stringValue(entry["type"])))
+	switch typeName {
+	case "", "input_text", "input_image", "input_file", "input_audio", "input_video", "text":
+		return true
+	case "message":
+		return responsesContentIsUser(entry["content"])
+	default:
+		return !isResponsesNonUserType(typeName)
+	}
+}
+
+func isResponsesNonUserType(typeName string) bool {
+	return typeName != "" &&
+		(strings.HasPrefix(typeName, "output_") ||
+			strings.HasSuffix(typeName, "_output") ||
+			strings.Contains(typeName, "function_call") ||
+			strings.Contains(typeName, "tool_call") ||
+			strings.Contains(typeName, "mcp_") ||
+			strings.Contains(typeName, "search_call") ||
+			typeName == "reasoning")
+}
+
+func responsesContentIsUser(value any) bool {
+	switch typed := value.(type) {
+	case string:
+		return true
+	case []any:
+		if len(typed) == 0 {
+			return true
+		}
+		for _, item := range typed {
+			part, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			typeName := strings.ToLower(strings.TrimSpace(stringValue(part["type"])))
+			if typeName == "input_text" || typeName == "text" || typeName == "" {
+				return true
+			}
+			if typeName == "input_image" || typeName == "input_file" || typeName == "input_audio" || typeName == "input_video" {
+				return true
+			}
+			if isResponsesNonUserType(typeName) {
+				return false
+			}
+		}
+		return true
+	case map[string]any:
+		typeName := strings.ToLower(strings.TrimSpace(stringValue(typed["type"])))
+		if typeName == "" || typeName == "input_text" || typeName == "text" || typeName == "input_image" || typeName == "input_file" || typeName == "input_audio" || typeName == "input_video" {
+			return true
+		}
+		return !isResponsesNonUserType(typeName)
+	default:
+		return true
 	}
 }
 
@@ -253,12 +373,17 @@ func extractGemini(value any) []promptSegment {
 			continue
 		}
 		parts, _ := content["parts"].([]any)
+		textIndex := 0
 		for _, part := range parts {
 			if object, ok := part.(map[string]any); ok {
 				if text := stringValue(object["text"]); text != "" {
-					result = append(result, promptSegment{text: text, user: role == "" || role == "user", role: role})
+					result = append(result, promptSegment{text: text, user: role == "" || role == "user", role: role, messageStart: textIndex == 0})
+					textIndex++
 				}
 			}
+		}
+		if textIndex == 0 {
+			result = append(result, promptSegment{user: role == "" || role == "user", role: role, messageStart: true})
 		}
 	}
 	return result
@@ -293,15 +418,17 @@ func extractGeminiSystemInstruction(value any) []promptSegment {
 	switch typed := value.(type) {
 	case string:
 		if text := strings.TrimSpace(typed); text != "" {
-			return []promptSegment{{text: text, role: "system"}}
+			return []promptSegment{{text: text, role: "system", messageStart: true}}
 		}
 	case map[string]any:
 		if parts, ok := typed["parts"].([]any); ok {
 			result := make([]promptSegment, 0, len(parts))
+			textIndex := 0
 			for _, part := range parts {
 				if object, ok := part.(map[string]any); ok {
 					if text := stringValue(object["text"]); text != "" {
-						result = append(result, promptSegment{text: text, role: "system"})
+						result = append(result, promptSegment{text: text, role: "system", messageStart: textIndex == 0})
+						textIndex++
 					}
 				}
 			}
@@ -327,8 +454,8 @@ func extractGeminiInstances(value any) []promptSegment {
 	result := make([]promptSegment, 0, len(instances))
 	for _, item := range instances {
 		if instance, ok := item.(map[string]any); ok {
-			if prompt := stringValue(instance["prompt"]); prompt != "" {
-				result = append(result, promptSegment{text: prompt, user: true, role: "user"})
+			if _, exists := instance["prompt"]; exists {
+				result = append(result, promptSegment{text: stringValue(instance["prompt"]), user: true, role: "user", messageStart: true})
 			}
 		}
 	}
@@ -469,8 +596,8 @@ func blockingSegmentsLatestUserAndPreviousOutput(values []promptSegment) []strin
 		// established full-snapshot behavior for unusual protocol payloads.
 		return normalizeSegmentsLatestUserFirst(values)
 	}
-	latestUserEnd := latestUserStart
-	for latestUserEnd < len(normalized) && isUserSegment(normalized[latestUserEnd]) {
+	latestUserEnd := latestUserStart + 1
+	for latestUserEnd < len(normalized) && isUserSegment(normalized[latestUserEnd]) && !normalized[latestUserEnd].messageStart {
 		latestUserEnd++
 	}
 	currentUserText := make([]string, 0, latestUserEnd-latestUserStart)
@@ -497,9 +624,17 @@ func blockingSegmentsLatestUserAndPreviousOutput(values []promptSegment) []strin
 
 func normalizedPromptSegments(values []promptSegment) []promptSegment {
 	normalized := make([]promptSegment, 0, len(values))
+	boundaryPending := false
 	for _, value := range values {
+		if value.messageStart {
+			boundaryPending = true
+		}
 		value.text = strings.TrimSpace(value.text)
 		if value.text != "" {
+			if boundaryPending {
+				value.messageStart = true
+				boundaryPending = false
+			}
 			normalized = append(normalized, value)
 		}
 	}
@@ -514,7 +649,7 @@ func latestUserSegmentStart(values []promptSegment) int {
 			break
 		}
 	}
-	for latest > 0 && isUserSegment(values[latest-1]) {
+	for latest > 0 && isUserSegment(values[latest-1]) && !values[latest].messageStart {
 		latest--
 	}
 	return latest
@@ -546,8 +681,8 @@ func buildPrioritizedScanText(segments []string) (scanText string, metadataText 
 
 func promptSegmentsForRole(texts []string, role string) []promptSegment {
 	result := make([]promptSegment, 0, len(texts))
-	for _, text := range texts {
-		result = append(result, promptSegment{text: text, user: role == "" || role == "user", role: role})
+	for index, text := range texts {
+		result = append(result, promptSegment{text: text, user: role == "" || role == "user", role: role, messageStart: index == 0})
 	}
 	return result
 }
