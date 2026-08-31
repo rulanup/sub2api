@@ -165,37 +165,28 @@ describe('admin UsageTable tooltip', () => {
     } as DOMRect)
   })
 
-  it('shows cache hit rate beside cache read tokens', async () => {
+  it('shows cache hit rate beside cache read tokens', () => {
     const wrapper = mount(UsageTable, {
       props: { data: [{ ...tokenRow, request_id: 'req-cache-rate' }], loading: false, columns: [] },
       global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
     })
 
-    await wrapper.find('.group.relative').trigger('mouseenter')
-    await nextTick()
-
-    expect(wrapper.text()).toContain('191,900')
+    expect(wrapper.text()).toContain('191.9K')
     expect(wrapper.text()).toContain('Cache hit rate: 99.5%')
   })
 
-  it('shows 0.0% when there are no cache reads', async () => {
+  it('shows 0.0% when there are no cache reads', () => {
     const wrapper = mountTokenRow({ ...tokenRow, request_id: 'req-cache-rate-zero-read', input_tokens: 1000, cache_read_tokens: 0 })
-    await wrapper.find('.group.relative').trigger('mouseenter')
-    await nextTick()
     expect(wrapper.text()).toContain('Cache hit rate: 0.0%')
   })
 
-  it('includes cache creation tokens in the cache hit rate denominator', async () => {
+  it('includes cache creation tokens in the cache hit rate denominator', () => {
     const wrapper = mountTokenRow({ ...tokenRow, request_id: 'req-cache-rate-creation', input_tokens: 500, cache_read_tokens: 500, cache_creation_tokens: 500 })
-    await wrapper.find('.group.relative').trigger('mouseenter')
-    await nextTick()
     expect(wrapper.text()).toContain('Cache hit rate: 33.3%')
   })
 
-  it('does not render an invalid cache hit rate when all token counts are zero', async () => {
+  it('does not render an invalid cache hit rate when all token counts are zero', () => {
     const wrapper = mountTokenRow({ ...tokenRow, request_id: 'req-cache-rate-no-tokens', input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_creation_tokens: 0 })
-    await wrapper.find('.group.relative').trigger('mouseenter')
-    await nextTick()
     expect(wrapper.text()).not.toContain('NaN')
     expect(wrapper.text()).not.toContain('Infinity')
     expect(wrapper.text()).not.toContain('Cache hit rate')
@@ -206,6 +197,16 @@ describe('admin UsageTable tooltip', () => {
       props: { data: [{ ...baseImageRow, request_id: 'req-image-no-cache-rate', image_count: 1 }], loading: false, columns: [] },
       global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
     })
+    expect(wrapper.text()).not.toContain('Cache hit rate')
+  })
+
+  it('does not show cache hit rate for per-request usage rows', () => {
+    const wrapper = mountTokenRow({
+      ...tokenRow,
+      request_id: 'req-per-request-no-cache-rate',
+      billing_mode: 'per_request',
+    })
+
     expect(wrapper.text()).not.toContain('Cache hit rate')
   })
 
