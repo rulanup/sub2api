@@ -25,6 +25,7 @@ const messages: Record<string, string> = {
   'admin.usage.outputCost': 'Output Cost',
   'admin.usage.cacheCreationCost': 'Cache Creation Cost',
   'admin.usage.cacheReadCost': 'Cache Read Cost',
+  'usage.cacheHitRate': 'Cache hit rate',
   'usage.inputTokenPrice': 'Input price',
   'usage.outputTokenPrice': 'Output price',
   'usage.perMillionTokens': '/ 1M tokens',
@@ -121,6 +122,34 @@ const baseImageRow = {
   image_size_breakdown: null,
 }
 
+const tokenRow = {
+  request_id: 'req-admin-token',
+  model: 'claude-sonnet-4',
+  actual_cost: 0.1,
+  total_cost: 0.1,
+  account_rate_multiplier: 1,
+  rate_multiplier: 1,
+  service_tier: null,
+  input_cost: 0,
+  output_cost: 0,
+  cache_creation_cost: 0,
+  cache_read_cost: 0,
+  input_tokens: 1006,
+  output_tokens: 163,
+  cache_read_tokens: 191900,
+  cache_creation_tokens: 0,
+  cache_creation_5m_tokens: 0,
+  cache_creation_1h_tokens: 0,
+  cache_ttl_overridden: false,
+  billing_mode: 'token',
+  image_count: 0,
+}
+
+const mountTokenRow = (row: Record<string, unknown>) => mount(UsageTable, {
+  props: { data: [row], loading: false, columns: [] },
+  global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+})
+
 describe('admin UsageTable tooltip', () => {
   beforeEach(() => {
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
@@ -134,6 +163,50 @@ describe('admin UsageTable tooltip', () => {
       height: 20,
       toJSON: () => ({}),
     } as DOMRect)
+  })
+
+  it('shows cache hit rate beside cache read tokens', async () => {
+    const wrapper = mount(UsageTable, {
+      props: { data: [{ ...tokenRow, request_id: 'req-cache-rate' }], loading: false, columns: [] },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+
+    await wrapper.find('.group.relative').trigger('mouseenter')
+    await nextTick()
+
+    expect(wrapper.text()).toContain('191,900')
+    expect(wrapper.text()).toContain('Cache hit rate: 99.5%')
+  })
+
+  it('shows 0.0% when there are no cache reads', async () => {
+    const wrapper = mountTokenRow({ ...tokenRow, request_id: 'req-cache-rate-zero-read', input_tokens: 1000, cache_read_tokens: 0 })
+    await wrapper.find('.group.relative').trigger('mouseenter')
+    await nextTick()
+    expect(wrapper.text()).toContain('Cache hit rate: 0.0%')
+  })
+
+  it('includes cache creation tokens in the cache hit rate denominator', async () => {
+    const wrapper = mountTokenRow({ ...tokenRow, request_id: 'req-cache-rate-creation', input_tokens: 500, cache_read_tokens: 500, cache_creation_tokens: 500 })
+    await wrapper.find('.group.relative').trigger('mouseenter')
+    await nextTick()
+    expect(wrapper.text()).toContain('Cache hit rate: 33.3%')
+  })
+
+  it('does not render an invalid cache hit rate when all token counts are zero', async () => {
+    const wrapper = mountTokenRow({ ...tokenRow, request_id: 'req-cache-rate-no-tokens', input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_creation_tokens: 0 })
+    await wrapper.find('.group.relative').trigger('mouseenter')
+    await nextTick()
+    expect(wrapper.text()).not.toContain('NaN')
+    expect(wrapper.text()).not.toContain('Infinity')
+    expect(wrapper.text()).not.toContain('Cache hit rate')
+  })
+
+  it('does not show cache hit rate for image usage rows', () => {
+    const wrapper = mount(UsageTable, {
+      props: { data: [{ ...baseImageRow, request_id: 'req-image-no-cache-rate', image_count: 1 }], loading: false, columns: [] },
+      global: { stubs: { DataTable: DataTableStub, EmptyState: true, Icon: true, Teleport: true } },
+    })
+    expect(wrapper.text()).not.toContain('Cache hit rate')
   })
 
   it('marks only usage rows that actually applied long-context billing', () => {
