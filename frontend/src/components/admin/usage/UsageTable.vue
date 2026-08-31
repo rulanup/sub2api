@@ -150,7 +150,7 @@
                   <span class="font-medium text-gray-900 dark:text-white">{{ row.output_tokens?.toLocaleString() || 0 }}</span>
                 </div>
               </div>
-              <div v-if="row.cache_read_tokens > 0 || row.cache_creation_tokens > 0" class="flex items-center gap-2">
+              <div v-if="row.cache_read_tokens > 0 || row.cache_creation_tokens > 0 || (hasPromptTokens(row) && row.billing_mode !== BILLING_MODE_PER_REQUEST && row.billing_mode !== BILLING_MODE_IMAGE && row.billing_mode !== BILLING_MODE_VIDEO)" class="flex items-center gap-2">
                 <div v-if="row.cache_read_tokens > 0" class="inline-flex items-center gap-1">
                   <svg class="h-3.5 w-3.5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
                   <span class="font-medium text-sky-600 dark:text-sky-400">{{ formatCacheTokens(row.cache_read_tokens) }}</span>
@@ -161,6 +161,9 @@
                   <span v-if="row.cache_creation_1h_tokens > 0" class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-orange-100 text-orange-600 ring-1 ring-inset ring-orange-200 dark:bg-orange-500/20 dark:text-orange-400 dark:ring-orange-500/30">1h</span>
                   <span v-if="row.cache_ttl_overridden" :title="t('usage.cacheTtlOverriddenHint')" class="inline-flex items-center rounded px-1 py-px text-[10px] font-medium leading-tight bg-rose-100 text-rose-600 ring-1 ring-inset ring-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:ring-rose-500/30 cursor-help">R</span>
                 </div>
+                <span v-if="hasPromptTokens(row) && row.billing_mode !== BILLING_MODE_PER_REQUEST && row.billing_mode !== BILLING_MODE_IMAGE && row.billing_mode !== BILLING_MODE_VIDEO" class="text-gray-700 dark:text-gray-300">
+                  {{ t('usage.cacheHitRate') }}: {{ formatCacheHitRate(row) }}%
+                </span>
               </div>
               <div v-if="hasImageInputTokens(row)" class="flex items-center gap-2">
                 <div class="inline-flex items-center gap-1">
@@ -515,6 +518,9 @@ import {
 } from '@/utils/latencyHealth'
 import {
   BILLING_MODE_TOKEN,
+  BILLING_MODE_PER_REQUEST,
+  BILLING_MODE_IMAGE,
+  BILLING_MODE_VIDEO,
   getBillingModeLabel,
   getBillingModeBadgeClass,
   isImageUsage,
@@ -607,6 +613,26 @@ const modelAuditTitle = (row: AdminUsageLog): string => [
   `${t('usage.sentUpstreamModel')}: ${sentUpstreamModel(row) || '-'}`,
   `${t('usage.upstreamResponseModel')}: ${row.upstream_response_model || '-'}`,
 ].join('\n')
+
+const normalizedTokenCount = (value: number | null | undefined): number => {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
+}
+
+const hasPromptTokens = (row: AdminUsageLog): boolean => {
+  return normalizedTokenCount(row.input_tokens) > 0
+    || normalizedTokenCount(row.cache_read_tokens) > 0
+    || normalizedTokenCount(row.cache_creation_tokens) > 0
+}
+
+const cacheHitRate = (row: AdminUsageLog): number => {
+  const input = normalizedTokenCount(row.input_tokens)
+  const read = normalizedTokenCount(row.cache_read_tokens)
+  const creation = normalizedTokenCount(row.cache_creation_tokens)
+  const denominator = input + read + creation
+  return denominator === 0 ? 0 : (read / denominator) * 100
+}
+
+const formatCacheHitRate = (row: AdminUsageLog): string => cacheHitRate(row).toFixed(1)
 
 const currentPageIps = computed(() =>
   Array.from(new Set(props.data.map((row) => row.ip_address).filter((ip): ip is string => Boolean(ip))))
