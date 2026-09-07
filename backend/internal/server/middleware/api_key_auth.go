@@ -433,11 +433,7 @@ func validateAPIKeyGroupAllowed(apiKey *service.APIKey) bool {
 	if apiKey == nil || apiKey.GroupID == nil || apiKey.User == nil || apiKey.Group == nil {
 		return true
 	}
-	group := apiKey.Group
-	if group.IsSubscriptionType() {
-		return true
-	}
-	return apiKey.User.CanBindGroup(group.ID, group.IsExclusive)
+	return apiKey.CanUseGroup(apiKey.Group)
 }
 
 func validateAPIKeyGroupAvailable(apiKey *service.APIKey) (string, string, bool) {

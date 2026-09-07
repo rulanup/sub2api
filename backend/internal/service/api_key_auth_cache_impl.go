@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 20 // v20: group long-context and model pricing fields (force refresh of pre-fix snapshots)
+const apiKeyAuthSnapshotVersion = 23 // v23: group codex_models_manifest_config field
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -366,6 +366,7 @@ func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) 
 			Email:                      apiKey.User.Email,
 			Username:                   apiKey.User.Username,
 			BalanceNotifyEnabled:       apiKey.User.BalanceNotifyEnabled,
+			RestrictPublicGroups:       apiKey.User.RestrictPublicGroups,
 			BalanceNotifyThresholdType: apiKey.User.BalanceNotifyThresholdType,
 			BalanceNotifyThreshold:     apiKey.User.BalanceNotifyThreshold,
 			BalanceNotifyExtraEmails:   apiKey.User.BalanceNotifyExtraEmails,
@@ -445,11 +446,15 @@ func apiKeyAuthGroupSnapshotFromGroup(group *Group) *APIKeyAuthGroupSnapshot {
 		SupportedModelScopes:            group.SupportedModelScopes,
 		AllowMessagesDispatch:           group.AllowMessagesDispatch,
 		AllowLive:                       group.AllowLive,
+		ForceOpenAIFast:                 group.ForceOpenAIFast,
+		FreeOpenAIFast:                  group.FreeOpenAIFast,
 		DefaultMappedModel:              group.DefaultMappedModel,
 		MessagesDispatchModelConfig:     group.MessagesDispatchModelConfig,
 		ModelsListConfig:                group.ModelsListConfig,
+		CodexModelsManifestConfig:       group.CodexModelsManifestConfig,
 		RPMLimit:                        group.RPMLimit,
 		MaxReasoningEffort:              group.MaxReasoningEffort,
+		MaxReasoningEffortOverLimit:     group.MaxReasoningEffortOverLimit,
 		ReasoningEffortMappings:         group.ReasoningEffortMappings,
 		PeakRateEnabled:                 group.PeakRateEnabled,
 		PeakStart:                       group.PeakStart,
@@ -492,6 +497,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			Email:                      snapshot.User.Email,
 			Username:                   snapshot.User.Username,
 			BalanceNotifyEnabled:       snapshot.User.BalanceNotifyEnabled,
+			RestrictPublicGroups:       snapshot.User.RestrictPublicGroups,
 			BalanceNotifyThresholdType: snapshot.User.BalanceNotifyThresholdType,
 			BalanceNotifyThreshold:     snapshot.User.BalanceNotifyThreshold,
 			BalanceNotifyExtraEmails:   snapshot.User.BalanceNotifyExtraEmails,
@@ -560,11 +566,15 @@ func groupFromAPIKeyAuthSnapshot(snapshot *APIKeyAuthGroupSnapshot) *Group {
 		SupportedModelScopes:            snapshot.SupportedModelScopes,
 		AllowMessagesDispatch:           snapshot.AllowMessagesDispatch,
 		AllowLive:                       snapshot.AllowLive,
+		ForceOpenAIFast:                 snapshot.ForceOpenAIFast,
+		FreeOpenAIFast:                  snapshot.FreeOpenAIFast,
 		DefaultMappedModel:              snapshot.DefaultMappedModel,
 		MessagesDispatchModelConfig:     snapshot.MessagesDispatchModelConfig,
 		ModelsListConfig:                snapshot.ModelsListConfig,
+		CodexModelsManifestConfig:       snapshot.CodexModelsManifestConfig,
 		RPMLimit:                        snapshot.RPMLimit,
 		MaxReasoningEffort:              snapshot.MaxReasoningEffort,
+		MaxReasoningEffortOverLimit:     snapshot.MaxReasoningEffortOverLimit,
 		ReasoningEffortMappings:         snapshot.ReasoningEffortMappings,
 		PeakRateEnabled:                 snapshot.PeakRateEnabled,
 		PeakStart:                       snapshot.PeakStart,

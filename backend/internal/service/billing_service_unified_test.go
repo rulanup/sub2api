@@ -218,12 +218,13 @@ func TestCalculateCostUnified_ChannelTimePricingScalesMatchingInterval(t *testin
 	billing := NewBillingService(&config.Config{}, nil)
 
 	cost, err := billing.CalculateCostUnified(CostInput{
-		Ctx:       context.Background(),
-		Model:     "model",
-		Tokens:    UsageTokens{InputTokens: 1000},
-		Resolver:  &ModelPricingResolver{},
-		Resolved:  resolved,
-		PricingAt: time.Date(2026, 8, 17, 1, 0, 0, 0, time.UTC),
+		Ctx:            context.Background(),
+		Model:          "model",
+		Tokens:         UsageTokens{InputTokens: 1000},
+		RateMultiplier: 1,
+		Resolver:       &ModelPricingResolver{},
+		Resolved:       resolved,
+		PricingAt:      time.Date(2026, 8, 17, 1, 0, 0, 0, time.UTC),
 	})
 	require.NoError(t, err)
 	require.InDelta(t, 6.0, cost.InputCost, 1e-12)
@@ -239,12 +240,13 @@ func TestCalculateCostUnified_ChannelTimePricingScalesBaseOnUnmatchedInterval(t 
 	billing := NewBillingService(&config.Config{}, nil)
 
 	cost, err := billing.CalculateCostUnified(CostInput{
-		Ctx:       context.Background(),
-		Model:     "model",
-		Tokens:    UsageTokens{InputTokens: 1000},
-		Resolver:  &ModelPricingResolver{},
-		Resolved:  resolved,
-		PricingAt: time.Date(2026, 8, 17, 1, 0, 0, 0, time.UTC),
+		Ctx:            context.Background(),
+		Model:          "model",
+		Tokens:         UsageTokens{InputTokens: 1000},
+		RateMultiplier: 1,
+		Resolver:       &ModelPricingResolver{},
+		Resolved:       resolved,
+		PricingAt:      time.Date(2026, 8, 17, 1, 0, 0, 0, time.UTC),
 	})
 	require.NoError(t, err)
 	require.InDelta(t, 2.0, cost.InputCost, 1e-12)
@@ -257,12 +259,13 @@ func TestCalculateCostUnified_ChannelTimePricingDoesNotApplyToGroupPricing(t *te
 	billing := NewBillingService(&config.Config{}, nil)
 
 	cost, err := billing.CalculateCostUnified(CostInput{
-		Ctx:       context.Background(),
-		Model:     "model",
-		Tokens:    UsageTokens{InputTokens: 1000},
-		Resolver:  &ModelPricingResolver{},
-		Resolved:  resolved,
-		PricingAt: time.Date(2026, 8, 17, 1, 0, 0, 0, time.UTC),
+		Ctx:            context.Background(),
+		Model:          "model",
+		Tokens:         UsageTokens{InputTokens: 1000},
+		RateMultiplier: 1,
+		Resolver:       &ModelPricingResolver{},
+		Resolved:       resolved,
+		PricingAt:      time.Date(2026, 8, 17, 1, 0, 0, 0, time.UTC),
 	})
 	require.NoError(t, err)
 	require.InDelta(t, 1.0, cost.TotalCost, 1e-12)
@@ -277,12 +280,13 @@ func TestCalculateCostUnified_ChannelTimePricingDoesNotApplyOutsideMatchingTime(
 		time.Date(2026, 8, 17, 5, 0, 0, 0, time.UTC),
 	} {
 		cost, err := billing.CalculateCostUnified(CostInput{
-			Ctx:       context.Background(),
-			Model:     "model",
-			Tokens:    UsageTokens{InputTokens: 1000},
-			Resolver:  &ModelPricingResolver{},
-			Resolved:  resolved,
-			PricingAt: pricingAt,
+			Ctx:            context.Background(),
+			Model:          "model",
+			Tokens:         UsageTokens{InputTokens: 1000},
+			RateMultiplier: 1,
+			Resolver:       &ModelPricingResolver{},
+			Resolved:       resolved,
+			PricingAt:      pricingAt,
 		})
 		require.NoError(t, err)
 		require.InDelta(t, 1.0, cost.TotalCost, 1e-12)

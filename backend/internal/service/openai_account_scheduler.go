@@ -2215,7 +2215,7 @@ func (s *OpenAIGatewayService) orderedAPIKeyScheduleGroups(ctx context.Context, 
 	groups := make([]*Group, 0, len(apiKey.GroupIDs))
 	for _, id := range apiKey.GroupIDs {
 		group := byID[id]
-		if group == nil || group.Platform != platform {
+		if group == nil || group.Platform != platform || !apiKey.CanUseGroup(group) {
 			continue
 		}
 		groups = append(groups, group)

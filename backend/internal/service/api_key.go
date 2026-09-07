@@ -76,6 +76,26 @@ func (k *APIKey) IsActive() bool {
 	return k.Status == StatusActive
 }
 
+// CanUseGroup applies the current user's group permissions to a bound key.
+// Subscription validity is still checked by the existing subscription flow.
+func (k *APIKey) CanUseGroup(group *Group) bool {
+	if k == nil || group == nil {
+		return false
+	}
+	// Internal scheduling callers without a hydrated user retain their existing
+	// behavior; HTTP authentication validates the user before reaching this gate.
+	if k.User == nil {
+		return true
+	}
+	if group.IsPrivate {
+		return group.OwnerUserID != nil && *group.OwnerUserID == k.User.ID
+	}
+	if group.IsSubscriptionType() {
+		return true
+	}
+	return k.User.CanBindGroup(group.ID, group.IsExclusive)
+}
+
 // HasRateLimits returns true if any rate limit window is configured
 func (k *APIKey) HasRateLimits() bool {
 	return k.RateLimit5h > 0 || k.RateLimit1d > 0 || k.RateLimit7d > 0
