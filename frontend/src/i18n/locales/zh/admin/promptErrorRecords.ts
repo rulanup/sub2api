@@ -44,6 +44,7 @@ export default {
       meta: '元信息',
       requestId: 'Request ID',
       promptHash: 'Prompt Hash',
+      model: '模型',
       provider: 'Provider',
       endpoint: 'Endpoint',
       protocol: 'Protocol',

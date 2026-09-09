@@ -44,6 +44,7 @@ export default {
       meta: 'Metadata',
       requestId: 'Request ID',
       promptHash: 'Prompt Hash',
+      model: 'Model',
       provider: 'Provider',
       endpoint: 'Endpoint',
       protocol: 'Protocol',

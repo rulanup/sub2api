@@ -405,6 +405,7 @@ export default {
     airwallexLoadFailed: 'Failed to load Airwallex payment component. Please refresh and try again.',
     airwallexMissingParams: 'Missing Airwallex payment parameters',
     errors: {
+      insufficientBalance: 'Insufficient balance',
       tooManyPending: 'Too many pending orders (max {max}). Please complete or cancel existing orders first.',
       cancelRateLimited: 'Too many cancellations. Please try again later.',
       wechatH5NotAuthorized: 'This merchant has not enabled WeChat H5 payment. Open this page in WeChat to continue.',

@@ -391,8 +391,14 @@ func TestOpenAIResponseFlush_FailedAndErrorEventsFlushAtBoundaries(t *testing.T)
 		body := "data: {\"type\":\"error\",\"error\":{\"message\":\"failed\"}}\n\n" +
 			"data: [DONE]\n\n"
 		recorder := newOpenAIResponseFlushRecorder()
+		var requestContext *gin.Context
 
-		result, err := runOpenAIResponseFlushTest(recorder, io.NopCloser(strings.NewReader(body)), config.GatewayConfig{})
+		result, err := runOpenAIResponseFlushTest(
+			recorder,
+			io.NopCloser(strings.NewReader(body)),
+			config.GatewayConfig{},
+			func(c *gin.Context) { requestContext = c },
+		)
 
 		require.Error(t, err)
 		require.NotNil(t, result)
@@ -402,6 +408,12 @@ func TestOpenAIResponseFlush_FailedAndErrorEventsFlushAtBoundaries(t *testing.T)
 		require.Contains(t, gotBody, `"status":"failed"`)
 		require.NotContains(t, gotBody, "[DONE]")
 		require.Len(t, flushes, 1)
+		rawEvents, ok := requestContext.Get(OpsUpstreamErrorsKey)
+		require.True(t, ok)
+		events, ok := rawEvents.([]*OpsUpstreamErrorEvent)
+		require.True(t, ok)
+		require.Len(t, events, 1, "synthesized response.failed should record the bare upstream error once")
+		require.Equal(t, "http_error", events[0].Kind)
 	})
 
 	t.Run("bare error forwards following failed and drains terminal usage", func(t *testing.T) {
@@ -462,14 +474,27 @@ func TestOpenAIResponseFlush_CompatibleAPIKeyDoesNotUseCodexBareErrorSynthesis(t
 	body := "data: {\"type\":\"error\",\"error\":{\"code\":\"provider_error\",\"message\":\"provider failed\"}}\n\n"
 	recorder := newOpenAIResponseFlushRecorder()
 	account := &Account{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	var requestContext *gin.Context
 
-	result, err := runOpenAIResponseFlushTestWithAccount(recorder, io.NopCloser(strings.NewReader(body)), config.GatewayConfig{}, account)
+	result, err := runOpenAIResponseFlushTestWithAccount(
+		recorder,
+		io.NopCloser(strings.NewReader(body)),
+		config.GatewayConfig{},
+		account,
+		func(c *gin.Context) { requestContext = c },
+	)
 
 	require.Error(t, err)
 	require.NotNil(t, result)
 	gotBody, _ := recorder.snapshot()
 	require.Contains(t, gotBody, `"type":"error"`)
 	require.NotContains(t, gotBody, `"type":"response.failed"`)
+	rawEvents, ok := requestContext.Get(OpsUpstreamErrorsKey)
+	require.True(t, ok)
+	events, ok := rawEvents.([]*OpsUpstreamErrorEvent)
+	require.True(t, ok)
+	require.Len(t, events, 1, "forwarded bare upstream error should be recorded once")
+	require.Equal(t, "http_error", events[0].Kind)
 }
 
 func TestOpenAIResponseFlush_RecentBareErrorAllowsCompletedBeforeIdleTimeout(t *testing.T) {
@@ -589,14 +614,17 @@ func TestOpenAIResponseFlush_ClientDisconnectStillDrainsUsage(t *testing.T) {
 	require.Len(t, flushes, 1)
 }
 
-func runOpenAIResponseFlushTest(recorder *openAIResponseFlushRecorder, body io.ReadCloser, gatewayCfg config.GatewayConfig) (*openaiStreamingResult, error) {
-	return runOpenAIResponseFlushTestWithAccount(recorder, body, gatewayCfg, &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth})
+func runOpenAIResponseFlushTest(recorder *openAIResponseFlushRecorder, body io.ReadCloser, gatewayCfg config.GatewayConfig, setups ...func(*gin.Context)) (*openaiStreamingResult, error) {
+	return runOpenAIResponseFlushTestWithAccount(recorder, body, gatewayCfg, &Account{ID: 1, Platform: PlatformOpenAI, Type: AccountTypeOAuth}, setups...)
 }
 
-func runOpenAIResponseFlushTestWithAccount(recorder *openAIResponseFlushRecorder, body io.ReadCloser, gatewayCfg config.GatewayConfig, account *Account) (*openaiStreamingResult, error) {
+func runOpenAIResponseFlushTestWithAccount(recorder *openAIResponseFlushRecorder, body io.ReadCloser, gatewayCfg config.GatewayConfig, account *Account, setups ...func(*gin.Context)) (*openaiStreamingResult, error) {
 	gin.SetMode(gin.TestMode)
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+	for _, setup := range setups {
+		setup(c)
+	}
 	svc := &OpenAIGatewayService{
 		cfg:           &config.Config{Gateway: gatewayCfg},
 		toolCorrector: NewCodexToolCorrector(),

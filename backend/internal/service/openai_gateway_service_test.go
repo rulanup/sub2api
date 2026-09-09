@@ -2090,6 +2090,14 @@ func TestOpenAIStreamingContextWindowResponseFailedBeforeOutputPassesThrough(t *
 	require.Contains(t, rec.Body.String(), "response.failed")
 	require.Contains(t, rec.Body.String(), `"type":"upstream_error"`)
 	require.Contains(t, rec.Body.String(), "Your input exceeds the context window")
+	opsVal, opsRecorded := c.Get(OpsUpstreamErrorsKey)
+	require.True(t, opsRecorded)
+	opsEvents, ok := opsVal.([]*OpsUpstreamErrorEvent)
+	require.True(t, ok)
+	require.Len(t, opsEvents, 1)
+	require.Equal(t, "http_error", opsEvents[0].Kind)
+	require.Equal(t, "rid-context-window-failed", opsEvents[0].UpstreamRequestID)
+	require.False(t, opsEvents[0].Passthrough)
 }
 
 func TestOpenAIStreamingContextWindowResponseFailedBeforeOutputAppliesPassthroughRule(t *testing.T) {
@@ -2613,6 +2621,14 @@ func TestOpenAIStreamingPassthroughContextWindowResponseFailedBeforeOutputWithou
 	require.Contains(t, body, "event: response.failed")
 	require.Contains(t, body, "context_length_exceeded")
 	require.Contains(t, body, "Your input exceeds the context window")
+	opsVal, opsRecorded := c.Get(OpsUpstreamErrorsKey)
+	require.True(t, opsRecorded)
+	opsEvents, ok := opsVal.([]*OpsUpstreamErrorEvent)
+	require.True(t, ok)
+	require.Len(t, opsEvents, 1)
+	require.Equal(t, "http_error", opsEvents[0].Kind)
+	require.Equal(t, "rid-pass-context-window-no-rule", opsEvents[0].UpstreamRequestID)
+	require.True(t, opsEvents[0].Passthrough)
 }
 
 func TestOpenAIStreamingPassthroughResponseFailedAfterOutputSanitizesVerboseResponseForClient(t *testing.T) {

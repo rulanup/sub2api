@@ -195,8 +195,14 @@ func TestOpenAIStreamingPassthroughBareErrorTerminatesBeforeDone(t *testing.T) {
 	errorEvent := "event: error\n" +
 		`data: {"type":"error","error":{"code":"content_policy","message":"request blocked by policy"},"usage":{"input_tokens":6,"output_tokens":0,"total_tokens":6}}` + "\n\n"
 	upstream := errorEvent + "data: [DONE]\n\n"
+	var requestContext *gin.Context
 
-	result, recorder, writer, err := runPassthroughFlushTest(t, io.NopCloser(strings.NewReader(upstream)), -1)
+	result, recorder, writer, err := runPassthroughFlushTest(
+		t,
+		io.NopCloser(strings.NewReader(upstream)),
+		-1,
+		func(c *gin.Context) { requestContext = c },
+	)
 
 	require.Error(t, err)
 	var failoverErr *UpstreamFailoverError
@@ -210,6 +216,12 @@ func TestOpenAIStreamingPassthroughBareErrorTerminatesBeforeDone(t *testing.T) {
 	require.Equal(t, []int{len(body)}, writer.flushBodyLengths)
 	require.Equal(t, 6, result.usage.InputTokens)
 	require.Zero(t, result.usage.OutputTokens)
+	rawEvents, ok := requestContext.Get(OpsUpstreamErrorsKey)
+	require.True(t, ok)
+	events, ok := rawEvents.([]*OpsUpstreamErrorEvent)
+	require.True(t, ok)
+	require.Len(t, events, 1, "synthesized response.failed should record the bare upstream error once")
+	require.Equal(t, "http_error", events[0].Kind)
 }
 
 func TestOpenAIStreamingPassthroughBareErrorDrainsAuthoritativeFailedUsage(t *testing.T) {
