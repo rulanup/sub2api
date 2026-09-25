@@ -19,6 +19,13 @@ func NewGatedPromptErrorService(repo PromptErrorRepository, defaultAudit Default
 	return svc
 }
 
+// ProvideDefaultAuditGate 把内容审计服务适配为默认审查策略入口。
+// 用普通 provider 而非 wire.Bind，因为 wire.Bind 要求具体类型的 provider
+// 位于同一个 provider set，而 ContentModerationService 由 service 包提供。
+func ProvideDefaultAuditGate(svc *service.ContentModerationService) DefaultAuditGate {
+	return svc
+}
+
 var ProviderSet = wire.NewSet(
 	NewPostgreSQLRepository,
 	wire.Bind(new(JobRepository), new(*PostgreSQLRepository)),
@@ -35,7 +42,7 @@ var ProviderSet = wire.NewSet(
 	NewPromptService,
 	wire.Bind(new(PromptEngine), new(*PromptService)),
 	wire.Bind(new(PromptAdminService), new(*PromptService)),
-	wire.Bind(new(DefaultAuditGate), new(*service.ContentModerationService)),
+	ProvideDefaultAuditGate,
 	NewGatedPromptErrorService,
 	NewPromptErrorAdminHandler,
 	NewLegacyModerationAdapter,
