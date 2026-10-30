@@ -68,6 +68,7 @@ export default {
       startUsingApi: 'Once you start using the API, your usage history will appear here.',
       viewAllUsage: 'View all',
       quickActions: 'Quick Actions',
+      runSummary: 'Operational Summary',
       manageUsers: 'Manage Users',
       viewUserAccounts: 'View and manage user accounts',
       manageAccounts: 'Manage Accounts',

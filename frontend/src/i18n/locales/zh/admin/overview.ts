@@ -68,6 +68,7 @@ export default {
       startUsingApi: '开始使用 API 后，使用历史将显示在这里。',
       viewAllUsage: '查看全部',
       quickActions: '快捷操作',
+      runSummary: '运行摘要',
       manageUsers: '管理用户',
       viewUserAccounts: '查看和管理用户账户',
       manageAccounts: '管理账号',
