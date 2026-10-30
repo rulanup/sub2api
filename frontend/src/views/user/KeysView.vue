@@ -70,7 +70,7 @@
             </button>
             <div
               v-if="showColumnDropdown"
-              class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
+              class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border-[0.5px] border-gray-200 bg-white py-1 shadow-floating-sm dark:border-dark-600 dark:bg-dark-800"
             >
               <button
                 v-for="col in toggleableColumns"
@@ -285,7 +285,7 @@
                     :style="{ width: Math.min((row.usage_5h / row.rate_limit_5h) * 100, 100) + '%' }"
                   />
                 </div>
-                <div v-if="row.reset_5h_at && formatResetTime(row.reset_5h_at)" class="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
+                <div v-if="row.reset_5h_at && formatResetTime(row.reset_5h_at)" class="text-xs text-gray-400 tabular-nums dark:text-gray-500">
                   ⟳ {{ formatResetTime(row.reset_5h_at) }}
                 </div>
               </div>
@@ -313,7 +313,7 @@
                     :style="{ width: Math.min((row.usage_1d / row.rate_limit_1d) * 100, 100) + '%' }"
                   />
                 </div>
-                <div v-if="row.reset_1d_at && formatResetTime(row.reset_1d_at)" class="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
+                <div v-if="row.reset_1d_at && formatResetTime(row.reset_1d_at)" class="text-xs text-gray-400 tabular-nums dark:text-gray-500">
                   ⟳ {{ formatResetTime(row.reset_1d_at) }}
                 </div>
               </div>
@@ -341,7 +341,7 @@
                     :style="{ width: Math.min((row.usage_7d / row.rate_limit_7d) * 100, 100) + '%' }"
                   />
                 </div>
-                <div v-if="row.reset_7d_at && formatResetTime(row.reset_7d_at)" class="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
+                <div v-if="row.reset_7d_at && formatResetTime(row.reset_7d_at)" class="text-xs text-gray-400 tabular-nums dark:text-gray-500">
                   ⟳ {{ formatResetTime(row.reset_7d_at) }}
                 </div>
               </div>
@@ -528,7 +528,7 @@
                 @change="selectCreateProvider(provider.value)"
               />
               <span
-                class="flex h-full flex-col items-center gap-2 rounded-xl border border-gray-200 bg-white px-2 py-3 text-center transition-colors peer-checked:border-primary-500 peer-checked:bg-primary-50/60 peer-checked:ring-1 peer-checked:ring-primary-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary-500 peer-disabled:opacity-40 dark:border-dark-600 dark:bg-dark-800 dark:peer-checked:border-primary-500 dark:peer-checked:bg-primary-500/10"
+                class="flex h-full flex-col items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-3 text-center transition-colors peer-checked:border-primary-500 peer-checked:bg-primary-50/60 peer-checked:ring-1 peer-checked:ring-primary-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary-500 peer-disabled:opacity-40 dark:border-dark-600 dark:bg-dark-800 dark:peer-checked:border-primary-500 dark:peer-checked:bg-primary-500/10"
                 :class="provider.count > 0 && 'hover:border-primary-300 dark:hover:border-primary-700'"
               >
                 <span class="flex h-8 items-center justify-center gap-1.5" aria-hidden="true">
@@ -569,7 +569,7 @@
                 ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-600 dark:text-primary-300'
                 : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
               @click="setGroupScope(item.value)"
-            >{{ item.label }} <span class="text-[10px] opacity-70">{{ groupScopeCount(item.value) }}</span></button>
+            >{{ item.label }} <span class="text-xs opacity-70">{{ groupScopeCount(item.value) }}</span></button>
           </div>
           <Select
             :key="showEditModal ? 'edit' : createProvider"
@@ -1200,7 +1200,7 @@
       <div
         v-if="groupSelectorKeyId !== null && dropdownPosition"
         ref="dropdownRef"
-        class="animate-in fade-in slide-in-from-top-2 fixed z-[100000020] w-max max-w-[calc(100vw-16px)] overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-black/5 duration-200 sm:min-w-[380px] dark:bg-dark-800 dark:ring-white/10"
+        class="animate-in fade-in slide-in-from-top-2 fixed z-[100000020] w-max max-w-[calc(100vw-16px)] overflow-hidden rounded-lg border-[0.5px] border-gray-200 bg-white shadow-floating-sm duration-200 dark:border-dark-700 dark:bg-dark-800 sm:min-w-[380px]"
         style="pointer-events: auto !important;"
         :style="{
           top: dropdownPosition.top !== undefined ? dropdownPosition.top + 'px' : undefined,
@@ -1225,7 +1225,7 @@
         </div>
         <div class="border-b border-gray-100 p-2 dark:border-dark-700">
           <div class="flex items-center justify-between gap-3">
-            <div><div class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('keys.enableMultiGroup') }}</div><div class="text-[11px] text-gray-500">{{ t('keys.enableMultiGroupHint') }}</div></div>
+            <div><div class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ t('keys.enableMultiGroup') }}</div><div class="text-xs text-gray-500">{{ t('keys.enableMultiGroupHint') }}</div></div>
             <button type="button" class="relative inline-flex h-5 w-9 rounded-full transition-colors" :class="groupSelectorMultiGroupEnabled ? 'bg-primary-600' : 'bg-gray-200 dark:bg-dark-600'" @click="setSelectorMultiGroupEnabled(!groupSelectorMultiGroupEnabled)"><span class="inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform" :class="groupSelectorMultiGroupEnabled ? 'translate-x-4' : 'translate-x-0.5'" /></button>
           </div>
           <Select v-if="groupSelectorMultiGroupEnabled" v-model="groupSelectorStrategy" :options="groupScheduleOptions" class="mt-2" />

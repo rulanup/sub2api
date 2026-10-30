@@ -27,7 +27,6 @@
         <!-- Checkin Card -->
         <template v-else>
           <div class="card overflow-hidden">
-            <div class="h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
             <div class="p-6 text-center">
               <!-- Icon -->
               <div class="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full"
@@ -68,7 +67,7 @@
                   'mt-6 w-full rounded-xl px-6 py-3 text-base font-semibold transition-all',
                   isCheckedIn
                     ? 'cursor-default bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400'
-                    : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:from-blue-700 hover:to-purple-700 hover:shadow-xl disabled:opacity-50 active:scale-[0.98]'
+                    : 'bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-50'
                 ]"
               >
                 <svg v-if="checkingIn" class="mr-2 inline h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>

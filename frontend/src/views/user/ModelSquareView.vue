@@ -3,8 +3,8 @@
     <div class="space-y-4">
       <div class="flex flex-col gap-3 border-b border-gray-200 pb-4 dark:border-dark-700 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 class="text-xl font-bold tracking-wide text-gray-900 dark:text-white">模型广场</h1>
-          <p class="mt-1 text-xs tracking-wide text-gray-500 dark:text-gray-400">浏览全部可用模型 · 实时价格与可用分组</p>
+          <h1 class="text-xl font-semibold text-gray-900 dark:text-white">模型广场</h1>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">浏览全部可用模型，查看实时价格与可用分组</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 text-xs">
           <div class="flex rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
@@ -54,22 +54,22 @@
             <article
               v-for="model in filteredModels"
               :key="model.name"
-              class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-dark-600 dark:bg-dark-800/80"
+              class="rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300 dark:border-dark-600 dark:bg-dark-800 dark:hover:border-dark-500"
             >
               <div class="flex items-start gap-3">
-                <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50 ring-1 ring-gray-200 dark:bg-dark-900 dark:ring-dark-600">
+                <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-dark-600 dark:bg-dark-900">
                   <PlatformIcon :platform="model.platform as GroupPlatform" size="sm" />
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2">
-                    <h3 class="truncate text-base font-bold tracking-wide text-gray-900 dark:text-white">{{ model.name }}</h3>
+                    <h3 class="truncate text-base font-semibold text-gray-900 dark:text-white">{{ model.name }}</h3>
                     <button type="button" class="text-gray-400 hover:text-primary-600" title="复制模型名" @click="copyModel(model.name)">⧉</button>
                   </div>
-                  <div class="mt-4 flex flex-wrap items-center gap-1.5 text-[11px]">
+                  <div class="mt-4 flex flex-wrap items-center gap-1.5 text-xs">
                     <span class="rounded-md px-1.5 py-0.5 font-medium text-gray-500 dark:text-gray-400">
                       {{ platformIcon(model.platform) }} {{ platformLabel(model.platform) }}
                     </span>
-                    <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-indigo-50 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-300">{{ billingModeLabel(model.pricing?.billing_mode) }}</span>
+                    <span class="rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300">{{ billingModeLabel(model.pricing?.billing_mode) }}</span>
                     <span v-if="bestMultiplier(model) !== null" class="rounded px-1.5 py-0.5 font-bold text-emerald-600 dark:text-emerald-300">
                       低至 ×{{ formatMultiplier(bestMultiplier(model)!) }}
                     </span>
@@ -92,7 +92,7 @@
               <div v-else class="mt-4 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-500 dark:bg-dark-800 dark:text-gray-400">暂无定价</div>
 
               <div v-if="model.groups.length > 0" class="mt-4">
-                <p class="mb-2 text-[11px] font-semibold tracking-wide text-gray-500 dark:text-gray-400">可用分组</p>
+                <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">可用分组</p>
                 <div class="flex flex-wrap gap-1.5">
                   <button
                     v-for="group in model.groups"
@@ -105,7 +105,7 @@
                     @click="selectGroup(model.name, group)"
                   >
                     <span>{{ group.groupName }}</span>
-                    <span class="rounded bg-black/5 px-1 text-[11px] dark:bg-white/10">{{ formatMultiplier(group.rateMultiplier) }}x</span>
+                    <span class="rounded bg-black/5 px-1 text-xs dark:bg-white/10">{{ formatMultiplier(group.rateMultiplier) }}x</span>
                   </button>
                 </div>
               </div>
@@ -170,7 +170,7 @@ const FilterSection = defineComponent({
         onClick: () => emit('toggle', item.key)
       }, [
         h('span', { class: 'min-w-0 truncate' }, `${item.icon ? item.icon + ' ' : ''}${item.label}`),
-        h('span', { class: 'ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500 dark:bg-dark-700 dark:text-gray-400' }, String(item.count))
+        h('span', { class: 'ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-dark-700 dark:text-gray-400' }, String(item.count))
       ])))
     ])
   }
@@ -184,9 +184,9 @@ const PriceBox = defineComponent({
   },
   setup(props) {
     return () => h('div', { class: 'grid grid-cols-[auto_1fr] items-baseline gap-x-3' }, [
-      h('span', { class: 'text-[12px] text-gray-500 dark:text-gray-400' }, props.label),
-      h('span', { class: 'text-right text-sm font-bold text-gray-900 dark:text-gray-100' }, props.value),
-      h('span', { class: 'col-span-2 text-right text-[10px] text-gray-400 dark:text-gray-500' }, props.unit),
+      h('span', { class: 'text-xs text-gray-500 dark:text-gray-400' }, props.label),
+      h('span', { class: 'text-right text-sm font-semibold text-gray-900 dark:text-gray-100' }, props.value),
+      h('span', { class: 'col-span-2 text-right text-xs text-gray-500 dark:text-gray-400' }, props.unit),
     ])
   }
 })

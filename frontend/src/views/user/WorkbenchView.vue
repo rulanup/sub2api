@@ -1,7 +1,7 @@
 <template>
   <AppLayout>
     <div class="-m-4 flex h-[calc(100dvh-3.5rem)] flex-col md:-m-6 md:h-[calc(100dvh-4rem)] lg:-m-8 lg:h-[calc(100dvh-4.5rem)]">
-      <div class="flex items-center justify-between gap-3 border-b border-gray-200/70 bg-white/70 px-3 py-2 backdrop-blur dark:border-dark-700 dark:bg-dark-900/70 sm:px-4">
+      <div class="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-3 py-2 dark:border-dark-700 dark:bg-dark-900 sm:px-4">
         <div class="inline-flex rounded-full bg-gray-100 p-1 dark:bg-dark-800">
           <button
             v-for="tab in tabs"

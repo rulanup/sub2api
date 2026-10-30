@@ -8,7 +8,7 @@
       <div class="flex items-center gap-2 p-3">
         <button
           type="button"
-          class="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gray-900 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-black dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
+          class="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-primary-700"
           @click="createConversation"
         >
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
@@ -24,10 +24,10 @@
           <div
             v-for="conv in activeConversations"
             :key="conv.id"
-            class="group flex w-full items-center gap-1 rounded-xl px-2 py-1.5 text-left text-sm transition"
+            class="group flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-left text-sm transition"
             :class="conv.id === activeConvId
-              ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-800 dark:text-white'
-              : 'text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-dark-800/70'"
+              ? 'border border-gray-200 bg-white text-gray-900 dark:border-dark-700 dark:bg-dark-800 dark:text-white'
+              : 'border border-transparent text-gray-600 hover:bg-white dark:text-gray-300 dark:hover:bg-dark-800'"
           >
             <template v-if="editingTitleId === conv.id">
               <input
@@ -64,7 +64,7 @@
         </div>
 
         <div v-if="archivedConversations.length > 0" class="space-y-1">
-          <button type="button" class="flex w-full items-center justify-between px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-gray-400" @click="showArchived = !showArchived">
+          <button type="button" class="flex w-full items-center justify-between px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400" @click="showArchived = !showArchived">
             <span>{{ t('workbench.archived') }} ({{ archivedConversations.length }})</span>
             <span>{{ showArchived ? '▾' : '▸' }}</span>
           </button>
@@ -72,8 +72,8 @@
             <div
               v-for="conv in archivedConversations"
               :key="conv.id"
-              class="group flex w-full items-center gap-1 rounded-xl px-2 py-1.5 text-left text-sm text-gray-500 dark:text-gray-400"
-              :class="conv.id === activeConvId ? 'bg-white shadow-sm dark:bg-dark-800' : 'hover:bg-white/70 dark:hover:bg-dark-800/70'"
+              class="group flex w-full items-center gap-1 rounded-lg px-2 py-1.5 text-left text-sm text-gray-500 dark:text-gray-400"
+              :class="conv.id === activeConvId ? 'border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800' : 'border border-transparent hover:bg-white dark:hover:bg-dark-800'"
             >
               <template v-if="editingTitleId === conv.id">
                 <input
@@ -115,12 +115,12 @@
     <!-- Main chat -->
     <section class="relative flex min-w-0 flex-1 flex-col bg-white dark:bg-dark-950">
       <!-- Top bar -->
-      <div class="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 px-3 py-3 sm:px-5">
+      <div class="z-10 flex items-center justify-between gap-2 border-b border-gray-200 bg-white px-3 py-3 dark:border-dark-800 dark:bg-dark-950 sm:px-5">
         <div class="flex items-center gap-2">
-          <button type="button" class="rounded-xl p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800 md:hidden" @click="showMobileSidebar = true">
+          <button type="button" class="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800 md:hidden" @click="showMobileSidebar = true">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
           </button>
-          <button type="button" class="hidden rounded-xl p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800 md:inline-flex" @click="sidebarCollapsed = !sidebarCollapsed">
+          <button type="button" class="hidden rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800 md:inline-flex" @click="sidebarCollapsed = !sidebarCollapsed">
             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
           </button>
           <div class="hidden min-w-0 sm:block">
@@ -147,13 +147,13 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 shadow-sm hover:bg-gray-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:bg-dark-800" @click="showSettings = true">
+          <button type="button" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-300 dark:hover:bg-dark-800" @click="showSettings = true">
             {{ model || t('workbench.selectModel') }}
           </button>
           <button
             v-if="activeConv && !activeConv.archived"
             type="button"
-            class="rounded-full px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800"
+            class="rounded-lg px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800"
             @click="archiveConversation(activeConv.id)"
           >
             {{ t('workbench.archiveChat') }}
@@ -161,27 +161,27 @@
           <button
             v-else-if="activeConv?.archived"
             type="button"
-            class="rounded-full px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800"
+            class="rounded-lg px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800"
             @click="unarchiveConversation(activeConv.id)"
           >
             {{ t('workbench.unarchiveChat') }}
           </button>
-          <button type="button" class="rounded-full px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800" @click="clearActiveChat">
+          <button type="button" class="rounded-lg px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-800" @click="clearActiveChat">
             {{ t('workbench.clearChat') }}
           </button>
         </div>
       </div>
 
       <!-- Messages -->
-      <div ref="messagesContainer" class="flex-1 overflow-y-auto px-3 pb-40 pt-16 sm:px-6">
+      <div ref="messagesContainer" class="flex-1 overflow-y-auto px-3 py-6 sm:px-6">
         <div v-if="activeMessages.length === 0 && !streaming" class="mx-auto flex h-full max-w-3xl flex-col items-center justify-center text-center">
-          <div class="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-gray-900 to-gray-700 text-2xl font-semibold text-white shadow-lg dark:from-white dark:to-gray-200 dark:text-gray-900">
+          <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-xl font-semibold text-gray-700 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-200">
             ✦
           </div>
-          <h2 class="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+          <h2 class="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
             {{ t('workbench.chatWelcomeTitle') }}
           </h2>
-          <p class="mt-3 max-w-xl text-sm text-gray-500 dark:text-gray-400 sm:text-base">
+          <p class="mt-2 max-w-xl text-sm text-gray-500 dark:text-gray-400">
             {{ t('workbench.chatWelcome') }}
           </p>
           <div class="mt-8 grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3">
@@ -189,7 +189,7 @@
               v-for="tip in chatTips"
               :key="tip"
               type="button"
-              class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-left text-sm text-gray-700 transition hover:border-gray-300 hover:bg-white hover:shadow-sm dark:border-dark-700 dark:bg-dark-900 dark:text-gray-200 dark:hover:border-dark-600 dark:hover:bg-dark-800"
+              class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-4 text-left text-sm text-gray-700 transition hover:border-gray-300 hover:bg-white dark:border-dark-700 dark:bg-dark-900 dark:text-gray-200 dark:hover:border-dark-600 dark:hover:bg-dark-800"
               @click="input = tip; focusInput()"
             >
               {{ tip }}
@@ -200,19 +200,19 @@
         <div v-else class="mx-auto max-w-3xl space-y-8">
           <div v-for="(msg, i) in activeMessages" :key="i" class="space-y-2">
             <div v-if="msg.role === 'user'" class="flex justify-end">
-              <div class="max-w-[85%] rounded-3xl bg-gray-100 px-4 py-3 text-[15px] leading-7 text-gray-900 dark:bg-dark-800 dark:text-gray-100">
+              <div class="max-w-[85%] rounded-xl bg-gray-100 px-4 py-3 text-sm leading-7 text-gray-900 dark:bg-dark-800 dark:text-gray-100">
                 <div class="whitespace-pre-wrap break-words">{{ msg.content }}</div>
               </div>
             </div>
             <div v-else class="space-y-2">
               <div class="flex items-center gap-2 text-xs font-medium text-gray-400">
-                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white dark:bg-white dark:text-gray-900">AI</span>
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-gray-900 text-xs text-white dark:bg-white dark:text-gray-900">AI</span>
                 {{ t('workbench.assistant') }}
               </div>
               <div
-                class="text-[15px] leading-7"
+                class="text-sm leading-7"
                 :class="msg.content.startsWith('Error')
-                  ? 'rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300'
+                  ? 'rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300'
                   : 'text-gray-800 dark:text-gray-100'"
               >
                 <div class="whitespace-pre-wrap break-words">{{ msg.content }}</div>
@@ -222,10 +222,10 @@
 
           <div v-if="streaming" class="space-y-2">
             <div class="flex items-center gap-2 text-xs font-medium text-gray-400">
-              <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-[10px] text-white dark:bg-white dark:text-gray-900">AI</span>
+              <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-gray-900 text-xs text-white dark:bg-white dark:text-gray-900">AI</span>
               {{ t('workbench.assistant') }}
             </div>
-            <div class="text-[15px] leading-7 text-gray-800 dark:text-gray-100">
+            <div class="text-sm leading-7 text-gray-800 dark:text-gray-100">
               <div class="whitespace-pre-wrap break-words">{{ streamingContent }}<span class="ml-1 inline-block h-4 w-1.5 animate-pulse bg-gray-800 align-middle dark:bg-gray-100" /></div>
             </div>
           </div>
@@ -233,24 +233,24 @@
       </div>
 
       <!-- Floating composer -->
-      <div class="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-white via-white/95 to-transparent px-3 pb-4 pt-16 dark:from-dark-950 dark:via-dark-950/95 sm:px-6">
-        <div class="pointer-events-auto mx-auto max-w-3xl">
-          <div class="rounded-[28px] border border-gray-200 bg-white p-2 shadow-[0_10px_40px_rgba(0,0,0,0.08)] dark:border-dark-700 dark:bg-dark-900 dark:shadow-[0_10px_40px_rgba(0,0,0,0.35)]">
+      <div class="z-20 border-t border-gray-200 bg-white px-3 pb-4 pt-3 dark:border-dark-800 dark:bg-dark-950 sm:px-6">
+        <div class="mx-auto max-w-3xl">
+          <div class="rounded-lg border border-gray-200 bg-white p-2 shadow-sm dark:border-dark-700 dark:bg-dark-900">
             <textarea
               ref="inputRef"
               v-model="input"
               rows="1"
-              class="max-h-40 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-[15px] leading-6 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 dark:text-white dark:placeholder-gray-500"
+              class="max-h-40 w-full resize-none border-0 bg-transparent px-3 py-2.5 text-sm leading-6 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-0 dark:text-white dark:placeholder-gray-500"
               style="field-sizing: content;"
               :placeholder="t('workbench.chatPlaceholder')"
               @keydown.enter.exact.prevent="sendMessage"
             />
             <div class="flex items-center justify-between gap-2 px-1 pb-1">
               <div class="flex min-w-0 items-center gap-2">
-                <button type="button" class="max-w-[42%] truncate rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700" @click="showSettings = true">
+                <button type="button" class="max-w-[42%] truncate rounded-md bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700" @click="showSettings = true">
                   {{ selectedKeyLabel }}
                 </button>
-                <button type="button" class="max-w-[42%] truncate rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700" @click="showSettings = true">
+                <button type="button" class="max-w-[42%] truncate rounded-md bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200 dark:bg-dark-800 dark:text-gray-300 dark:hover:bg-dark-700" @click="showSettings = true">
                   {{ model || t('workbench.selectModel') }}
                 </button>
               </div>
@@ -258,14 +258,14 @@
                 <button
                   v-if="streaming"
                   type="button"
-                  class="rounded-full bg-gray-100 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-dark-800 dark:text-gray-200"
+                  class="rounded-lg bg-gray-100 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-dark-800 dark:text-gray-200"
                   @click="stopStreaming"
                 >
                   {{ t('workbench.stop') }}
                 </button>
                 <button
                   type="button"
-                  class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-900 text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
+                  class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600 text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-40"
                   :disabled="!canSend"
                   @click="sendMessage"
                 >
@@ -276,7 +276,7 @@
               </div>
             </div>
           </div>
-          <p class="mt-2 text-center text-[11px] text-gray-400">{{ t('workbench.enterToSend') }}</p>
+          <p class="mt-2 text-center text-xs text-gray-400">{{ t('workbench.enterToSend') }}</p>
         </div>
       </div>
     </section>
@@ -284,13 +284,13 @@
     <!-- Mobile sidebar -->
     <div v-if="showMobileSidebar" class="fixed inset-0 z-40 flex md:hidden" @click.self="showMobileSidebar = false">
       <div class="absolute inset-0 bg-black/40" />
-      <div class="relative m-0 flex h-full w-[82%] max-w-sm flex-col bg-[#f7f7f8] shadow-xl dark:bg-[#111113]">
+      <div class="relative m-0 flex h-full w-[82%] max-w-sm flex-col border-r border-gray-200 bg-[#f7f7f8] shadow-floating dark:border-dark-800 dark:bg-[#111113]">
         <div class="flex items-center justify-between px-4 py-3">
           <h3 class="text-sm font-semibold">{{ t('workbench.conversations') }}</h3>
           <button type="button" class="rounded-lg px-2 py-1 text-gray-500" @click="showMobileSidebar = false">✕</button>
         </div>
         <div class="px-3 pb-2">
-          <button type="button" class="w-full rounded-2xl bg-gray-900 px-3 py-2.5 text-sm font-medium text-white dark:bg-white dark:text-gray-900" @click="createConversation(); showMobileSidebar = false">
+          <button type="button" class="w-full rounded-lg bg-primary-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-primary-700" @click="createConversation(); showMobileSidebar = false">
             {{ t('workbench.newConversation') }}
           </button>
         </div>
@@ -299,20 +299,20 @@
             v-for="conv in activeConversations"
             :key="conv.id"
             type="button"
-            class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm"
-            :class="conv.id === activeConvId ? 'bg-white shadow-sm dark:bg-dark-800' : 'hover:bg-white/70 dark:hover:bg-dark-800/70'"
+            class="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm"
+            :class="conv.id === activeConvId ? 'border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800' : 'border border-transparent hover:bg-white dark:hover:bg-dark-800'"
             @click="switchConversation(conv.id); showMobileSidebar = false"
           >
             <span class="truncate">{{ conv.title }}</span>
           </button>
           <div v-if="archivedConversations.length > 0" class="space-y-1">
-            <div class="px-2 text-[11px] font-medium uppercase tracking-wide text-gray-400">{{ t('workbench.archived') }}</div>
+            <div class="px-2 text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('workbench.archived') }}</div>
             <button
               v-for="conv in archivedConversations"
               :key="conv.id"
               type="button"
-              class="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm text-gray-500"
-              :class="conv.id === activeConvId ? 'bg-white shadow-sm dark:bg-dark-800' : 'hover:bg-white/70 dark:hover:bg-dark-800/70'"
+              class="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm text-gray-500"
+              :class="conv.id === activeConvId ? 'border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800' : 'border border-transparent hover:bg-white dark:hover:bg-dark-800'"
               @click="switchConversation(conv.id); showMobileSidebar = false"
             >
               <span class="truncate">{{ conv.title }}</span>
@@ -325,7 +325,7 @@
     <!-- Settings sheet -->
     <div v-if="showSettings" class="fixed inset-0 z-50 flex items-end justify-center sm:items-center" @click.self="showSettings = false">
       <div class="absolute inset-0 bg-black/40" />
-      <div class="relative w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl dark:bg-dark-900 sm:rounded-3xl">
+      <div class="relative w-full max-w-md rounded-t-lg border border-gray-200 bg-white p-5 shadow-floating dark:border-dark-700 dark:bg-dark-900 sm:rounded-lg">
         <div class="mx-auto mb-4 h-1.5 w-10 rounded-full bg-gray-200 dark:bg-dark-600 sm:hidden" />
         <div class="mb-4 flex items-center justify-between">
           <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('workbench.chatSettings') }}</h3>
@@ -334,7 +334,7 @@
         <div class="space-y-4">
           <div>
             <label class="mb-1.5 block text-xs font-medium text-gray-500">{{ t('workbench.chatKey') }}</label>
-            <select v-model="selectedKeyId" class="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm dark:border-dark-700 dark:bg-dark-800" :disabled="loadingKeys">
+            <select v-model="selectedKeyId" class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm dark:border-dark-700 dark:bg-dark-800" :disabled="loadingKeys">
               <option :value="null" disabled>{{ loadingKeys ? t('workbench.loadingKeys') : t('workbench.selectKey') }}</option>
               <option v-for="k in apiKeys" :key="k.id" :value="k.id">{{ k.name || `sk-...${k.key.slice(-4)}` }}</option>
             </select>
@@ -342,14 +342,14 @@
           <div>
             <label class="mb-1.5 block text-xs font-medium text-gray-500">{{ t('workbench.chatModel') }}</label>
             <div class="mb-2">
-              <input v-model="modelSearch" type="text" class="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm dark:border-dark-700 dark:bg-dark-800" :placeholder="t('workbench.modelSearchPlaceholder')" />
+              <input v-model="modelSearch" type="text" class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm dark:border-dark-700 dark:bg-dark-800" :placeholder="t('workbench.modelSearchPlaceholder')" />
             </div>
-            <div class="max-h-56 overflow-y-auto rounded-2xl border border-gray-200 dark:border-dark-700">
+            <div class="max-h-56 overflow-y-auto rounded-lg border border-gray-200 dark:border-dark-700">
               <div v-if="modelsLoading" class="px-3 py-6 text-center text-xs text-gray-400">{{ t('workbench.loadingModels') }}</div>
               <div v-else-if="groupedModels.length === 0" class="px-3 py-6 text-center text-xs text-gray-400">{{ t('workbench.noModels') }}</div>
               <template v-else>
                 <div v-for="group in groupedModels" :key="group.platform">
-                  <div class="sticky top-0 bg-gray-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-dark-800">{{ group.platform }}</div>
+                  <div class="sticky top-0 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 dark:bg-dark-800 dark:text-gray-400">{{ group.platform }}</div>
                   <button
                     v-for="m in group.models"
                     :key="m"
@@ -366,7 +366,7 @@
           </div>
           <div>
             <label class="mb-1.5 block text-xs font-medium text-gray-500">{{ t('workbench.reasoningLevel') }}</label>
-            <select v-model="reasoningEffort" class="w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm dark:border-dark-700 dark:bg-dark-800">
+            <select v-model="reasoningEffort" class="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm dark:border-dark-700 dark:bg-dark-800">
               <option value="auto">{{ t('workbench.reasoning.auto') }}</option>
               <option value="low">{{ t('workbench.reasoning.low') }}</option>
               <option value="medium">{{ t('workbench.reasoning.medium') }}</option>

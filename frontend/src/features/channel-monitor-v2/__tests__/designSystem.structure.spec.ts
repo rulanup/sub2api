@@ -28,9 +28,11 @@ describe('channel-monitor-v2 design system structure', () => {
     expect(src).toContain('clearFilters')
     expect(src).toContain('healthModeOptions')
     expect(src).toContain("'cache'")
-    // Ops elevation: rounded-3xl + ring surfaces
-    expect(src).toContain('rounded-3xl')
-    expect(src).toContain('ring-1 ring-gray-900/5')
+    // Product surfaces use restrained radius and micro-borders.
+    expect(src).not.toContain('rounded-3xl')
+    expect(src).not.toContain('ring-1 ring-gray-900/5')
+    expect(src).toContain('rounded-lg')
+    expect(src).toContain('border-gray-200')
     // Overview-first KPI strip before primary viz
     expect(src.indexOf('summaryAria')).toBeLessThan(src.indexOf('MonitorTrendChart'))
     // No page-level fixed min-width that forces viewport horizontal scroll
@@ -54,8 +56,10 @@ describe('channel-monitor-v2 design system structure', () => {
     expect(src).toMatch(/max-h-\[min\(42vh/)
     expect(src).toContain('overflow-auto')
     expect(src).toContain('pulse-tooltip')
-    expect(src).toContain('rounded-3xl')
-    expect(src).toContain('ring-1 ring-gray-900/5')
+    expect(src).not.toContain('rounded-3xl')
+    expect(src).not.toContain('ring-1 ring-gray-900/5')
+    expect(src).toContain('rounded-lg')
+    expect(src).toContain('border-gray-200')
     expect(src).not.toContain('modal-overlay')
     expect(src).not.toContain('modal-content')
   })
@@ -65,23 +69,42 @@ describe('channel-monitor-v2 design system structure', () => {
     expect(src).toContain('stat-card')
     expect(src).toContain('stat-label')
     expect(src).toContain('stat-value')
-    expect(src).toContain('rounded-3xl')
+    expect(src).not.toContain('rounded-3xl')
+    expect(src).toContain('rounded-lg')
   })
 
   it('MonitorTrendChart uses Ops chart shell tokens', () => {
     const src = read('features/channel-monitor-v2/MonitorTrendChart.vue')
     expect(src).toContain('class="card')
-    expect(src).toContain('rounded-3xl')
-    expect(src).toContain('ring-1 ring-gray-900/5')
+    expect(src).not.toContain('rounded-3xl')
+    expect(src).not.toContain('ring-1 ring-gray-900/5')
+    expect(src).toContain('rounded-lg')
+    expect(src).toContain('border-gray-200')
     expect(src).toContain('EmptyState')
     expect(src).toContain('min-h-[360px]')
   })
 
-  it('FilterMultiSelect uses rounded-xl input chrome and dropdown utility', () => {
+  it('FilterMultiSelect uses restrained input chrome and dropdown utility', () => {
     const src = read('features/channel-monitor-v2/FilterMultiSelect.vue')
-    expect(src).toContain('rounded-xl')
+    expect(src).not.toContain('rounded-xl')
+    expect(src).toContain('rounded-lg')
     expect(src).toContain('dropdown')
     expect(src).toContain('dropdown-item')
+  })
+
+  it('channel monitor V2 avoids sub-12px visible text', () => {
+    const files = [
+      'views/user/ChannelStatusV2View.vue',
+      'features/channel-monitor-v2/MetricCell.vue',
+      'features/channel-monitor-v2/MonitorSettingsPanel.vue',
+      'features/channel-monitor-v2/MonitorTrendChart.vue',
+      'features/channel-monitor-v2/RelayPulseMatrix.vue',
+      'features/channel-monitor-v2/FilterMultiSelect.vue',
+    ]
+
+    for (const file of files) {
+      expect(read(file), file).not.toMatch(/text-\[(?:9|10|11)px\]/)
+    }
   })
 
   it('MonitorSettingsPanel uses page-header, card, btn-primary, tabs', () => {

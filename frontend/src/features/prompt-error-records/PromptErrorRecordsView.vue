@@ -88,12 +88,12 @@
                   <div class="space-y-0.5">
                     <div class="font-medium text-gray-900 dark:text-white flex items-center gap-1">
                       <span>{{ row.username_snapshot || '—' }}</span>
-                      <span class="rounded bg-gray-100 px-1 py-0.5 text-[10px] text-gray-600 dark:bg-dark-700 dark:text-dark-300">ID:{{ row.user_id ?? '-' }}</span>
-                      <button v-if="row.user_id" type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-400 text-[10px]" @click="filters.user_id = String(row.user_id); applyFilters()">筛选</button>
+                      <span class="rounded bg-gray-100 px-1 py-0.5 text-xs text-gray-600 dark:bg-dark-700 dark:text-dark-300">ID:{{ row.user_id ?? '-' }}</span>
+                      <button v-if="row.user_id" type="button" class="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400" @click="filters.user_id = String(row.user_id); applyFilters()">筛选</button>
                     </div>
                     <div class="text-gray-500 dark:text-dark-400 truncate max-w-[200px]" :title="row.user_email_snapshot">{{ row.user_email_snapshot || '—' }}</div>
-                    <div class="text-gray-500 dark:text-dark-400">API Key: {{ row.api_key_name_snapshot || '—' }} <span class="text-[10px]">#{{ row.api_key_id ?? '-' }}</span></div>
-                    <div class="text-gray-500 dark:text-dark-400">分组: {{ row.group_name || '—' }} <span class="text-[10px]">#{{ row.group_id ?? '-' }}</span></div>
+                    <div class="text-gray-500 dark:text-dark-400">API Key: {{ row.api_key_name_snapshot || '—' }} <span class="text-xs">#{{ row.api_key_id ?? '-' }}</span></div>
+                    <div class="text-gray-500 dark:text-dark-400">分组: {{ row.group_name || '—' }} <span class="text-xs">#{{ row.group_id ?? '-' }}</span></div>
                   </div>
                 </td>
                 <td class="px-3 py-2 whitespace-nowrap text-right">
@@ -124,7 +124,7 @@
     <!-- Detail Drawer -->
     <div v-if="detail" class="fixed inset-0 z-40 flex">
       <div class="flex-1 bg-black/30" @click="detail = null"></div>
-      <div class="flex w-full max-w-2xl flex-col overflow-hidden bg-white shadow-xl dark:bg-dark-900">
+      <div class="flex w-full max-w-2xl flex-col overflow-hidden bg-white shadow-floating dark:bg-dark-900">
         <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-dark-700">
           <h2 class="text-sm font-semibold">{{ t('admin.promptErrorRecords.detail.title') }} #{{ detail.id }}</h2>
           <button type="button" class="btn btn-secondary btn-xs" @click="detail = null">✕</button>
@@ -133,10 +133,10 @@
           <div class="mb-4 rounded-lg border border-primary-200 bg-primary-50 p-3 dark:border-primary-900/50 dark:bg-primary-950/20">
             <p class="mb-2 text-xs font-semibold text-primary-800 dark:text-primary-300">触发用户 / Trigger User — 便于排查</p>
             <div class="grid grid-cols-2 gap-2 text-xs">
-              <div><span class="font-semibold">用户:</span> {{ detail.username_snapshot || '—' }} <span class="rounded bg-white px-1 py-0.5 text-[10px] text-gray-600 dark:bg-dark-700">ID:{{ detail.user_id ?? '-' }}</span></div>
+              <div><span class="font-semibold">用户:</span> {{ detail.username_snapshot || '—' }} <span class="rounded bg-white px-1 py-0.5 text-xs text-gray-600 dark:bg-dark-700">ID:{{ detail.user_id ?? '-' }}</span></div>
               <div><span class="font-semibold">邮箱:</span> <span class="truncate" :title="detail.user_email_snapshot">{{ detail.user_email_snapshot || '—' }}</span></div>
-              <div><span class="font-semibold">API Key:</span> {{ detail.api_key_name_snapshot || '—' }} <span class="text-[10px]">#{{ detail.api_key_id ?? '-' }}</span></div>
-              <div><span class="font-semibold">分组:</span> {{ detail.group_name || '—' }} <span class="text-[10px]">#{{ detail.group_id ?? '-' }}</span></div>
+              <div><span class="font-semibold">API Key:</span> {{ detail.api_key_name_snapshot || '—' }} <span class="text-xs">#{{ detail.api_key_id ?? '-' }}</span></div>
+              <div><span class="font-semibold">分组:</span> {{ detail.group_name || '—' }} <span class="text-xs">#{{ detail.group_id ?? '-' }}</span></div>
             </div>
             <div class="mt-2 flex gap-2">
               <button v-if="detail.user_id" type="button" class="btn btn-secondary btn-xs" @click="filters.user_id = String(detail.user_id); detail = null; applyFilters()">按此用户筛选</button>
@@ -166,7 +166,7 @@
 
     <!-- Delete confirm -->
     <div v-if="confirmDialog.show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-dark-900">
+      <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-floating dark:bg-dark-900">
         <h3 class="text-sm font-semibold">{{ t('admin.promptErrorRecords.deleteDialog.title') }}</h3>
         <p class="mt-2 text-sm text-gray-600 dark:text-dark-300">{{ confirmDialog.message }}</p>
         <div v-if="confirmDialog.preview" class="mt-3 rounded bg-amber-50 p-3 text-xs dark:bg-amber-950/30">
@@ -182,7 +182,7 @@
 
     <!-- Filter delete dialog -->
     <div v-if="filterDelete.show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl dark:bg-dark-900">
+      <div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-floating dark:bg-dark-900">
         <h3 class="text-sm font-semibold">{{ t('admin.promptErrorRecords.deleteDialog.byFilterTitle') }}</h3>
         <p class="mt-1 text-xs text-gray-500">{{ t('admin.promptErrorRecords.deleteDialog.byFilterDesc') }}</p>
         <p v-if="filterDelete.preview" class="mt-3 text-sm font-medium text-amber-700 dark:text-amber-300">{{ t('admin.promptErrorRecords.deleteDialog.matched', { count: filterDelete.preview.matched_count }) }}</p>

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="stat-card !min-h-[6.5rem] !rounded-3xl !border-0 !p-4 shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700"
+    class="stat-card min-h-[6.5rem] rounded-lg p-4 dark:!bg-dark-800"
     :title="title || undefined"
   >
     <div
@@ -10,14 +10,14 @@
       aria-hidden="true"
     ></div>
     <div class="min-w-0 flex-1">
-      <span class="stat-label text-[10px] font-bold uppercase tracking-wider text-gray-400">{{ label }}</span>
+      <span class="stat-label text-xs font-medium text-gray-500 dark:text-gray-400">{{ label }}</span>
       <strong
         class="stat-value mt-1 block overflow-visible text-xl tabular-nums leading-tight !text-clip !whitespace-normal"
         :class="stateClass"
       >{{ value }}</strong>
       <div
         v-if="detailParts.length > 1"
-        class="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] leading-snug text-gray-400 dark:text-dark-400"
+        class="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs leading-snug text-gray-500 dark:text-gray-400"
       >
         <span
           v-for="(part, index) in detailParts"
@@ -27,7 +27,7 @@
       </div>
       <small
         v-else-if="detail"
-        class="mt-1.5 block text-[11px] leading-snug text-gray-400 dark:text-dark-400"
+        class="mt-1.5 block text-xs leading-snug text-gray-500 dark:text-gray-400"
       >{{ detail }}</small>
     </div>
   </div>
@@ -46,7 +46,7 @@ const props = defineProps<{
   title?: string
 }>()
 
-/** Split "AVG 475ms · P90 800ms" into chips so nothing is ellipsized. */
+/** Split latency summaries into chips so nothing is ellipsized. */
 const detailParts = computed(() => {
   const raw = (props.detail || '').trim()
   if (!raw || raw === '-') return []

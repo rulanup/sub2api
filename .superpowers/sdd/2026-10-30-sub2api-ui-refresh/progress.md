@@ -12,6 +12,7 @@ Task 3: complete (authentication shell uses a plain neutral canvas and solid car
 Task 4: complete (table shell uses reserved application-chrome height, neutral fixed-column boundaries, visible low-contrast scrolling, compact rows and unified 8px controls; `pnpm typecheck` passed; contract 5/6 passing and full suite 3176/3177 passing)
 
 Ruling: Task 4 accepts the intentional settings-tab contract failure as Task 5's RED test. The failing assertion is limited to `SettingsView.vue` label truncation; all 390 other test files and all 3176 non-contract tests pass.
-Task 5: pending
-Task 6: pending
+Task 5: complete (admin dashboard now prioritizes four core metrics with a compact operational summary; settings tabs use an untruncated underline pattern with narrow-screen scrolling; admin overlays use restrained floating surfaces; design contract 6/6, i18n 3/3, and `pnpm typecheck` passed)
+Task 6: Ruling: 12px minimum font size applies to every Vue UI surface, including low-frequency account, monitoring, and model-plaza components — the contract is a product-wide readability floor, and exempting rare screens would keep the interface internally inconsistent — if wrong, very dense operational cells may need more horizontal space after real-device inspection.
+Task 6: complete (all decorative Vue residuals cleared except the UsageTable latency severity data scale; recursive design contract 22/22 passed; full suite 3194/3194 passed)
 Task 7: pending

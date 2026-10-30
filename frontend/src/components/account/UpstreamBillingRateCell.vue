@@ -65,7 +65,7 @@
         </p>
       </div>
     </HelpTooltip>
-    <span v-if="hasEffectiveRate && statusLabel" :class="statusClass" class="whitespace-nowrap text-[10px] font-medium">
+    <span v-if="hasEffectiveRate && statusLabel" :class="statusClass" class="whitespace-nowrap text-xs font-medium">
       {{ statusLabel }}
     </span>
     <button
