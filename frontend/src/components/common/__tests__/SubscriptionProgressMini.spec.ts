@@ -20,4 +20,27 @@ describe('subscription expiry calendar labels', () => {
     await w.get('button').trigger('click')
     expect(w.text()).toContain('subscriptionProgress.' + label)
   })
+
+  it('keeps translated quota labels readable in the compact subscription panel', async () => {
+    store.activeSubscriptions = [{
+      id: 1,
+      group_id: 1,
+      group: { name: 'Plan', daily_limit_usd: 10, weekly_limit_usd: 20, monthly_limit_usd: 30 }
+    }]
+    const w = mount(SubscriptionProgressMini, { global: { stubs: { Icon: true, RouterLink: true } } })
+    await w.get('button').trigger('click')
+
+    const quotaLabels = w
+      .findAll('span')
+      .filter((label) => [
+        'subscriptionProgress.daily',
+        'subscriptionProgress.weekly',
+        'subscriptionProgress.monthly'
+      ].includes(label.text()))
+    expect(quotaLabels).toHaveLength(3)
+    quotaLabels.forEach((label) => {
+      expect(label.classes()).toContain('w-12')
+      expect(label.classes()).toContain('whitespace-nowrap')
+    })
+  })
 })
