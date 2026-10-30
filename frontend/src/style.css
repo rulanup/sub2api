@@ -3,20 +3,20 @@
 @tailwind utilities;
 
 @layer base {
-  /* 默认主题变量（Teal 青色系）— 由 src/utils/theme.ts 在运行时覆盖。
+  /* 默认主题变量（产品蓝）— 由 src/utils/theme.ts 在运行时覆盖。
      使用 RGB 三元组以支持 Tailwind 的 /<alpha-value> 修饰符。 */
   :root {
-    --color-primary-50: 240 253 250;
-    --color-primary-100: 204 251 241;
-    --color-primary-200: 153 246 228;
-    --color-primary-300: 94 234 212;
-    --color-primary-400: 45 212 191;
-    --color-primary-500: 20 184 166;
-    --color-primary-600: 13 148 136;
-    --color-primary-700: 15 118 110;
-    --color-primary-800: 17 94 89;
-    --color-primary-900: 19 78 74;
-    --color-primary-950: 4 47 46;
+    --color-primary-50: 239 246 255;
+    --color-primary-100: 219 234 254;
+    --color-primary-200: 191 219 254;
+    --color-primary-300: 147 197 253;
+    --color-primary-400: 96 165 250;
+    --color-primary-500: 37 99 235;
+    --color-primary-600: 29 78 216;
+    --color-primary-700: 29 78 216;
+    --color-primary-800: 30 64 175;
+    --color-primary-900: 30 58 138;
+    --color-primary-950: 23 37 84;
   }
 
   * {
@@ -33,7 +33,7 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 dark:bg-dark-950 dark:text-gray-100;
+    @apply bg-slate-50 text-slate-900 dark:bg-dark-950 dark:text-gray-100;
     @apply min-h-screen;
   }
 
@@ -65,7 +65,7 @@
 
   ::-webkit-scrollbar-thumb {
     @apply rounded-full bg-transparent;
-    transition: background-color 0.2s ease;
+    transition: background-color 150ms ease;
   }
 
   *:hover::-webkit-scrollbar-thumb {
@@ -90,13 +90,13 @@
     @apply inline-flex items-center justify-center gap-2;
     @apply rounded-lg px-4 py-2.5 text-sm font-medium;
     @apply transition-colors duration-150 ease-out;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary-500/40;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/35 focus-visible:ring-offset-1;
     @apply disabled:transform-none disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white shadow-sm;
-    @apply hover:bg-primary-700 hover:shadow-none;
+    @apply bg-primary-600 text-white shadow-none;
+    @apply hover:bg-primary-700;
     @apply active:bg-primary-800;
   }
 
@@ -114,46 +114,44 @@
   }
 
   .btn-danger {
-    @apply bg-red-600 text-white shadow-sm;
-    @apply hover:bg-red-700 hover:shadow-none;
+    @apply bg-red-600 text-white shadow-none;
+    @apply hover:bg-red-700;
   }
 
   .btn-success {
-    @apply bg-emerald-600 text-white shadow-sm;
-    @apply hover:bg-emerald-700 hover:shadow-none;
+    @apply bg-emerald-600 text-white shadow-none;
+    @apply hover:bg-emerald-700;
   }
 
   .btn-warning {
-    @apply bg-amber-600 text-white shadow-sm;
-    @apply hover:bg-amber-700 hover:shadow-none;
+    @apply bg-amber-600 text-white shadow-none;
+    @apply hover:bg-amber-700;
   }
 
   .btn-stripe {
-    @apply bg-[#635bff] text-white shadow-md shadow-[#635bff]/25;
-    @apply hover:bg-[#5851ea] hover:shadow-lg hover:shadow-[#635bff]/30;
-    @apply dark:bg-[#7a73ff] dark:shadow-[#7a73ff]/20;
+    @apply bg-[#635bff] text-white shadow-none;
+    @apply hover:bg-[#5851ea];
+    @apply dark:bg-[#7a73ff];
     @apply dark:hover:bg-[#635bff];
   }
 
   .btn-airwallex {
-    @apply bg-[#14171A] text-white shadow-md shadow-emerald-500/20;
-    @apply hover:bg-[#20252a] hover:shadow-lg hover:shadow-emerald-500/25;
-    @apply dark:bg-[#7AF0C4] dark:text-gray-950 dark:shadow-emerald-500/20;
+    @apply bg-[#14171A] text-white shadow-none;
+    @apply hover:bg-[#20252a];
+    @apply dark:bg-[#7AF0C4] dark:text-gray-950;
     @apply dark:hover:bg-[#62d9ad];
   }
 
   .btn-alipay {
-    @apply bg-[#00AEEF] text-white shadow-md shadow-[#00AEEF]/25;
-    @apply hover:bg-[#009dd6] hover:shadow-lg hover:shadow-[#00AEEF]/30;
+    @apply bg-[#00AEEF] text-white shadow-none;
+    @apply hover:bg-[#009dd6];
     @apply active:bg-[#008cbe];
-    @apply dark:shadow-[#00AEEF]/20;
   }
 
   .btn-wxpay {
-    @apply bg-[#2BB741] text-white shadow-md shadow-[#2BB741]/25;
-    @apply hover:bg-[#24a038] hover:shadow-lg hover:shadow-[#2BB741]/30;
+    @apply bg-[#2BB741] text-white shadow-none;
+    @apply hover:bg-[#24a038];
     @apply active:bg-[#1d8a2f];
-    @apply dark:shadow-[#2BB741]/20;
   }
 
   .btn-sm {
@@ -180,7 +178,8 @@
     @apply text-gray-900 dark:text-gray-100;
     @apply placeholder:text-gray-400 dark:placeholder:text-dark-400;
     @apply transition-colors duration-150;
-    @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25;
+    @apply hover:border-gray-300 dark:hover:border-dark-500;
+    @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20;
     @apply disabled:cursor-not-allowed disabled:bg-gray-100 dark:disabled:bg-dark-900;
   }
 
@@ -219,27 +218,26 @@
     -moz-appearance: textfield;
   }
 
-  /* ============ 玻璃效果 ============ */
+  /* ============ 旧玻璃类兼容层 ============ */
   .glass {
-    @apply bg-white/80 backdrop-blur-xl dark:bg-dark-800/80;
+    @apply bg-white dark:bg-dark-800;
   }
 
   .glass-card {
-    @apply bg-white/70 dark:bg-dark-800/70;
-    @apply backdrop-blur-xl;
-    @apply rounded-xl;
-    @apply border-[0.5px] border-white/20 dark:border-dark-700/50;
-    @apply shadow-glass;
-    @apply transition-colors duration-200;
+    @apply bg-white dark:bg-dark-800;
+    @apply rounded-lg;
+    @apply border-[0.5px] border-gray-200 dark:border-dark-700;
+    @apply shadow-none;
+    @apply transition-colors duration-150;
   }
 
   /* ============ 卡片样式 ============ */
   .card {
     @apply bg-white dark:bg-dark-800/50;
-    @apply rounded-xl;
+    @apply rounded-lg;
     @apply border-[0.5px] border-gray-200/80 dark:border-dark-700/80;
     @apply shadow-none;
-    @apply transition-colors duration-200;
+    @apply transition-colors duration-150;
   }
 
   .card-hover {
@@ -247,10 +245,9 @@
   }
 
   .card-glass {
-    @apply bg-white/70 dark:bg-dark-800/70;
-    @apply backdrop-blur-xl;
-    @apply border border-white/20 dark:border-dark-700/50;
-    @apply shadow-glass;
+    @apply bg-white dark:bg-dark-800;
+    @apply border-[0.5px] border-gray-200 dark:border-dark-700;
+    @apply shadow-none;
   }
 
   .card-header {
@@ -269,14 +266,14 @@
 
   /* ============ 统计卡片 ============ */
   .stat-card {
-    @apply card p-5;
-    @apply flex items-start gap-4;
+    @apply card p-4;
+    @apply flex items-start gap-3;
   }
 
   .stat-icon {
-    @apply h-12 w-12 rounded-xl;
+    @apply h-10 w-10 rounded-lg;
     @apply flex items-center justify-center;
-    @apply text-xl;
+    @apply text-lg;
   }
 
   .stat-icon-primary {
@@ -296,7 +293,7 @@
   }
 
   .stat-value {
-    @apply text-2xl font-bold text-gray-900 dark:text-white truncate;
+    @apply text-xl font-semibold tabular-nums text-gray-900 dark:text-white truncate;
   }
 
   .stat-label {
@@ -317,7 +314,7 @@
 
   /* ============ 表格样式 ============ */
   .table-container {
-    @apply overflow-x-auto rounded-xl border-[0.5px] border-gray-200 dark:border-dark-700;
+    @apply overflow-x-auto rounded-lg border-[0.5px] border-gray-200 dark:border-dark-700;
   }
 
   .table {
@@ -325,7 +322,7 @@
   }
 
   .table th {
-    @apply px-4 py-3 text-left font-medium;
+    @apply px-4 py-2.5 text-left text-xs font-medium;
     @apply text-gray-600 dark:text-dark-300;
     @apply bg-gray-50 dark:bg-dark-800/50;
     @apply border-b-[0.5px] border-gray-200 dark:border-dark-700;
@@ -382,7 +379,7 @@
     @apply bg-white dark:bg-dark-800;
     @apply rounded-lg;
     @apply border-[0.5px] border-gray-200 dark:border-dark-700;
-    @apply shadow-lg;
+    @apply shadow-floating;
     @apply py-1;
     @apply origin-top-right animate-scale-in;
   }
@@ -398,7 +395,7 @@
   /* ============ 模态框 ============ */
   .modal-overlay {
     @apply fixed inset-0 z-50;
-    @apply bg-black/50 backdrop-blur-sm;
+    @apply bg-black/45;
     @apply flex items-center justify-center p-2 sm:p-4;
   }
 
@@ -406,7 +403,7 @@
     @apply w-full;
     @apply max-h-[95vh] sm:max-h-[90vh];
     @apply bg-white dark:bg-dark-800;
-    @apply rounded-xl shadow-2xl;
+    @apply rounded-lg shadow-floating;
     @apply border-[0.5px] border-gray-200 dark:border-dark-700;
     @apply flex flex-col;
   }
@@ -441,11 +438,11 @@
   }
 
   .modal-enter-active {
-    transition: opacity 250ms ease-out;
+    transition: opacity 160ms ease-out;
   }
 
   .modal-leave-active {
-    transition: opacity 200ms ease-in;
+    transition: opacity 140ms ease-in;
   }
 
   .modal-enter-from,
@@ -454,11 +451,11 @@
   }
 
   .modal-enter-active .modal-content {
-    transition: transform 250ms ease-out, opacity 250ms ease-out;
+    transition: transform 160ms ease-out, opacity 160ms ease-out;
   }
 
   .modal-leave-active .modal-content {
-    transition: transform 200ms ease-in, opacity 200ms ease-in;
+    transition: transform 140ms ease-in, opacity 140ms ease-in;
   }
 
   .modal-enter-from .modal-content,
@@ -498,8 +495,8 @@
   .dialog-container {
     @apply flex w-full flex-col;
     @apply max-h-[90vh];
-    @apply rounded-xl border-[0.5px] border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800;
-    @apply shadow-xl;
+    @apply rounded-lg border-[0.5px] border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800;
+    @apply shadow-floating;
   }
 
   .dialog-header {
@@ -522,33 +519,33 @@
     @apply fixed right-4 top-4 z-[100];
     @apply min-w-[320px] max-w-md;
     @apply bg-white dark:bg-dark-800;
-    @apply rounded-xl shadow-lg;
-    @apply border-l-4;
+    @apply rounded-lg shadow-floating;
+    @apply border-[0.5px] border-gray-200 dark:border-dark-700;
     @apply p-4;
     @apply animate-slide-in-right;
   }
 
   .toast-success {
-    @apply border-l-emerald-500;
+    @apply border-l-2 border-l-emerald-500;
   }
 
   .toast-error {
-    @apply border-l-red-500;
+    @apply border-l-2 border-l-red-500;
   }
 
   .toast-warning {
-    @apply border-l-amber-500;
+    @apply border-l-2 border-l-amber-500;
   }
 
   .toast-info {
-    @apply border-l-primary-500;
+    @apply border-l-2 border-l-primary-500;
   }
 
   /* ============ 侧边栏 ============ */
   .sidebar {
     @apply fixed inset-y-0 left-0 z-40;
     @apply w-64 bg-white dark:bg-dark-900;
-    @apply border-r border-gray-200 dark:border-dark-800;
+    @apply border-r-[0.5px] border-gray-200 dark:border-dark-800;
     @apply flex flex-col;
     @apply transition-transform duration-300;
     transition-property: width, transform;
@@ -568,21 +565,31 @@
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 rounded-xl py-2.5;
+    @apply relative flex items-center gap-3 rounded-lg py-2.5;
     @apply overflow-hidden;
     @apply text-sm font-medium;
     @apply text-gray-600 dark:text-dark-300;
-    @apply transition-all duration-200;
-    @apply hover:bg-gray-100 dark:hover:bg-dark-800;
+    @apply transition-colors duration-150;
+    @apply hover:bg-slate-100 dark:hover:bg-dark-800;
     @apply hover:text-gray-900 dark:hover:text-white;
     padding-left: 1.0625rem;
     padding-right: 0.875rem;
   }
 
   .sidebar-link-active {
-    @apply bg-primary-50 dark:bg-primary-900/20;
-    @apply text-primary-600 dark:text-primary-400;
-    @apply hover:bg-primary-100 dark:hover:bg-primary-900/30;
+    @apply bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300;
+    @apply hover:bg-primary-50 dark:hover:bg-primary-900/25;
+  }
+
+  .sidebar-link-active::before {
+    position: absolute;
+    top: 0.625rem;
+    bottom: 0.625rem;
+    left: 0;
+    width: 2px;
+    border-radius: 9999px;
+    content: '';
+    background: rgb(var(--color-primary-500));
   }
 
   .sidebar-section {
@@ -601,7 +608,7 @@
   }
 
   .page-title {
-    @apply text-2xl font-bold text-gray-900 dark:text-white;
+    @apply text-2xl font-semibold tracking-tight text-gray-900 dark:text-white;
   }
 
   .page-description {
@@ -615,12 +622,12 @@
   }
 
   .empty-state-icon {
-    @apply mb-4 h-16 w-16;
+    @apply mb-3 h-12 w-12;
     @apply text-gray-300 dark:text-dark-600;
   }
 
   .empty-state-title {
-    @apply mb-1 text-lg font-medium text-gray-900 dark:text-white;
+    @apply mb-1 text-base font-medium text-gray-900 dark:text-white;
   }
 
   .empty-state-description {
@@ -651,7 +658,7 @@
   .tab {
     @apply rounded-md px-4 py-2 text-sm font-medium;
     @apply text-gray-600 dark:text-dark-400;
-    @apply transition-all duration-200;
+    @apply transition-colors duration-150;
     @apply hover:text-gray-900 dark:hover:text-white;
   }
 
@@ -667,15 +674,15 @@
   }
 
   .progress-bar {
-    @apply h-full bg-gradient-to-r from-primary-500 to-primary-400;
-    @apply transition-all duration-300;
+    @apply h-full bg-primary-600;
+    @apply transition-[width] duration-150;
   }
 
   /* ============ 开关 ============ */
   .switch {
     @apply relative h-6 w-11 cursor-pointer rounded-full;
     @apply bg-gray-300 dark:bg-dark-600;
-    @apply transition-colors duration-200;
+    @apply transition-colors duration-150;
   }
 
   .switch-active {
@@ -685,7 +692,7 @@
   .switch-thumb {
     @apply absolute left-0.5 top-0.5 h-5 w-5 rounded-full;
     @apply bg-white shadow-sm;
-    @apply transition-transform duration-200;
+    @apply transition-transform duration-150;
   }
 
   .switch-active .switch-thumb {
@@ -703,7 +710,7 @@
   .code-block {
     @apply font-mono text-sm;
     @apply bg-gray-900 text-gray-100;
-    @apply overflow-x-auto rounded-xl p-4;
+    @apply overflow-x-auto rounded-lg p-4;
   }
 
   /* ============ Tour Description ============ */
@@ -749,21 +756,21 @@
     overflow-x: auto;
   }
 
-  /* 表头固定时添加底部阴影，增强视觉层次 */
+  /* 表头固定时只用细边界区分层级。 */
   .table-wrapper thead.sticky {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    box-shadow: 0 1px 0 rgb(226 232 240 / 0.9);
   }
 }
 
 @layer utilities {
-  /* 文字渐变 */
+  /* 旧渐变文字类兼容层 */
   .text-gradient {
-    @apply bg-gradient-to-r from-primary-500 to-accent-500 bg-clip-text text-transparent;
+    @apply text-primary-700 dark:text-primary-300;
   }
 
-  /* 玻璃效果 */
+  /* 旧玻璃类兼容层 */
   .glass {
-    @apply bg-white/80 backdrop-blur-xl dark:bg-dark-800/80;
+    @apply bg-white dark:bg-dark-800;
   }
 
   /* 隐藏滚动条 */
@@ -782,5 +789,21 @@
 
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
   }
 }

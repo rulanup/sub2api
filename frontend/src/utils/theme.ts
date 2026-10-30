@@ -100,8 +100,8 @@ function preset(id: string, kind: ThemeKind, label: string, base: string, gradie
 }
 
 export const THEME_PRESETS: ThemePreset[] = [
-  preset('teal', 'solid', 'Teal', '#14b8a6'),
   preset('blue', 'solid', 'Blue', '#3b82f6'),
+  preset('teal', 'solid', 'Teal', '#14b8a6'),
   preset('indigo', 'solid', 'Indigo', '#6366f1'),
   preset('violet', 'solid', 'Violet', '#8b5cf6'),
   preset('emerald', 'solid', 'Emerald', '#10b981'),
@@ -113,7 +113,7 @@ export const THEME_PRESETS: ThemePreset[] = [
   preset('aurora', 'gradient', 'Aurora', '#8b5cf6', '#c026d3'),
 ]
 
-export const DEFAULT_THEME_ID = 'teal'
+export const DEFAULT_THEME_ID = 'blue'
 
 export function getThemePreset(id: string): ThemePreset | undefined {
   return THEME_PRESETS.find((p) => p.id === id)
