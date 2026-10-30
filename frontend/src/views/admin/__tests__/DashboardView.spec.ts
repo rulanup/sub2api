@@ -132,7 +132,12 @@ describe('admin DashboardView', () => {
     })
     await flushPromises()
     expect(getUserUsageTrend).toHaveBeenCalledWith(expect.objectContaining({ metric: 'tokens', limit: 12 }))
-    await wrapper.findAll('button').find(button => button.text() === 'admin.dashboard.actualSpending')!.trigger('click')
+    const spendingButton = wrapper
+      .findAll('button')
+      .find(button => button.text() === 'admin.dashboard.actualSpending')!
+    await spendingButton.trigger('click')
+    expect(spendingButton.classes()).toContain('bg-primary-600')
+    expect(spendingButton.classes()).not.toContain('bg-blue-600')
     expect(getUserUsageTrend).toHaveBeenCalledWith(expect.objectContaining({ metric: 'actual_cost', limit: 12 }))
     await flushPromises()
     const chart = wrapper.findComponent({ name: 'Line' })

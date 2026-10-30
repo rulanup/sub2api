@@ -109,6 +109,7 @@ const platformTypeBadge = readSource('src/components/common/PlatformTypeBadge.vu
 const subscriptionProgressMini = readSource(
   'src/components/common/SubscriptionProgressMini.vue'
 )
+const adminDashboardView = readSource('src/views/admin/DashboardView.vue')
 const versionBadge = readSource('src/components/common/VersionBadge.vue')
 const platformUsageBreakdown = readSource(
   'src/components/user/PlatformUsageBreakdown.vue'
@@ -303,6 +304,16 @@ describe('minimal product UI contract', () => {
     expect(subscriptionsView).not.toMatch(/hover:shadow|hover:-translate|rounded-3xl/)
     expect(adminSubscriptionsView).not.toMatch(/shadow-2xl|bg-gradient/)
     expect(backupView).not.toMatch(/shadow-2xl/)
+  })
+
+  it('keeps high-frequency dashboard and subscription controls on runtime product tokens', () => {
+    expect(adminDashboardView).not.toContain('bg-blue-600 text-white')
+    expect(adminDashboardView).toContain('bg-primary-600 text-white')
+    expect(subscriptionProgressMini).not.toMatch(
+      /rounded-xl|shadow-xl|bg-purple-50|text-purple-[367]00/
+    )
+    expect(subscriptionProgressMini).toContain('shadow-floating')
+    expect(subscriptionProgressMini).toContain('aria-expanded')
   })
 
   it('applies the 12px text minimum and compact surface radius across every Vue view', () => {

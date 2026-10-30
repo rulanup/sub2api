@@ -43,4 +43,25 @@ describe('subscription expiry calendar labels', () => {
       expect(label.classes()).toContain('whitespace-nowrap')
     })
   })
+
+  it('uses the restrained product surface and accessible disclosure semantics', async () => {
+    store.activeSubscriptions = [{ id: 1, group_id: 1, group: { name: 'Plan' } }]
+    const w = mount(SubscriptionProgressMini, { global: { stubs: { Icon: true, RouterLink: true } } })
+    const trigger = w.get('button')
+
+    expect(trigger.classes()).toContain('rounded-md')
+    expect(trigger.classes()).toContain('border-[0.5px]')
+    expect(trigger.classes()).not.toContain('rounded-xl')
+    expect(trigger.classes().join(' ')).not.toContain('purple')
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(trigger.attributes('aria-controls')).toBe('subscription-progress-panel')
+
+    await trigger.trigger('click')
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    const panel = w.get('#subscription-progress-panel')
+    expect(panel.classes()).toContain('rounded-lg')
+    expect(panel.classes()).toContain('shadow-floating')
+    expect(panel.classes()).not.toContain('rounded-xl')
+    expect(panel.classes()).not.toContain('shadow-xl')
+  })
 })
