@@ -18,11 +18,11 @@
     <transition name="dropdown">
       <div
         v-if="isOpen"
-        class="absolute bottom-0 left-14 z-50 w-72 rounded-xl border border-gray-200 bg-white p-4 shadow-xl dark:border-dark-700 dark:bg-dark-800"
+        class="absolute bottom-0 left-14 z-50 w-72 rounded-lg border-[0.5px] border-gray-200 bg-white p-4 shadow-floating dark:border-dark-700 dark:bg-dark-800"
         :class="collapsed ? '' : 'lg:left-0 lg:bottom-full lg:mb-2'"
       >
         <div class="mb-3 flex items-center justify-between">
-          <h4 class="text-sm font-semibold text-gray-900 dark:text-white">
+          <h4 class="text-sm font-medium text-gray-900 dark:text-white">
             {{ t('nav.themePickerTitle') }}
           </h4>
           <button
@@ -42,7 +42,7 @@
           <button
             v-for="preset in solidPresets"
             :key="preset.id"
-            class="h-8 w-8 rounded-full ring-2 transition-transform hover:scale-110"
+            class="h-8 w-8 rounded-full ring-2 transition-transform hover:scale-105"
             :class="isActive(preset.id) ? 'ring-primary-500' : 'ring-transparent'"
             :style="{ backgroundColor: preset.swatch[0] }"
             :title="preset.label"
@@ -65,7 +65,7 @@
           <button
             v-for="preset in gradientPresets"
             :key="preset.id"
-            class="h-8 w-8 rounded-full ring-2 transition-transform hover:scale-110"
+            class="h-8 w-8 rounded-full ring-2 transition-transform hover:scale-105"
             :class="isActive(preset.id) ? 'ring-primary-500' : 'ring-transparent'"
             :style="{ background: gradientStyle(preset) }"
             :title="preset.label"
@@ -87,7 +87,7 @@
         <div class="flex items-center gap-2">
           <label
             class="flex h-9 w-9 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-gray-200 dark:border-dark-600"
-            :style="{ backgroundColor: customHex || '#14b8a6' }"
+            :style="{ backgroundColor: customHex || '#3b82f6' }"
           >
             <input
               v-model="colorInput"
@@ -100,7 +100,7 @@
             v-model="customHex"
             type="text"
             maxlength="7"
-            placeholder="#14b8a6"
+            placeholder="#3b82f6"
             class="h-9 w-full rounded-lg border border-gray-200 bg-transparent px-3 text-sm text-gray-900 outline-none transition-colors focus:border-primary-500 dark:border-dark-600 dark:text-white"
             @keyup.enter="applyCustom"
           />
@@ -145,7 +145,7 @@ const colorInput = ref('')
 const solidPresets = computed(() => THEME_PRESETS.filter((p) => p.kind === 'solid'))
 const gradientPresets = computed(() => THEME_PRESETS.filter((p) => p.kind === 'gradient'))
 
-const currentThemeId = computed(() => document.documentElement.dataset.theme ?? 'teal')
+const currentThemeId = computed(() => document.documentElement.dataset.theme ?? 'blue')
 const hasCustomTheme = computed(() => currentThemeId.value === 'custom')
 
 function isActive(id: string) {
@@ -166,7 +166,7 @@ function selectPreset(id: string) {
 function resetTheme() {
   customHex.value = ''
   colorInput.value = ''
-  selectPreset('teal')
+  selectPreset('blue')
 }
 
 function applyCustom() {
