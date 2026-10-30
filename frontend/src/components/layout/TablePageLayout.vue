@@ -1,5 +1,5 @@
 <template>
-  <div class="table-page-layout" :class="{ 'mobile-mode': isMobile }">
+  <div class="table-page-layout min-w-0" :class="{ 'mobile-mode': isMobile }">
     <!-- 固定区域：操作按钮 -->
     <div v-if="$slots.actions" class="layout-section-fixed">
       <slot name="actions" />
@@ -47,7 +47,7 @@ onUnmounted(() => {
 /* 桌面端：Flexbox 布局 */
 .table-page-layout {
   @apply flex flex-col gap-5;
-  height: calc(100vh - 64px - 4rem); /* 减去 header + lg:p-8 的上下padding */
+  height: calc(100vh - 64px - 7rem); /* 减去 header 与 lg:py-6 的上下留白 */
 }
 
 .layout-section-fixed {
@@ -60,7 +60,7 @@ onUnmounted(() => {
 
 /* 表格滚动容器 - 增强版表体滚动方案 */
 .table-scroll-container {
-  @apply flex h-full flex-col overflow-hidden rounded-xl border-[0.5px] border-gray-200 bg-white shadow-none dark:border-dark-700 dark:bg-dark-800;
+  @apply flex h-full flex-col overflow-hidden rounded-lg border-[0.5px] border-gray-200 bg-white shadow-none dark:border-dark-700 dark:bg-dark-800;
 }
 
 .table-scroll-container :deep(.table-wrapper) {
@@ -76,7 +76,7 @@ onUnmounted(() => {
 }
 
 .table-scroll-container :deep(thead) {
-  @apply bg-gray-50/90 dark:bg-dark-800/90;
+  @apply bg-gray-50 dark:bg-dark-800;
 }
 
 .table-scroll-container :deep(tbody) {
@@ -84,7 +84,7 @@ onUnmounted(() => {
 }
 
 .table-scroll-container :deep(th) {
-  @apply border-b-[0.5px] border-gray-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:border-dark-700 dark:text-dark-300;
+  @apply border-b-[0.5px] border-gray-200 px-5 py-3 text-left text-xs font-medium normal-case tracking-normal text-gray-500 dark:border-dark-700 dark:text-dark-300;
 }
 
 .table-scroll-container :deep(td) {
@@ -92,6 +92,10 @@ onUnmounted(() => {
 }
 
 /* 移动端：恢复正常滚动 */
+.table-page-layout.mobile-mode {
+  height: auto;
+}
+
 .table-page-layout.mobile-mode .table-scroll-container {
   @apply h-auto overflow-visible border-none shadow-none bg-transparent;
 }

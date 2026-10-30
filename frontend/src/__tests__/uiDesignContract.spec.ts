@@ -8,6 +8,7 @@ const globalStyles = readSource('src/style.css')
 const themeSource = readSource('src/utils/theme.ts')
 const appLayout = readSource('src/components/layout/AppLayout.vue')
 const authLayout = readSource('src/components/layout/AuthLayout.vue')
+const tablePageLayout = readSource('src/components/layout/TablePageLayout.vue')
 const dataTable = readSource('src/components/common/DataTable.vue')
 const settingsView = readSource('src/views/admin/SettingsView.vue')
 
@@ -33,6 +34,17 @@ describe('minimal product UI contract', () => {
     const tableWrapper = dataTable.match(/\.table-wrapper\s*\{[^}]*\}/s)?.[0] ?? ''
     expect(tableWrapper).toMatch(/overflow-x:\s*auto/)
     expect(dataTable).not.toMatch(/\.table-wrapper[^}]*!important/s)
+    expect(dataTable).toMatch(/\.table-wrapper\.table-wrapper::-webkit-scrollbar-thumb\s*\{/s)
+    expect(dataTable).not.toMatch(
+      /\.is-scrollable \.sticky-col-(?:left|left-second|right)(?:::[a-z-]+)?\s*\{[^}]*linear-gradient/s
+    )
+  })
+
+  it('reserves the application chrome without clipping table pages', () => {
+    expect(tablePageLayout).toContain('height: calc(100vh - 64px - 7rem)')
+    expect(tablePageLayout).toMatch(
+      /\.table-scroll-container\s*\{[^}]*rounded-lg\b[^}]*shadow-none\b/s
+    )
   })
 
   it('never truncates settings tab labels', () => {
