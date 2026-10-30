@@ -252,3 +252,40 @@ describe('CC-Switch usage script', () => {
     })
   })
 })
+
+describe('CC Switch usage script', () => {
+  // Mirrors CC Switch: substitute the template vars as text, evaluate, read request.url.
+  function usageUrlFor(baseUrl: string): string {
+    const script = CC_SWITCH_USAGE_SCRIPT.split('{{baseUrl}}').join(baseUrl).split('{{apiKey}}').join('sk-test')
+    // eslint-disable-next-line no-new-func
+    const config = new Function(`return ${script}`)() as { request: { url: string } }
+    return config.request.url
+  }
+
+  it.each([
+    'https://api.example.com',
+    'https://api.example.com/',
+    'https://api.example.com/v1',
+    'https://api.example.com/v1/'
+  ])('queries exactly one /v1/usage for base URL %s', (baseUrl) => {
+    expect(usageUrlFor(baseUrl)).toBe('https://api.example.com/v1/usage')
+  })
+
+  it('works against the endpoint every platform import stores', () => {
+    for (const platform of ['anthropic', 'openai', 'grok', 'gemini'] as GroupPlatform[]) {
+      for (const clientType of getCcSwitchTargets(platform)) {
+        const endpoint = paramsFromDeeplink(
+          buildCcSwitchImportDeeplink({
+            baseUrl: 'https://api.example.com',
+            platform,
+            clientType,
+            providerName: 'Sub2API',
+            apiKey: 'sk-test',
+            usageScript: CC_SWITCH_USAGE_SCRIPT
+          })
+        ).get('endpoint') as string
+        expect(usageUrlFor(endpoint)).toBe('https://api.example.com/v1/usage')
+      }
+    }
+  })
+})

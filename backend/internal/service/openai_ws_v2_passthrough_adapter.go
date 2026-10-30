@@ -749,7 +749,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		firstClientMessage = s.ReplaceModelInBody(firstClientMessage, capturedSessionModel)
 	}
 	firstMessageResponsesLite := isOpenAIResponsesLiteWebSocketPayload(firstClientMessage)
-	if normalized, compatibilityChanged, normalizeErr := normalizeOpenAIResponsesWebSocketCompatibilityBody(firstClientMessage, account, firstMessageResponsesLite); normalizeErr != nil {
+	if normalized, compatibilityChanged, normalizeErr := normalizeOpenAIResponsesWebSocketCompatibilityBodyWithConfig(s.cfg, firstClientMessage, account, firstMessageResponsesLite); normalizeErr != nil {
 		return fmt.Errorf("normalize first websocket response.create: %w", normalizeErr)
 	} else if compatibilityChanged {
 		firstClientMessage = normalized
@@ -1003,7 +1003,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 			}
 			responsesLite := isResponseCreate && isOpenAIResponsesLiteWebSocketPayload(payload)
 			if isResponseCreate {
-				if normalized, compatibilityChanged, normalizeErr := normalizeOpenAIResponsesWebSocketCompatibilityBody(payload, account, responsesLite); normalizeErr != nil {
+				if normalized, compatibilityChanged, normalizeErr := normalizeOpenAIResponsesWebSocketCompatibilityBodyWithConfig(s.cfg, payload, account, responsesLite); normalizeErr != nil {
 					return payload, nil, NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "invalid websocket request payload", normalizeErr)
 				} else if compatibilityChanged {
 					payload = normalized
@@ -1055,11 +1055,9 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					requestModelForThisFrame = capturedSessionModel
 				}
 				if hooks != nil && hooks.BeforeRequest != nil {
-					updatedPayload, err := hooks.BeforeRequest(turnNo, payload, requestModelForThisFrame)
-					if err != nil {
+					if _, err := hooks.BeforeRequest(turnNo, payload, requestModelForThisFrame); err != nil {
 						return payload, nil, err
 					}
-					payload = updatedPayload
 				}
 				if hooks != nil && hooks.BeforeTurn != nil {
 					if err := hooks.BeforeTurn(turnNo); err != nil {
@@ -1074,6 +1072,13 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					if upstreamModel = strings.TrimSpace(upstreamModel); upstreamModel != "" {
 						payload = s.ReplaceModelInBody(payload, upstreamModel)
 					}
+				}
+				if hooks != nil && hooks.TransformRequest != nil {
+					transformedPayload, err := hooks.TransformRequest(turnNo, payload, requestModelForThisFrame)
+					if err != nil {
+						return payload, nil, err
+					}
+					payload = transformedPayload
 				}
 			}
 			// 在评估策略前先刷新 capturedSessionModel：客户端可能通过
@@ -1214,6 +1219,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 					RequestID: turn.RequestID,
 					Usage: OpenAIUsage{
 						InputTokens:              turn.Usage.InputTokens,
+						ImageInputTokens:         turn.Usage.ImageInputTokens,
 						OutputTokens:             turn.Usage.OutputTokens,
 						CacheCreationInputTokens: turn.Usage.CacheCreationInputTokens,
 						CacheReadInputTokens:     turn.Usage.CacheReadInputTokens,
@@ -1355,6 +1361,7 @@ func (s *OpenAIGatewayService) proxyResponsesWebSocketV2Passthrough(
 		RequestID: relayResult.RequestID,
 		Usage: OpenAIUsage{
 			InputTokens:              relayResult.Usage.InputTokens,
+			ImageInputTokens:         relayResult.Usage.ImageInputTokens,
 			OutputTokens:             relayResult.Usage.OutputTokens,
 			CacheCreationInputTokens: relayResult.Usage.CacheCreationInputTokens,
 			CacheReadInputTokens:     relayResult.Usage.CacheReadInputTokens,

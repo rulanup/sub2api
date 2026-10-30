@@ -1156,6 +1156,7 @@
       :api-key="selectedKey?.key || ''"
       :base-url="publicSettings?.api_base_url || ''"
       :platform="selectedKey?.group?.platform || null"
+      :claude-code-only="selectedKey?.group?.claude_code_only || false"
       :allow-messages-dispatch="selectedKey?.group?.allow_messages_dispatch || false"
       @close="closeUseKeyModal"
     />
@@ -1353,7 +1354,7 @@ const allColumns = computed<Column[]>(() => [
   { key: 'name', label: t('common.name'), sortable: true },
   { key: 'id', label: t('keys.id'), sortable: true },
   { key: 'key', label: t('keys.apiKey'), sortable: false },
-  { key: 'group', label: t('keys.group'), sortable: false },
+  { key: 'group', label: t('keys.group'), sortable: true },
   { key: 'current_concurrency', label: t('keys.currentConcurrency'), sortable: true },
   { key: 'usage', label: t('keys.usage'), sortable: false },
   { key: 'rate_limit', label: t('keys.rateLimitColumn'), sortable: false },
@@ -2327,7 +2328,9 @@ const importToCcswitch = (row: ApiKey) => {
 
 const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
   const baseUrl = publicSettings.value?.api_base_url || window.location.origin
-  const platform = row.group?.platform
+  const platform = row.group?.platform || 'anthropic'
+
+  const usageScript = CC_SWITCH_USAGE_SCRIPT
   const providerName = (publicSettings.value?.site_name || 'sub2api').trim() || 'sub2api'
 
   try {
@@ -2337,7 +2340,7 @@ const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
       clientType,
       providerName,
       apiKey: row.key,
-      usageScript: CC_SWITCH_USAGE_SCRIPT
+      usageScript
     })
     window.open(deeplink, '_self')
 

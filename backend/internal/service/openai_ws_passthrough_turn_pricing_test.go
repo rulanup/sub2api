@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 // startPassthroughHookRecordingServer 与 startPassthroughLifecycleServer 相同，
@@ -124,6 +125,132 @@ func TestPassthroughIngressFollowUpCallsBeforeTurnAfterBeforeRequest(t *testing.
 
 	require.Equal(t, []string{"before_request", "before_turn"}, gotCallbacks)
 	require.Equal(t, 2, gotAfter)
+}
+
+func TestPassthroughIngressAdmissionPayloadIgnoredAndTransformedRequestForwarded(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	controlCtx, cancelControl := context.WithCancelCause(context.Background())
+	defer cancelControl(context.Canceled)
+
+	upstream := newStagedPassthroughConn()
+	upstream.Send(`{"type":"response.completed","response":{"id":"resp_transform_1","model":"gpt-5.1","usage":{"input_tokens":1,"output_tokens":1}}}`)
+
+	var hooksMu sync.Mutex
+	var mappedModels []string
+	var transformedModels []string
+	hooks := &OpenAIWSIngressHooks{
+		BeforeRequest: func(_ int, payload []byte, _ string) ([]byte, error) {
+			mutated, err := sjson.SetBytes(payload, "model", "admission-overwrite")
+			if err != nil {
+				return payload, err
+			}
+			return sjson.SetBytes(mutated, "admission_marker", true)
+		},
+		MapRequestModel: func(turn int, originalModel string) (string, error) {
+			hooksMu.Lock()
+			mappedModels = append(mappedModels, originalModel)
+			hooksMu.Unlock()
+			if turn == 1 {
+				return originalModel, nil
+			}
+			return originalModel + "-upstream", nil
+		},
+		TransformRequest: func(_ int, payload []byte, _ string) ([]byte, error) {
+			hooksMu.Lock()
+			transformedModels = append(transformedModels, gjson.GetBytes(payload, "model").String())
+			hooksMu.Unlock()
+			return sjson.SetBytes(payload, "fork_transform", "applied")
+		},
+	}
+
+	server, _ := startPassthroughHookRecordingServer(
+		t,
+		controlCtx,
+		newPassthroughLifecycleService(passthroughLifecycleConfig(), upstream),
+		passthroughLifecycleAccount(),
+		hooks,
+	)
+	defer server.Close()
+	clientConn := dialPassthroughLifecycleClient(t, server)
+	defer func() { _ = clientConn.CloseNow() }()
+
+	firstRequest := requirePassthroughUpstreamWrite(t, upstream, time.Second)
+	require.Equal(t, "gpt-5.1", gjson.GetBytes(firstRequest, "model").String())
+	_, err := readPassthroughLifecycleFrame(t, clientConn, 3*time.Second)
+	require.NoError(t, err)
+
+	// The follow-up intentionally omits model, so mapping must use the model
+	// captured for this session rather than the payload mutation returned by
+	// BeforeRequest.
+	writeCtx, cancelWrite := context.WithTimeout(context.Background(), time.Second)
+	err = clientConn.Write(writeCtx, coderws.MessageText, []byte(`{"type":"response.create","stream":false}`))
+	cancelWrite()
+	require.NoError(t, err)
+
+	secondRequest := requirePassthroughUpstreamWrite(t, upstream, time.Second)
+	require.Equal(t, "gpt-5.1-upstream", gjson.GetBytes(secondRequest, "model").String())
+	require.Equal(t, "applied", gjson.GetBytes(secondRequest, "fork_transform").String())
+	require.False(t, gjson.GetBytes(secondRequest, "admission_marker").Exists(), string(secondRequest))
+
+	upstream.Send(`{"type":"response.completed","response":{"id":"resp_transform_2","model":"gpt-5.1-upstream","usage":{"input_tokens":1,"output_tokens":1}}}`)
+	_, err = readPassthroughLifecycleFrame(t, clientConn, 3*time.Second)
+	require.NoError(t, err)
+
+	hooksMu.Lock()
+	gotMappedModels := append([]string(nil), mappedModels...)
+	gotTransformedModels := append([]string(nil), transformedModels...)
+	hooksMu.Unlock()
+	require.Equal(t, []string{"gpt-5.1", "gpt-5.1"}, gotMappedModels)
+	require.Equal(t, []string{"gpt-5.1-upstream"}, gotTransformedModels)
+}
+
+func TestPassthroughIngressTransformErrorPreventsUpstreamWrite(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	controlCtx, cancelControl := context.WithCancelCause(context.Background())
+	defer cancelControl(context.Canceled)
+
+	upstream := newStagedPassthroughConn()
+	upstream.Send(`{"type":"response.completed","response":{"id":"resp_transform_error_1","model":"gpt-5.1","usage":{"input_tokens":1,"output_tokens":1}}}`)
+	transformErr := errors.New("request transform rejected")
+	hooks := &OpenAIWSIngressHooks{
+		TransformRequest: func(_ int, payload []byte, _ string) ([]byte, error) {
+			return payload, transformErr
+		},
+	}
+
+	server, serverErr := startPassthroughHookRecordingServer(
+		t,
+		controlCtx,
+		newPassthroughLifecycleService(passthroughLifecycleConfig(), upstream),
+		passthroughLifecycleAccount(),
+		hooks,
+	)
+	defer server.Close()
+	clientConn := dialPassthroughLifecycleClient(t, server)
+	defer func() { _ = clientConn.CloseNow() }()
+
+	requirePassthroughUpstreamWrite(t, upstream, time.Second)
+	_, err := readPassthroughLifecycleFrame(t, clientConn, 3*time.Second)
+	require.NoError(t, err)
+
+	writeCtx, cancelWrite := context.WithTimeout(context.Background(), time.Second)
+	err = clientConn.Write(writeCtx, coderws.MessageText, []byte(`{"type":"response.create","model":"gpt-5.1"}`))
+	cancelWrite()
+	require.NoError(t, err)
+
+	select {
+	case payload := <-upstream.writes:
+		t.Fatalf("request with failed transform was forwarded upstream: %s", payload)
+	case <-time.After(100 * time.Millisecond):
+	}
+	select {
+	case err = <-serverErr:
+		require.ErrorIs(t, err, transformErr)
+	case <-time.After(3 * time.Second):
+		t.Fatal("passthrough ingress did not exit after TransformRequest rejection")
+	}
+	_, err = readPassthroughLifecycleFrame(t, clientConn, 3*time.Second)
+	require.Error(t, err, "client websocket must close after TransformRequest rejection")
 }
 
 func TestPassthroughIngressBeforeTurnRejectionDoesNotForwardFollowUp(t *testing.T) {

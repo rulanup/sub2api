@@ -101,7 +101,7 @@ function encodeBase64Utf8(value: string): string {
 
 export const CC_SWITCH_USAGE_SCRIPT = `({
   request: {
-    url: "{{baseUrl}}/v1/usage",
+    url: "{{baseUrl}}".replace(/\\/+$/, "").replace(/\\/v1$/, "") + "/v1/usage",
     method: "GET",
     headers: { "Authorization": "Bearer {{apiKey}}" }
   },

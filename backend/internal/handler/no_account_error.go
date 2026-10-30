@@ -141,17 +141,22 @@ func classifyNoAccountError(
 		return fallback
 	}
 
-	hasAccounts, hasModelSupport := false, false
+	hasAccounts, hasModelSupport, hasRetired := false, false, false
 	for _, groupID := range groupIDs {
 		result := diag.DiagnoseModelAvailabilityForPlatform(ctx, &groupID, routingModel, platform)
 		hasAccounts = hasAccounts || result.HasAccountsInPool
 		hasModelSupport = hasModelSupport || result.HasModelSupport
+		hasRetired = hasRetired || result.HasRetiredSubscriptionModel
 	}
 	if hasAccounts && !hasModelSupport {
+		message := fmt.Sprintf("Model %q is not supported by any configured account in this group", displayModel)
+		if hasRetired {
+			message = fmt.Sprintf("Model %q targets GPT-5.5, which retired from Codex with ChatGPT sign-in on October 14, 2026. Select an available replacement such as GPT-6.1 Sol or GPT-6 Luna, or configure an API-key upstream that supports GPT-5.5.", displayModel)
+		}
 		return noAccountErrorClassification{
 			Status:        http.StatusNotFound,
 			ErrType:       "model_not_found",
-			Message:       fmt.Sprintf("Model %q is not supported by any configured account in this group", displayModel),
+			Message:       message,
 			ModelNotFound: true,
 		}
 	}

@@ -262,11 +262,16 @@ type OpenAIWSIngressHooks struct {
 	ReasoningEffortMappings []ReasoningEffortMapping
 	TurnStarted             func(turn int, startedAt time.Time)
 	BeforeTurn              func(turn int) error
-	BeforeRequest           func(turn int, payload []byte, originalModel string) ([]byte, error)
+	// BeforeRequest is an admission hook. Its returned payload is ignored to
+	// match upstream semantics and must not overwrite a mapped request.
+	BeforeRequest func(turn int, payload []byte, originalModel string) ([]byte, error)
 	// MapRequestModel resolves the current turn's client model to the model
 	// that must be written into the upstream response.create frame.
 	MapRequestModel func(turn int, originalModel string) (string, error)
-	AfterTurn       func(turn int, result *OpenAIForwardResult, turnErr error)
+	// TransformRequest applies fork-specific payload mutations after model
+	// mapping so normalization and routing decisions are preserved.
+	TransformRequest func(turn int, payload []byte, originalModel string) ([]byte, error)
+	AfterTurn        func(turn int, result *OpenAIForwardResult, turnErr error)
 }
 
 func (s *OpenAIGatewayService) getOpenAIWSConnPool() *openAIWSConnPool {
