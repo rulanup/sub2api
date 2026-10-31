@@ -126,7 +126,7 @@ const balanceLabel = computed(() => {
     // 未命中时渲染原始 key。CN 供应商使用自己的占位键。
     return t('admin.accounts.cnProviders.balance')
   }
-  return currentEntries.value.map(formatEntry).join(' · ')
+  return currentEntries.value.map(formatEntry).join(', ')
 })
 
 const extractErrorMessage = (e: unknown): string => {

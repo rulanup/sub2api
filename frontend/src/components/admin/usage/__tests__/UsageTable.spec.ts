@@ -971,7 +971,7 @@ describe('admin UsageTable IP geolocation batch toolbar', () => {
   })
 
   it('renders IpGeoCell content for ip_address cells', () => {
-    ipGeoMocks.getEntry.mockReturnValue({ status: 'success', label: 'CN · Guangdong · Shenzhen', detail: {} })
+    ipGeoMocks.getEntry.mockReturnValue({ status: 'success', label: 'CN, Guangdong, Shenzhen', detail: {} })
     const wrapper = mount(UsageTable, {
       props: {
         data: [{ request_id: 'r1', ip_address: '121.35.47.43' }],
@@ -981,7 +981,7 @@ describe('admin UsageTable IP geolocation batch toolbar', () => {
       global: { stubs: { DataTable: DataTableStubWithIp, EmptyState: true, Teleport: true } },
     })
     expect(wrapper.text()).toContain('121.35.47.43')
-    expect(wrapper.text()).toContain('CN · Guangdong · Shenzhen')
+    expect(wrapper.text()).toContain('CN, Guangdong, Shenzhen')
   })
 })
 

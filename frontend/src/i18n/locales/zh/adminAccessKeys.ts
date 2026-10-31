@@ -59,7 +59,7 @@ export default {
   "statusDisabled": "已停用",
   "statusExpired": "已过期",
   "statusEnabled": "已启用",
-  "summary": "全站权限：{globals} 项 · 资源规则：{rules} 条",
+  "summary": "全站权限 {globals} 项，资源规则 {rules} 条",
   "ruleLine": "规则 {index}：{summary}",
   "expires": "到期：{value}",
   "lastUsed": "最近使用：{value}",

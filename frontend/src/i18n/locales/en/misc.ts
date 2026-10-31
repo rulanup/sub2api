@@ -654,7 +654,7 @@ export default {
     chatWelcome: 'Pick a key and model, then chat in a Grok-like clean interface.',
     assistant: 'Assistant',
     chatPlaceholder: 'Type a message, press Enter to send',
-    enterToSend: 'Enter to send · Shift+Enter for a new line',
+    enterToSend: 'Enter sends, Shift+Enter adds a line',
     send: 'Send',
     stop: 'Stop',
     chatSettings: 'Chat Settings',

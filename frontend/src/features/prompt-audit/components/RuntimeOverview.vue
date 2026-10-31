@@ -56,7 +56,7 @@
               done: runtime.queue.done,
               failed: runtime.queue.failed,
             }) }}
-            <span class="mx-1.5 text-gray-300 dark:text-dark-600">·</span>
+            <span class="mx-1.5 text-gray-300 dark:text-dark-600">/</span>
             {{ t('admin.promptAudit.runtime.deliveryTotals', { enqueued: runtime.enqueued_total, dropped: runtime.dropped_total, processed: runtime.processed_total, failed: runtime.failed_total }) }}
           </p>
         </div>
@@ -66,11 +66,11 @@
             {{ runtime.last_processed_at ? formatDate(runtime.last_processed_at) : t('admin.promptAudit.common.never') }}
           </p>
           <p v-if="runtime.last_error_code" class="mt-1 break-words text-sm text-red-600 dark:text-red-300">
-            {{ runtime.last_error_code }}<span v-if="runtime.last_error_message"> · {{ runtime.last_error_message }}</span>
+            {{ runtime.last_error_code }}<span v-if="runtime.last_error_message">: {{ runtime.last_error_message }}</span>
           </p>
           <div v-if="Object.keys(runtime.endpoints).length" class="mt-3 flex flex-wrap gap-2">
             <span v-for="(probe, id) in runtime.endpoints" :key="id" class="rounded-md px-2 py-1 text-xs" :class="probe.ok ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'">
-              {{ id }} · {{ probe.status }} · {{ probe.latency_ms }} ms
+              {{ id }}, {{ probe.status }}, {{ probe.latency_ms }} ms
             </span>
           </div>
         </div>
@@ -97,7 +97,7 @@ const statusItems = computed(() => {
     { label: t('admin.promptAudit.runtime.version'), value: `${runtime.active_config_version} / ${runtime.expected_config_version}` },
     { label: t('admin.promptAudit.runtime.workers'), value: `${runtime.worker_active} / ${runtime.worker_total}` },
     { label: t('admin.promptAudit.runtime.queue'), value: `${runtime.queue.active} / ${runtime.queue_capacity}` },
-    { label: t('admin.promptAudit.runtime.dependencies'), value: `DB ${runtime.database_status} · Redis ${runtime.redis_status}` },
+    { label: t('admin.promptAudit.runtime.dependencies'), value: `DB ${runtime.database_status}, Redis ${runtime.redis_status}` },
   ]
 })
 

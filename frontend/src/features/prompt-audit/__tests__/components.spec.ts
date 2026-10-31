@@ -118,7 +118,7 @@ describe('Prompt Audit components', () => {
     expect(wrapper.text()).toContain('alice')
     expect(wrapper.text()).toContain('alice@example.test')
     expect(wrapper.text()).toContain('alice-key')
-    expect(wrapper.text()).toContain('admin.promptAudit.decisions.critical · admin.promptAudit.riskLevels.critical')
+    expect(wrapper.text()).toContain('admin.promptAudit.decisions.critical, admin.promptAudit.riskLevels.critical')
     expect(wrapper.text()).toContain('admin.promptAudit.scanners.pii')
     expect(wrapper.get('[data-test="filter-delete"]').attributes()).not.toHaveProperty('disabled')
     await wrapper.get('[data-test="filter-delete"]').trigger('click')

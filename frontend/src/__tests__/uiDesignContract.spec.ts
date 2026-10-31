@@ -19,7 +19,27 @@ const readVueSources = (directory: string): Array<[string, string]> => {
   return sources
 }
 
+const readUiSources = (directory: string): Array<[string, string]> => {
+  const sources: Array<[string, string]> = []
+
+  for (const entry of readdirSync(resolve(process.cwd(), directory), { withFileTypes: true })) {
+    const path = `${directory}/${entry.name}`
+    if (entry.isDirectory()) {
+      sources.push(...readUiSources(path))
+    } else if (
+      entry.isFile() &&
+      /\.(?:vue|ts)$/.test(entry.name) &&
+      !entry.name.includes('.spec.')
+    ) {
+      sources.push([path, readSource(path)])
+    }
+  }
+
+  return sources
+}
+
 const allVueSources = readVueSources('src')
+const allUiSources = readUiSources('src')
 
 const globalStyles = readSource('src/style.css')
 const themeSource = readSource('src/utils/theme.ts')
@@ -123,7 +143,7 @@ describe('minimal product UI contract', () => {
     expect(globalStyles).toMatch(/--color-primary-500:\s*37 99 235;/)
     expect(themeSource).toMatch(/DEFAULT_THEME_ID\s*=\s*'blue'/)
     expect(globalStyles).toMatch(
-      /\.card\s*\{[^}]*@apply bg-white dark:bg-dark-800\/50;[^}]*@apply rounded-lg;[^}]*@apply shadow-none;/s
+      /\.card\s*\{[^}]*@apply bg-white dark:bg-dark-800;[^}]*@apply rounded-lg;[^}]*@apply shadow-none;/s
     )
     expect(globalStyles).toContain('@media (prefers-reduced-motion: reduce)')
   })
@@ -146,11 +166,13 @@ describe('minimal product UI contract', () => {
     )
   })
 
-  it('reserves the application chrome without clipping table pages', () => {
-    expect(tablePageLayout).toContain('height: calc(100vh - 64px - 7rem)')
+  it('keeps table pages content-sized with bounded internal scrolling', () => {
+    expect(tablePageLayout).not.toMatch(/height:\s*calc\(100vh/)
     expect(tablePageLayout).toMatch(
-      /\.table-scroll-container\s*\{[^}]*rounded-lg\b[^}]*shadow-none\b/s
+      /\.table-page-card\s*\{[^}]*rounded-\[10px\][^}]*shadow-none/s
     )
+    expect(tablePageLayout).toMatch(/max-height:\s*clamp\(20rem,\s*calc\(100dvh - 18rem\),\s*45rem\)/)
+    expect(tablePageLayout).toMatch(/\.table-pagination\s*\{[^}]*border-t-\[0\.5px\]/s)
   })
 
   it('never truncates settings tab labels', () => {
@@ -206,7 +228,6 @@ describe('minimal product UI contract', () => {
     )
     expect(opsDashboardHeader).not.toMatch(/text-\[(?:9|10|11)px\]/)
     expect(opsDashboardHeader).not.toMatch(/font-black|uppercase tracking-wider/)
-    expect(opsDashboardHeader).not.toContain('·')
 
     for (const source of [
       opsErrorDetailModal,
@@ -233,7 +254,11 @@ describe('minimal product UI contract', () => {
 
   it('uses restrained popovers and plain labels in the batch image guide', () => {
     expect(batchImageGuideView).not.toMatch(/shadow-(?:xl|2xl)/)
-    expect(batchImageGuideView).not.toContain(' · ')
+    const templateSource = batchImageGuideView.slice(
+      batchImageGuideView.indexOf('<template>'),
+      batchImageGuideView.lastIndexOf('</template>')
+    )
+    expect(templateSource).not.toContain(' / ')
   })
 
   it('keeps public, setup and check-in surfaces free from decorative glass effects', () => {
@@ -334,5 +359,34 @@ describe('minimal product UI contract', () => {
       .map(([path]) => path)
 
     expect(offenders).toEqual([])
+  })
+
+  it('keeps centered-dot separators out of every product source', () => {
+    const offenders = allUiSources
+      .filter(([, source]) => {
+        const withoutApprovedIdentity = source
+          .replaceAll('SUB2API · 统一 AI API 网关', '')
+          .replaceAll('SUB2API · Unified AI API Gateway', '')
+        return withoutApprovedIdentity.includes('·')
+      })
+      .map(([path]) => path)
+
+    expect(offenders).toEqual([])
+  })
+
+  it('protects entered data from outside-click dismissal in form dialogs', () => {
+    for (const path of [
+      'src/components/account/SyncFromCrsModal.vue',
+      'src/components/admin/account/ImportDataModal.vue',
+      'src/components/admin/proxy/ImportDataModal.vue'
+    ]) {
+      const source = readSource(path)
+      expect(source).not.toContain('close-on-click-outside')
+      expect(source).not.toContain('closeOnClickOutside')
+    }
+
+    expect(readSource('src/components/common/BaseDialog.vue')).toContain(
+      'closeOnClickOutside: false'
+    )
   })
 })

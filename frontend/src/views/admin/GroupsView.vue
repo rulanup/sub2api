@@ -74,7 +74,7 @@
               </button>
               <div
                 v-if="showColumnDropdown"
-                class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                class="absolute right-0 top-full z-50 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-menu dark:border-dark-600 dark:bg-dark-800"
               >
                 <button
                   v-for="col in toggleableColumns"
@@ -226,7 +226,7 @@
                       (row.weekly_limit_usd || row.monthly_limit_usd)
                     "
                     class="mx-1 text-gray-300 dark:text-gray-600"
-                    >·</span
+                    >/</span
                   >
                   <span v-if="row.weekly_limit_usd" class="whitespace-nowrap"
                     >{{ formatUsd(row.weekly_limit_usd) }}/{{
@@ -236,7 +236,7 @@
                   <span
                     v-if="row.weekly_limit_usd && row.monthly_limit_usd"
                     class="mx-1 text-gray-300 dark:text-gray-600"
-                    >·</span
+                    >/</span
                   >
                   <span v-if="row.monthly_limit_usd" class="whitespace-nowrap"
                     >{{ formatUsd(row.monthly_limit_usd) }}/{{
@@ -380,82 +380,148 @@
           </template>
 
           <template #cell-actions="{ row }">
-            <div class="flex items-center gap-1">
+            <div class="relative flex items-center justify-end gap-1">
               <button
                 @click="handleEdit(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                class="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-primary-700 dark:text-gray-300 dark:hover:bg-dark-700 dark:hover:text-primary-300"
               >
                 <Icon name="edit" size="sm" />
-                <span class="text-xs">{{ t("common.edit") }}</span>
+                <span>{{ t("common.edit") }}</span>
               </button>
               <button
-                v-if="!userMode && !authStore.isSimpleMode"
-                data-testid="group-duplicate"
-                :title="
-                  duplicatingGroupIds.has(row.id)
-                    ? t('admin.groups.duplicating')
-                    : t('admin.groups.duplicate')
+                data-testid="group-actions-menu"
+                class="group-action-menu-trigger inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-700 dark:hover:text-white"
+                :class="{
+                  'bg-gray-100 text-gray-900 dark:bg-dark-700 dark:text-white':
+                    activeGroupActionMenuId === row.id,
+                }"
+                :aria-expanded="activeGroupActionMenuId === row.id"
+                aria-haspopup="menu"
+                :aria-label="t('common.more')"
+                @click.stop="toggleGroupActionMenu(row, $event)"
+              >
+                <Icon name="more" size="sm" />
+              </button>
+              <div
+                v-if="
+                  activeGroupActionMenuId === row.id &&
+                  groupActionMenuPosition
                 "
-                :disabled="duplicatingGroupIds.has(row.id)"
-                @click="handleDuplicate(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+                class="group-action-menu-content fixed z-[9999] w-52 overflow-hidden rounded-lg border-[0.5px] border-gray-200 bg-white shadow-floating-sm dark:border-dark-600 dark:bg-dark-800"
+                :style="{
+                  top: groupActionMenuPosition.top + 'px',
+                  left: groupActionMenuPosition.left + 'px',
+                }"
+                role="menu"
+                @click.stop
               >
-                <Icon name="copy" size="sm" />
-                <span class="text-xs">
-                  {{
-                    duplicatingGroupIds.has(row.id)
-                      ? t("admin.groups.duplicating")
-                      : t("admin.groups.duplicate")
-                  }}
-                </span>
-              </button>
-              <button
-                v-if="!userMode && !authStore.isSimpleMode && row.platform === 'composite'"
-                data-testid="group-composite-routes"
-                @click="handleCompositeRoutes(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-cyan-600 dark:hover:bg-dark-700 dark:hover:text-cyan-400"
-              >
-                <Icon name="swap" size="sm" />
-                <span class="text-xs">{{
-                  t("admin.groups.compositeRoutes.action")
-                }}</span>
-              </button>
-              <button
-                v-if="!userMode && !authStore.isSimpleMode"
-                data-testid="group-rate-multipliers"
-                @click="handleRateMultipliers(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-purple-600 dark:hover:bg-dark-700 dark:hover:text-purple-400"
-              >
-                <Icon name="dollar" size="sm" />
-                <span class="text-xs">{{
-                  t("admin.groups.rateMultipliers")
-                }}</span>
-              </button>
-              <button
-                v-if="!userMode && !authStore.isSimpleMode"
-                data-testid="group-rpm-overrides"
-                @click="handleRPMOverrides(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-orange-600 dark:hover:bg-dark-700 dark:hover:text-orange-400"
-              >
-                <Icon name="bolt" size="sm" />
-                <span class="text-xs">{{
-                  t("admin.groups.rpmOverrides")
-                }}</span>
-              </button>
-              <button
-                @click="openAddAccountsModal(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-emerald-600 dark:hover:bg-dark-700 dark:hover:text-emerald-400"
-              >
-                <Icon name="plus" size="sm" />
-                <span class="text-xs">{{ t("admin.groups.addAccounts.action") }}</span>
-              </button>
-              <button
-                @click="handleDelete(row)"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-              >
-                <Icon name="trash" size="sm" />
-                <span class="text-xs">{{ t("common.delete") }}</span>
-              </button>
+                <div class="py-1">
+                  <button
+                    v-if="!userMode && !authStore.isSimpleMode"
+                    data-testid="group-duplicate"
+                    role="menuitem"
+                    :title="
+                      duplicatingGroupIds.has(row.id)
+                        ? t('admin.groups.duplicating')
+                        : t('admin.groups.duplicate')
+                    "
+                    :disabled="duplicatingGroupIds.has(row.id)"
+                    @click="handleDuplicate(row)"
+                    class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-200 dark:hover:bg-dark-700"
+                  >
+                    <Icon
+                      name="copy"
+                      size="sm"
+                      class="text-gray-400"
+                      :stroke-width="2"
+                    />
+                    <span>
+                      {{
+                        duplicatingGroupIds.has(row.id)
+                          ? t("admin.groups.duplicating")
+                          : t("admin.groups.duplicate")
+                      }}
+                    </span>
+                  </button>
+                  <button
+                    v-if="
+                      !userMode &&
+                      !authStore.isSimpleMode &&
+                      row.platform === 'composite'
+                    "
+                    data-testid="group-composite-routes"
+                    role="menuitem"
+                    @click="handleCompositeRoutesFromMenu(row)"
+                    class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-dark-700"
+                  >
+                    <Icon
+                      name="swap"
+                      size="sm"
+                      class="text-gray-400"
+                      :stroke-width="2"
+                    />
+                    {{ t("admin.groups.compositeRoutes.action") }}
+                  </button>
+                  <button
+                    v-if="!userMode && !authStore.isSimpleMode"
+                    data-testid="group-rate-multipliers"
+                    role="menuitem"
+                    @click="handleRateMultipliersFromMenu(row)"
+                    class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-dark-700"
+                  >
+                    <Icon
+                      name="dollar"
+                      size="sm"
+                      class="text-gray-400"
+                      :stroke-width="2"
+                    />
+                    {{ t("admin.groups.rateMultipliers") }}
+                  </button>
+                  <button
+                    v-if="!userMode && !authStore.isSimpleMode"
+                    data-testid="group-rpm-overrides"
+                    role="menuitem"
+                    @click="handleRPMOverridesFromMenu(row)"
+                    class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-dark-700"
+                  >
+                    <Icon
+                      name="bolt"
+                      size="sm"
+                      class="text-gray-400"
+                      :stroke-width="2"
+                    />
+                    {{ t("admin.groups.rpmOverrides") }}
+                  </button>
+                  <div
+                    v-if="!userMode && !authStore.isSimpleMode"
+                    class="my-1 border-t border-gray-100 dark:border-dark-700"
+                  ></div>
+                  <button
+                    role="menuitem"
+                    @click="openAddAccountsModalFromMenu(row)"
+                    class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-dark-700"
+                  >
+                    <Icon
+                      name="plus"
+                      size="sm"
+                      class="text-gray-400"
+                      :stroke-width="2"
+                    />
+                    {{ t("admin.groups.addAccounts.action") }}
+                  </button>
+                  <div
+                    class="my-1 border-t border-gray-100 dark:border-dark-700"
+                  ></div>
+                  <button
+                    role="menuitem"
+                    @click="handleDeleteFromMenu(row)"
+                    class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                  >
+                    <Icon name="trash" size="sm" :stroke-width="2" />
+                    {{ t("common.delete") }}
+                  </button>
+                </div>
+              </div>
             </div>
           </template>
 
@@ -545,7 +611,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.copyAccounts.tooltip") }}
@@ -723,7 +789,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="mb-2 text-xs font-medium">
                     {{ t("admin.groups.exclusiveTooltip.title") }}
@@ -779,7 +845,7 @@
           <!-- Subscription limits (only show when subscription type is selected) -->
           <div
             v-if="createForm.subscription_type === 'subscription'"
-            class="space-y-4 border-l-2 border-primary-200 pl-4 dark:border-primary-800"
+            class="space-y-4 rounded-lg border-[0.5px] border-gray-200 bg-gray-50/60 p-4 dark:border-dark-600 dark:bg-dark-700/30"
           >
             <div>
               <label class="input-label">{{
@@ -1356,7 +1422,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.supportedScopes.tooltip") }}
@@ -1429,7 +1495,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.mcpXml.tooltip") }}
@@ -1471,7 +1537,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.claudeCode.tooltip") }}
@@ -1712,7 +1778,7 @@
             class="mt-3"
           >
             <div
-              class="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-600 dark:bg-dark-800"
+              class="relative overflow-hidden rounded-lg border-[0.5px] border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800"
             >
               <div
                 class="border-b border-gray-100 bg-gray-50/80 px-4 py-3 dark:border-dark-700 dark:bg-dark-700/50"
@@ -1776,7 +1842,7 @@
             </div>
 
             <div
-              class="mt-5 relative overflow-hidden rounded-xl border border-primary-200 bg-white shadow-sm dark:border-primary-900/50 dark:bg-dark-800"
+              class="relative mt-5 overflow-hidden rounded-lg border-[0.5px] border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800"
             >
               <div
                 class="border-b border-primary-100 bg-primary-50/80 px-4 py-3 dark:border-primary-900/40 dark:bg-primary-900/20"
@@ -1804,7 +1870,7 @@
               <div class="p-4 bg-gray-50/30 dark:bg-dark-800/30">
                 <div
                   v-if="createForm.exact_model_mappings.length === 0"
-                  class="flex items-center justify-between gap-3 rounded-xl border-2 border-dashed border-primary-200 bg-white px-5 py-4 text-sm text-primary-700 transition-colors hover:border-primary-300 dark:border-primary-900/40 dark:bg-dark-800 dark:text-primary-300 dark:hover:border-primary-800"
+                  class="flex items-center justify-between gap-3 rounded-lg border-[0.5px] border-dashed border-gray-300 bg-white px-5 py-4 text-sm text-gray-600 transition-colors hover:border-primary-300 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-primary-800"
                 >
                   <span>{{
                     t("admin.groups.openaiMessages.noExactMappings")
@@ -1823,7 +1889,7 @@
                   <div
                     v-for="row in createForm.exact_model_mappings"
                     :key="getCreateMessagesDispatchRowKey(row)"
-                    class="group relative rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-primary-300 hover:shadow-md dark:border-dark-600 dark:bg-dark-700 dark:hover:border-primary-700"
+                    class="group relative rounded-lg border-[0.5px] border-gray-200 bg-white p-4 transition-colors hover:border-primary-300 dark:border-dark-600 dark:bg-dark-700 dark:hover:border-primary-700"
                   >
                     <div class="flex items-center gap-4">
                       <div
@@ -1885,7 +1951,7 @@
                   <button
                     type="button"
                     @click="addCreateMessagesDispatchMapping"
-                    class="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white py-3 text-sm font-medium text-gray-500 transition-all hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-400 dark:hover:border-primary-800 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+                    class="flex w-full items-center justify-center gap-2 rounded-lg border-[0.5px] border-dashed border-gray-300 bg-white py-3 text-sm font-medium text-gray-500 transition-colors hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-400 dark:hover:border-primary-800 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
                   >
                     <Icon name="plus" size="sm" />
                     {{ t("admin.groups.openaiMessages.addExactMapping") }}
@@ -1983,7 +2049,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-80 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.modelRouting.tooltip") }}
@@ -2084,7 +2150,7 @@
                           accountSearchResults[getCreateRuleSearchKey(rule)]
                             ?.length > 0
                         "
-                        class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                        class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-menu dark:border-dark-600 dark:bg-dark-800"
                       >
                         <button
                           v-for="account in accountSearchResults[
@@ -2245,7 +2311,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.copyAccounts.tooltipEdit") }}
@@ -2420,7 +2486,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="mb-2 text-xs font-medium">
                     {{ t("admin.groups.exclusiveTooltip.title") }}
@@ -2481,7 +2547,7 @@
           <!-- Subscription limits (only show when subscription type is selected) -->
           <div
             v-if="editForm.subscription_type === 'subscription'"
-            class="space-y-4 border-l-2 border-primary-200 pl-4 dark:border-primary-800"
+            class="space-y-4 rounded-lg border-[0.5px] border-gray-200 bg-gray-50/60 p-4 dark:border-dark-600 dark:bg-dark-700/30"
           >
             <div>
               <label class="input-label">{{
@@ -3058,7 +3124,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.supportedScopes.tooltip") }}
@@ -3131,7 +3197,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.mcpXml.tooltip") }}
@@ -3173,7 +3239,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-72 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.claudeCode.tooltip") }}
@@ -3423,7 +3489,7 @@
             class="mt-3"
           >
             <div
-              class="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-dark-600 dark:bg-dark-800"
+              class="relative overflow-hidden rounded-lg border-[0.5px] border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800"
             >
               <div
                 class="border-b border-gray-100 bg-gray-50/80 px-4 py-3 dark:border-dark-700 dark:bg-dark-700/50"
@@ -3487,7 +3553,7 @@
             </div>
 
             <div
-              class="mt-5 relative overflow-hidden rounded-xl border border-primary-200 bg-white shadow-sm dark:border-primary-900/50 dark:bg-dark-800"
+              class="relative mt-5 overflow-hidden rounded-lg border-[0.5px] border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800"
             >
               <div
                 class="border-b border-primary-100 bg-primary-50/80 px-4 py-3 dark:border-primary-900/40 dark:bg-primary-900/20"
@@ -3515,7 +3581,7 @@
               <div class="p-4 bg-gray-50/30 dark:bg-dark-800/30">
                 <div
                   v-if="editForm.exact_model_mappings.length === 0"
-                  class="flex items-center justify-between gap-3 rounded-xl border-2 border-dashed border-primary-200 bg-white px-5 py-4 text-sm text-primary-700 transition-colors hover:border-primary-300 dark:border-primary-900/40 dark:bg-dark-800 dark:text-primary-300 dark:hover:border-primary-800"
+                  class="flex items-center justify-between gap-3 rounded-lg border-[0.5px] border-dashed border-gray-300 bg-white px-5 py-4 text-sm text-gray-600 transition-colors hover:border-primary-300 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-primary-800"
                 >
                   <span>{{
                     t("admin.groups.openaiMessages.noExactMappings")
@@ -3534,7 +3600,7 @@
                   <div
                     v-for="row in editForm.exact_model_mappings"
                     :key="getEditMessagesDispatchRowKey(row)"
-                    class="group relative rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-primary-300 hover:shadow-md dark:border-dark-600 dark:bg-dark-700 dark:hover:border-primary-700"
+                    class="group relative rounded-lg border-[0.5px] border-gray-200 bg-white p-4 transition-colors hover:border-primary-300 dark:border-dark-600 dark:bg-dark-700 dark:hover:border-primary-700"
                   >
                     <div class="flex items-center gap-4">
                       <div
@@ -3596,7 +3662,7 @@
                   <button
                     type="button"
                     @click="addEditMessagesDispatchMapping"
-                    class="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-white py-3 text-sm font-medium text-gray-500 transition-all hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-400 dark:hover:border-primary-800 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+                    class="flex w-full items-center justify-center gap-2 rounded-lg border-[0.5px] border-dashed border-gray-300 bg-white py-3 text-sm font-medium text-gray-500 transition-colors hover:border-primary-300 hover:bg-primary-50/50 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-400 dark:hover:border-primary-800 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
                   >
                     <Icon name="plus" size="sm" />
                     {{ t("admin.groups.openaiMessages.addExactMapping") }}
@@ -3694,7 +3760,7 @@
                 class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 w-80 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:opacity-100"
               >
                 <div
-                  class="rounded-lg bg-gray-900 p-3 text-white shadow-lg dark:bg-gray-800"
+                  class="rounded-lg bg-gray-900 p-3 text-white shadow-menu dark:bg-gray-800"
                 >
                   <p class="text-xs leading-relaxed text-gray-300">
                     {{ t("admin.groups.modelRouting.tooltip") }}
@@ -3795,7 +3861,7 @@
                           accountSearchResults[getEditRuleSearchKey(rule)]
                             ?.length > 0
                         "
-                        class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800"
+                        class="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-lg border bg-white shadow-menu dark:border-dark-600 dark:bg-dark-800"
                       >
                         <button
                           v-for="account in accountSearchResults[
@@ -7297,9 +7363,80 @@ watch(
   }
 )
 
+const activeGroupActionMenuId = ref<number | null>(null);
+const groupActionMenuPosition = ref<{ top: number; left: number } | null>(
+  null,
+);
+
+const closeGroupActionMenu = () => {
+  activeGroupActionMenuId.value = null;
+  groupActionMenuPosition.value = null;
+};
+
+const toggleGroupActionMenu = (group: AdminGroup, event: MouseEvent) => {
+  if (activeGroupActionMenuId.value === group.id) {
+    closeGroupActionMenu();
+    return;
+  }
+
+  const target = event.currentTarget as HTMLElement | null;
+  if (!target) return;
+
+  const rect = target.getBoundingClientRect();
+  const menuWidth = 208;
+  const menuHeight = 252;
+  const padding = 8;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const left = Math.max(
+    padding,
+    Math.min(rect.right - menuWidth, viewportWidth - menuWidth - padding),
+  );
+  let top = rect.bottom + 4;
+
+  if (top + menuHeight > viewportHeight - padding) {
+    top = Math.max(padding, rect.top - menuHeight - 4);
+  }
+
+  groupActionMenuPosition.value = { top, left };
+  activeGroupActionMenuId.value = group.id;
+};
+
+const handleCompositeRoutesFromMenu = (group: AdminGroup) => {
+  closeGroupActionMenu();
+  void handleCompositeRoutes(group);
+};
+
+const handleRateMultipliersFromMenu = (group: AdminGroup) => {
+  closeGroupActionMenu();
+  handleRateMultipliers(group);
+};
+
+const handleRPMOverridesFromMenu = (group: AdminGroup) => {
+  closeGroupActionMenu();
+  handleRPMOverrides(group);
+};
+
+const openAddAccountsModalFromMenu = (group: AdminGroup) => {
+  closeGroupActionMenu();
+  openAddAccountsModal(group);
+};
+
+const handleDeleteFromMenu = (group: AdminGroup) => {
+  closeGroupActionMenu();
+  handleDelete(group);
+};
+
 // 点击外部关闭账号搜索下拉框
 const handleClickOutside = (event: MouseEvent) => {
   const target = event.target as HTMLElement;
+  if (
+    activeGroupActionMenuId.value !== null &&
+    !target.closest(".group-action-menu-trigger") &&
+    !target.closest(".group-action-menu-content")
+  ) {
+    closeGroupActionMenu();
+  }
   // 检查是否点击在下拉框或输入框内
   if (!target.closest(".account-search-container")) {
     Object.keys(showAccountDropdown.value).forEach((key) => {
@@ -7309,6 +7446,10 @@ const handleClickOutside = (event: MouseEvent) => {
   if (columnDropdownRef.value && !columnDropdownRef.value.contains(target)) {
     showColumnDropdown.value = false;
   }
+};
+
+const handleGroupActionMenuLayoutChange = () => {
+  closeGroupActionMenu();
 };
 
 // 打开排序弹窗
@@ -7362,10 +7503,22 @@ onMounted(() => {
     loadModelAllowlistCandidates("create", 0, createForm.platform);
   }
   document.addEventListener("click", handleClickOutside);
+  window.addEventListener("resize", handleGroupActionMenuLayoutChange);
+  document.addEventListener(
+    "scroll",
+    handleGroupActionMenuLayoutChange,
+    true,
+  );
 });
 
 onUnmounted(() => {
   document.removeEventListener("click", handleClickOutside);
+  window.removeEventListener("resize", handleGroupActionMenuLayoutChange);
+  document.removeEventListener(
+    "scroll",
+    handleGroupActionMenuLayoutChange,
+    true,
+  );
   accountSearchRunner.clearAll();
   clearAllAccountSearchState();
 });

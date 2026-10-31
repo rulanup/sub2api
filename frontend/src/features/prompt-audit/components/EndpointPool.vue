@@ -76,8 +76,8 @@
               {{ t('admin.promptAudit.pool.probeProgress') }}
             </p>
             <p v-if="probeResults[endpoint.id]" class="mt-1.5 line-clamp-2 text-xs leading-5" :class="probeResults[endpoint.id].ok ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'">
-              {{ t('admin.promptAudit.pool.probeResult', { status: probeResults[endpoint.id].status, http: probeResults[endpoint.id].http_status || '—', latency: probeResults[endpoint.id].latency_ms }) }}
-              · {{ probeResults[endpoint.id].message }}
+              <span class="block">{{ t('admin.promptAudit.pool.probeResult', { status: probeResults[endpoint.id].status, http: probeResults[endpoint.id].http_status || '—', latency: probeResults[endpoint.id].latency_ms }) }}</span>
+              <span class="block">{{ probeResults[endpoint.id].message }}</span>
             </p>
           </div>
 

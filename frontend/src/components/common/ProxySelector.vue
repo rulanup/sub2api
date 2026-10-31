@@ -346,7 +346,7 @@ onUnmounted(() => {
   @apply bg-white dark:bg-dark-800;
   @apply rounded-xl;
   @apply border border-gray-200 dark:border-dark-700;
-  @apply shadow-lg shadow-black/10 dark:shadow-black/30;
+  @apply shadow-menu shadow-black/10 dark:shadow-black/30;
   @apply overflow-hidden;
 }
 

@@ -14,11 +14,21 @@
           </h3>
           <p data-testid="grok-diagnostics-state" :class="stateClass">{{ headline }}</p>
         </div>
-        <p class="mt-1 text-xs text-gray-500 dark:text-dark-400">
+        <p class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-dark-400">
           <span v-if="modelCountLabel">{{ modelCountLabel }}</span>
-          <span v-if="catalogHost">{{ modelCountLabel ? ' · ' : '' }}{{ catalogHost }}</span>
+          <span
+            v-if="modelCountLabel && catalogHost"
+            class="h-3 w-px bg-gray-200 dark:bg-dark-600"
+            aria-hidden="true"
+          ></span>
+          <span v-if="catalogHost">{{ catalogHost }}</span>
+          <span
+            v-if="(modelCountLabel || catalogHost) && lastSuccessRelative"
+            class="h-3 w-px bg-gray-200 dark:bg-dark-600"
+            aria-hidden="true"
+          ></span>
           <span data-testid="grok-diagnostics-last-success">
-            {{ modelCountLabel || catalogHost ? ' · ' : '' }}{{ t('admin.accounts.grokModelDiagnostics.lastSuccessRelative', { time: lastSuccessRelative }) }}
+            {{ t('admin.accounts.grokModelDiagnostics.lastSuccessRelative', { time: lastSuccessRelative }) }}
           </span>
         </p>
       </div>

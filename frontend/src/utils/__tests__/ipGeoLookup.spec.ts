@@ -42,12 +42,12 @@ describe('getEntry', () => {
 
 describe('formatGeoLabel', () => {
   it('joins country/region/city with a separator', () => {
-    expect(formatGeoLabel({ countryCode: 'CN', region: 'Guangdong', city: 'Shenzhen' })).toBe('CN · Guangdong · Shenzhen')
+    expect(formatGeoLabel({ countryCode: 'CN', region: 'Guangdong', city: 'Shenzhen' })).toBe('CN, Guangdong, Shenzhen')
   })
 
   it('skips missing fields', () => {
     expect(formatGeoLabel({ countryCode: 'CN' })).toBe('CN')
-    expect(formatGeoLabel({ countryCode: 'US', region: 'Massachusetts' })).toBe('US · Massachusetts')
+    expect(formatGeoLabel({ countryCode: 'US', region: 'Massachusetts' })).toBe('US, Massachusetts')
   })
 })
 
@@ -84,7 +84,7 @@ describe('fetchOne', () => {
     expect(global.fetch).toHaveBeenCalledWith('https://get.geojs.io/v1/ip/geo/121.35.47.43.json')
     const entry = getEntry('121.35.47.43')
     expect(entry.status).toBe('success')
-    expect(entry.label).toBe('CN · Guangdong · Shenzhen')
+    expect(entry.label).toBe('CN, Guangdong, Shenzhen')
     expect(entry.detail?.organization).toBe('AS4134 Chinanet')
   })
 
@@ -219,14 +219,14 @@ describe('ipGeoLookup localStorage persistence', () => {
     localStorage.setItem(
       'sub2api:ip-geo-cache:v1',
       JSON.stringify({
-        '121.35.47.43': { label: 'CN · Guangdong · Shenzhen', fetchedAt: Date.now() },
+        '121.35.47.43': { label: 'CN, Guangdong, Shenzhen', fetchedAt: Date.now() },
       })
     )
 
     const mod = await import('../ipGeoLookup')
 
     expect(mod.getEntry('121.35.47.43')).toEqual(
-      expect.objectContaining({ status: 'success', label: 'CN · Guangdong · Shenzhen' })
+      expect.objectContaining({ status: 'success', label: 'CN, Guangdong, Shenzhen' })
     )
   })
 
@@ -235,7 +235,7 @@ describe('ipGeoLookup localStorage persistence', () => {
     localStorage.setItem(
       'sub2api:ip-geo-cache:v1',
       JSON.stringify({
-        '8.8.8.8': { label: 'US · California', fetchedAt: twentyFiveHoursAgo },
+        '8.8.8.8': { label: 'US, California', fetchedAt: twentyFiveHoursAgo },
       })
     )
 
@@ -263,7 +263,7 @@ describe('ipGeoLookup localStorage persistence', () => {
     localStorage.setItem(
       'sub2api:ip-geo-cache:v1',
       JSON.stringify({
-        '8.8.4.4': { label: 'US · California', fetchedAt: now.getTime() },
+        '8.8.4.4': { label: 'US, California', fetchedAt: now.getTime() },
       })
     )
 

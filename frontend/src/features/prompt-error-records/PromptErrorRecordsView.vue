@@ -44,7 +44,7 @@
           <button type="button" class="btn btn-primary btn-sm" :disabled="loading" @click="applyFilters">{{ t('admin.promptErrorRecords.filters.search') }}</button>
           <button type="button" class="btn btn-secondary btn-sm" @click="resetFilters">{{ t('admin.promptErrorRecords.filters.reset') }}</button>
           <button type="button" class="btn btn-secondary btn-sm" :disabled="exporting" @click="doExport">{{ exporting ? 'Exporting…' : t('admin.promptErrorRecords.filters.export') }}</button>
-          <span v-if="total" class="ml-2 text-xs text-gray-500">Total {{ total }} · Page {{ page }}/{{ pages }}</span>
+          <span v-if="total" class="ml-2 text-xs text-gray-500">Total {{ total }}, page {{ page }} of {{ pages }}</span>
         </div>
       </div>
 
@@ -71,7 +71,7 @@
                 <th class="px-3 py-2 text-left">Request ID</th>
                 <th class="px-3 py-2 text-left">{{ t('admin.promptErrorRecords.table.promptPreview') }}</th>
                 <th class="px-3 py-2 text-left">{{ t('admin.promptErrorRecords.table.errorBody') }}</th>
-                <th class="px-3 py-2 text-left">触发用户 / User</th>
+                <th class="px-3 py-2 text-left">触发用户（User）</th>
                 <th class="px-3 py-2 text-right">{{ t('admin.promptErrorRecords.table.actions') }}</th>
               </tr>
             </thead>
@@ -131,7 +131,7 @@
         </div>
         <div class="flex-1 overflow-auto p-5 text-sm">
           <div class="mb-4 rounded-lg border border-primary-200 bg-primary-50 p-3 dark:border-primary-900/50 dark:bg-primary-950/20">
-            <p class="mb-2 text-xs font-semibold text-primary-800 dark:text-primary-300">触发用户 / Trigger User — 便于排查</p>
+            <p class="mb-2 text-xs font-semibold text-primary-800 dark:text-primary-300">触发用户（Trigger User），便于排查</p>
             <div class="grid grid-cols-2 gap-2 text-xs">
               <div><span class="font-semibold">用户:</span> {{ detail.username_snapshot || '—' }} <span class="rounded bg-white px-1 py-0.5 text-xs text-gray-600 dark:bg-dark-700">ID:{{ detail.user_id ?? '-' }}</span></div>
               <div><span class="font-semibold">邮箱:</span> <span class="truncate" :title="detail.user_email_snapshot">{{ detail.user_email_snapshot || '—' }}</span></div>
@@ -171,7 +171,7 @@
         <p class="mt-2 text-sm text-gray-600 dark:text-dark-300">{{ confirmDialog.message }}</p>
         <div v-if="confirmDialog.preview" class="mt-3 rounded bg-amber-50 p-3 text-xs dark:bg-amber-950/30">
           <p>{{ t('admin.promptErrorRecords.deleteDialog.matched', { count: confirmDialog.preview.matched_count }) }}</p>
-          <p class="mt-1 text-gray-500">ID ≤ {{ confirmDialog.preview.snapshot_max_id }} · {{ confirmDialog.preview.filter_hash.slice(0, 8) }}…</p>
+          <p class="mt-1 text-gray-500">ID ≤ {{ confirmDialog.preview.snapshot_max_id }}, hash {{ confirmDialog.preview.filter_hash.slice(0, 8) }}…</p>
         </div>
         <div class="mt-4 flex justify-end gap-2">
           <button type="button" class="btn btn-secondary btn-sm" @click="confirmDialog.show = false">{{ t('admin.promptErrorRecords.deleteDialog.cancel') }}</button>

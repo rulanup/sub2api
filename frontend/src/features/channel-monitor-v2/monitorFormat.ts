@@ -9,6 +9,8 @@
 import type { HealthScoreBand, HealthState, MonitorHealth } from '@/api/channelMonitorV2'
 import { formatCompactNumber } from '@/utils/format'
 
+export const MONITOR_DETAIL_SEPARATOR = ', '
+
 export function monitorIntlLocale(): string {
   if (typeof document !== 'undefined') {
     const htmlLang = document.documentElement.getAttribute('lang')?.trim()
@@ -161,12 +163,12 @@ export function formatLatencyPrivacy(
   if (p90 != null) parts.push(`P90 ${formatMonitorMs(p90)}`)
   // p95 only as fallback when p90 missing (older payloads)
   if (p90 == null && p95 != null) parts.push(`P95 ${formatMonitorMs(p95)}`)
-  return parts.length ? parts.join(' · ') : '-'
+  return parts.length ? parts.join(MONITOR_DETAIL_SEPARATOR) : '-'
 }
 
 /**
  * KPI secondary line for latency: AVG + P90 only (P50 is the primary value).
- * Falls back to P95 when P90 is absent. Delimiter is " · " so MetricCell can
+ * Falls back to P95 when P90 is absent. The shared separator lets MetricCell
  * split into non-truncated chips.
  */
 export function formatLatencyKpiSecondary(
@@ -178,7 +180,7 @@ export function formatLatencyKpiSecondary(
   if (avg != null && Number.isFinite(avg)) parts.push(`AVG ${formatMonitorMs(avg)}`)
   if (p90 != null && Number.isFinite(p90)) parts.push(`P90 ${formatMonitorMs(p90)}`)
   else if (p95 != null && Number.isFinite(p95)) parts.push(`P95 ${formatMonitorMs(p95)}`)
-  return parts.length ? parts.join(' · ') : '-'
+  return parts.length ? parts.join(MONITOR_DETAIL_SEPARATOR) : '-'
 }
 
 /** Fallback when i18n key is missing; prefer `channelMonitorV2.errorCategories.*`. */

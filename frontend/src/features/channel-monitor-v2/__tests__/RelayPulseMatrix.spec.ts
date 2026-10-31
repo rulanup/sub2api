@@ -124,7 +124,7 @@ describe('RelayPulseMatrix', () => {
     expect(tip).not.toContain('请求数')
     expect(tip).not.toContain('用户错误')
     expect(tip).not.toContain('上游受影响')
-    // Summary columns: success · ttft · tokens/s · cache
+    // Summary columns: success / ttft / tokens/s / cache
     const header = wrapper.find('.matrix-header').text()
     expect(header).toContain('成功率')
     expect(header).toContain('首 Token')

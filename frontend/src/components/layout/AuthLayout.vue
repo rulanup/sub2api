@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-[#f7f8fa] p-4 dark:bg-dark-950 sm:p-6">
+  <div class="flex min-h-screen items-center justify-center bg-[#f5f7fa] p-4 dark:bg-dark-950 sm:p-6">
     <div class="w-full max-w-[27.5rem]">
       <!-- Logo/Brand -->
       <div class="mb-6 text-center">
@@ -20,7 +20,7 @@
       </div>
 
       <!-- Card Container -->
-      <div class="rounded-xl border-[0.5px] border-gray-200 bg-white p-6 shadow-floating-sm dark:border-dark-700 dark:bg-dark-900 sm:p-8">
+      <div class="rounded-[10px] border-[0.5px] border-gray-200 bg-white p-6 dark:border-dark-700 dark:bg-dark-900 sm:p-8">
         <slot />
       </div>
 

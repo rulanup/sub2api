@@ -3,7 +3,6 @@
     :show="show"
     :title="t('admin.accounts.dataImportTitle')"
     width="normal"
-    close-on-click-outside
     @close="handleClose"
   >
     <form id="import-data-form" class="space-y-4" @submit.prevent="handleImport">
@@ -34,7 +33,7 @@
             </div>
             <div class="text-xs text-gray-500 dark:text-dark-400">
               JSON (.json)
-              <span v-if="files.length > 1"> · {{ fileListTitle }}</span>
+              <span v-if="files.length > 1">, {{ fileListTitle }}</span>
             </div>
           </div>
           <button type="button" class="btn btn-secondary shrink-0" @click="openFilePicker">

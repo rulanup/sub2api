@@ -73,8 +73,12 @@ export default {
         card: 'none',
         'card-hover': 'none',
         'inner-glow': 'none',
-        floating: '0 8px 24px rgba(15, 23, 42, 0.08)',
-        'floating-sm': '0 2px 8px rgba(15, 23, 42, 0.06)'
+        lg: '0 8px 24px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.05)',
+        xl: '0 12px 32px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04)',
+        '2xl': '0 20px 48px rgba(15, 23, 42, 0.10)',
+        floating: '0 12px 32px rgba(15, 23, 42, 0.10)',
+        'floating-sm': '0 1px 3px rgba(15, 23, 42, 0.05)',
+        menu: '0 8px 24px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.05)'
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
@@ -128,6 +132,8 @@ export default {
         xs: '2px'
       },
       borderRadius: {
+        xl: '0.625rem',
+        '2xl': '0.75rem',
         '4xl': '1rem'
       }
     }

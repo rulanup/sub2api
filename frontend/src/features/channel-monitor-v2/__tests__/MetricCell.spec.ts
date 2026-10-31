@@ -45,12 +45,12 @@ describe('MetricCell', () => {
     expect(critical.find('strong').classes().join(' ')).toMatch(/red/)
   })
 
-  it('renders multi-part detail as non-truncated chips (AVG · P90 fully visible)', () => {
+  it('renders multi-part detail as non-truncated chips (AVG and P90 fully visible)', () => {
     const wrapper = mount(MetricCell, {
       props: {
         label: '首 Token P50',
         value: '400ms',
-        detail: 'AVG 475ms · P90 800ms',
+        detail: 'AVG 475ms, P90 800ms',
         state: 'healthy',
       },
     })

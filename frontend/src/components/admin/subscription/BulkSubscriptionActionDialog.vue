@@ -180,7 +180,7 @@ function handleClose() {
 
 function failedTargetLabel(id: number) {
   const target = targets.value.find(item => item.id === id)
-  return target?.email ? `${target.email} · #${id}` : `#${id}`
+  return target?.email ? `${target.email}, #${id}` : `#${id}`
 }
 
 async function submit() {

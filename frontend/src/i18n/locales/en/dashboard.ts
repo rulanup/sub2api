@@ -590,7 +590,7 @@ export default {
     nextUpdateIn: 'NEXT UPDATE IN {n}s',
     past: 'PAST',
     now: 'NOW',
-    maintenancePaused: 'Maintenance · timeline paused',
+    maintenancePaused: 'Maintenance, timeline paused',
     extraModelsCount: '+ {n} models',
     pollEvery: '{n}s polling',
     updatedAt: 'Updated {time}',

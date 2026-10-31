@@ -112,7 +112,7 @@
               </div>
               <p class="mt-1 text-xs text-gray-500">
                 {{ plugin.plugin_key
-                }}<span v-if="plugin.author"> · {{ plugin.author }}</span>
+                }}<span v-if="plugin.author">, {{ plugin.author }}</span>
               </p>
               <p
                 v-if="plugin.description"

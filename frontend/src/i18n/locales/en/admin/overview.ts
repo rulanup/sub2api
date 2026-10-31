@@ -909,7 +909,7 @@ export default {
       accountsRateLimited: 'Limited:',
       accountsTotal: 'Total:',
       accountsUnit: 'accounts',
-      rateAndAccounts: '{rate}x rate · {count} accounts',
+      rateAndAccounts: '{rate}x rate, {count} accounts',
       accountsCount: '{count} accounts',
       rateLabel: 'rate',
       accountFilters: {

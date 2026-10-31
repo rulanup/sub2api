@@ -432,7 +432,7 @@ export function formatCountdownWithSuffix(targetDate: string | Date | null | und
 /**
  * 格式化为相对时间 + 具体时间组合
  * @param date 日期字符串或 Date 对象
- * @returns 组合时间字符串，如 "5 天前 · 2026-01-27 15:25"
+ * @returns 组合时间字符串，如 "5 天前, 2026-01-27 15:25"
  */
 export function formatRelativeWithDateTime(date: string | Date | null | undefined): string {
   if (!date) return ''
@@ -445,5 +445,5 @@ export function formatRelativeWithDateTime(date: string | Date | null | undefine
     return relativeTime
   }
 
-  return `${relativeTime} · ${dateTime}`
+  return `${relativeTime}, ${dateTime}`
 }

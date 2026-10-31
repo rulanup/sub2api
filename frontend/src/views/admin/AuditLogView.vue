@@ -95,7 +95,7 @@
                 {{ row.actor_email || '—' }}
               </div>
               <div class="mt-0.5 truncate text-xs text-gray-400">
-                {{ row.actor_role }}<span v-if="row.auth_method"> · {{ authMethodLabel(row.auth_method) }}</span>
+                {{ row.actor_role }}<span v-if="row.auth_method">, {{ authMethodLabel(row.auth_method) }}</span>
               </div>
             </div>
           </template>
@@ -246,7 +246,7 @@
           <h4 class="mb-1.5 text-xs font-medium text-gray-500 dark:text-dark-400">
             {{ t('admin.audit.detail.userAgent') }}
           </h4>
-          <div class="break-all rounded-xl bg-gray-50 p-3 font-mono text-xs leading-relaxed text-gray-600 dark:bg-dark-900 dark:text-gray-400">
+          <div class="break-all rounded-lg border-[0.5px] border-gray-200 bg-gray-50 p-3 font-mono text-xs leading-relaxed text-gray-600 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-400">
             {{ detail.user_agent || '—' }}
           </div>
         </section>
@@ -256,7 +256,7 @@
           <h4 class="mb-1.5 text-xs font-medium text-gray-500 dark:text-dark-400">
             {{ t('admin.audit.detail.requestBody') }}
           </h4>
-          <pre class="max-h-72 overflow-auto rounded-xl bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-600 dark:bg-dark-900 dark:text-gray-400">{{ prettyBody(detail.request_body) }}</pre>
+          <pre class="max-h-72 overflow-auto rounded-lg border-[0.5px] border-gray-200 bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-600 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-400">{{ prettyBody(detail.request_body) }}</pre>
         </section>
 
         <!-- Extra -->
@@ -264,7 +264,7 @@
           <h4 class="mb-1.5 text-xs font-medium text-gray-500 dark:text-dark-400">
             {{ t('admin.audit.detail.extra') }}
           </h4>
-          <pre class="max-h-48 overflow-auto rounded-xl bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-600 dark:bg-dark-900 dark:text-gray-400">{{ JSON.stringify(detail.extra, null, 2) }}</pre>
+          <pre class="max-h-48 overflow-auto rounded-lg border-[0.5px] border-gray-200 bg-gray-50 p-4 font-mono text-xs leading-relaxed text-gray-600 dark:border-dark-700 dark:bg-dark-900 dark:text-gray-400">{{ JSON.stringify(detail.extra, null, 2) }}</pre>
         </section>
       </div>
     </BaseDialog>

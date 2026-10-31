@@ -1,18 +1,18 @@
 <template>
-  <div class="min-h-screen bg-[#f7f8fa] dark:bg-dark-950">
+  <div class="min-h-screen bg-[#f5f7fa] dark:bg-dark-950">
     <!-- Sidebar -->
     <AppSidebar />
 
     <!-- Main Content Area -->
     <div
       class="relative min-h-screen transition-[margin] duration-200"
-      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64']"
+      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-[236px]']"
     >
       <!-- Header -->
       <AppHeader />
 
       <!-- Main Content -->
-      <main class="px-4 py-4 md:px-6 md:py-5 lg:px-8 lg:py-6">
+      <main class="px-4 py-4 md:px-6 md:py-5 lg:p-6">
         <slot />
       </main>
     </div>

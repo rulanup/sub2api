@@ -221,6 +221,7 @@ describe('GroupsView duplicate action', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    await wrapper.get('[data-testid="group-actions-menu"]').trigger('click')
     await wrapper.get('[data-testid="group-duplicate"]').trigger('click')
     await flushPromises()
 
@@ -238,6 +239,7 @@ describe('GroupsView duplicate action', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    await wrapper.get('[data-testid="group-actions-menu"]').trigger('click')
     expect(wrapper.find('[data-testid="group-duplicate"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="group-composite-routes"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="group-rate-multipliers"]').exists()).toBe(false)
@@ -253,6 +255,7 @@ describe('GroupsView duplicate action', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    await wrapper.get('[data-testid="group-actions-menu"]').trigger('click')
     const button = wrapper.get('[data-testid="group-duplicate"]')
     void button.trigger('click')
     void button.trigger('click')
@@ -273,6 +276,7 @@ describe('GroupsView duplicate action', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    await wrapper.get('[data-testid="group-actions-menu"]').trigger('click')
     await wrapper.get('[data-testid="group-duplicate"]').trigger('click')
     await flushPromises()
 
@@ -294,6 +298,7 @@ describe('GroupsView duplicate action', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    await wrapper.get('[data-testid="group-actions-menu"]').trigger('click')
     await wrapper.get('[data-testid="group-duplicate"]').trigger('click')
     await flushPromises()
 

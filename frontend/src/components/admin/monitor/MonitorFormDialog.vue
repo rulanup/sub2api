@@ -453,7 +453,7 @@ function templateOptionLabel(tpl: ChannelMonitorTemplate): string {
   const labelKey = normalizeAPIMode(tpl.api_mode) === API_MODE_RESPONSES
     ? 'admin.channelMonitor.form.apiModeResponses'
     : 'admin.channelMonitor.form.apiModeChatCompletions'
-  return `${tpl.name} · ${t(labelKey)}`
+  return `${tpl.name}, ${t(labelKey)}`
 }
 
 function clearRequestSnapshot() {

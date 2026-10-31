@@ -63,7 +63,7 @@
         v-if="dialogVisible"
         class="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto bg-gray-950/50 p-4"
       >
-        <div class="w-full max-w-[600px] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-dark-700 dark:bg-dark-900">
+        <div class="w-full max-w-[600px] overflow-hidden rounded-[10px] border-[0.5px] border-gray-200 bg-white shadow-floating dark:border-dark-700 dark:bg-dark-900">
           <div class="border-b border-gray-100 bg-white px-6 py-6 dark:border-dark-800 dark:bg-dark-900">
             <div class="flex items-start gap-4">
               <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-primary-100 bg-primary-50 text-primary-700 dark:border-primary-500/20 dark:bg-primary-500/10 dark:text-primary-300">

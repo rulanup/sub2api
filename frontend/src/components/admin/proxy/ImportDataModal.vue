@@ -3,7 +3,6 @@
     :show="show"
     :title="t('admin.proxies.dataImportTitle')"
     width="normal"
-    close-on-click-outside
     @close="handleClose"
   >
     <form id="import-proxy-data-form" class="space-y-4" @submit.prevent="handleImport">

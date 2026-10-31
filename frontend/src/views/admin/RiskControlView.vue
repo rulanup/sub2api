@@ -314,7 +314,7 @@
                     <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{{ row.api_key_name || '-' }}</td>
                     <td class="whitespace-nowrap px-5 py-4 text-sm text-gray-700 dark:text-gray-300">
                       <div>{{ row.endpoint || '-' }}</div>
-                      <div class="text-xs text-gray-400">{{ row.provider || '-' }} / {{ row.model || '-' }}</div>
+                      <div class="text-xs text-gray-400">{{ row.provider || '-' }}, {{ row.model || '-' }}</div>
                     </td>
                     <td class="whitespace-nowrap px-5 py-4">
                       <span class="inline-flex rounded-md px-2 py-1 text-xs font-medium" :class="resultBadgeClass(row)">
@@ -332,7 +332,7 @@
                       <div>{{ violationCountText(row) }}</div>
                       <div class="text-xs text-gray-400">
                         {{ row.email_sent ? t('admin.riskControl.emailSent') : t('admin.riskControl.emailNotSent') }}
-                        <span v-if="row.auto_banned"> / {{ t('admin.riskControl.autoBanned') }}</span>
+                        <span v-if="row.auto_banned">, {{ t('admin.riskControl.autoBanned') }}</span>
                       </div>
                       <button
                         v-if="canUnbanRow(row)"
@@ -701,8 +701,8 @@
 
                   <div v-if="moderationTestResult" class="mt-4 rounded-lg border border-gray-100 bg-white p-3 dark:border-dark-700 dark:bg-dark-800">
                     <p v-if="moderationTestResult.engine_meta" class="mb-2 break-words text-xs text-gray-500">
-                      {{ engineLabel(moderationTestResult.engine_meta.engine) }} · {{ moderationTestResult.engine_meta.model }} · {{ moderationTestResult.engine_meta.rules_version }}
-                      <span v-if="moderationTestResult.engine_meta.skipped_images"> · {{ t('admin.riskControl.skippedImages', { count: moderationTestResult.engine_meta.skipped_images }) }}</span>
+                      {{ engineLabel(moderationTestResult.engine_meta.engine) }}, {{ moderationTestResult.engine_meta.model }}, {{ moderationTestResult.engine_meta.rules_version }}
+                      <span v-if="moderationTestResult.engine_meta.skipped_images">, {{ t('admin.riskControl.skippedImages', { count: moderationTestResult.engine_meta.skipped_images }) }}</span>
                     </p>
                     <div class="flex items-start justify-between gap-3">
                       <div>
@@ -1286,8 +1286,8 @@
           <div class="text-sm break-words" data-test="audit-engine-meta">
             <span class="font-medium">{{ t('admin.riskControl.auditSource') }}: </span>
             <template v-if="inputDetailRow.engine_meta">
-              {{ engineLabel(inputDetailRow.engine_meta.engine) }} · {{ inputDetailRow.engine_meta.model || '-' }} · {{ inputDetailRow.engine_meta.rules_version || '-' }}
-              <span v-if="inputDetailRow.engine_meta.skipped_images"> · {{ t('admin.riskControl.skippedImages', { count: inputDetailRow.engine_meta.skipped_images }) }}</span>
+              {{ engineLabel(inputDetailRow.engine_meta.engine) }}, {{ inputDetailRow.engine_meta.model || '-' }}, {{ inputDetailRow.engine_meta.rules_version || '-' }}
+              <span v-if="inputDetailRow.engine_meta.skipped_images">, {{ t('admin.riskControl.skippedImages', { count: inputDetailRow.engine_meta.skipped_images }) }}</span>
             </template>
             <template v-else>{{ ['cyber_policy', 'keyword_block', 'hash_block'].includes(inputDetailRow.action) ? '-' : t('admin.riskControl.legacyAuditSource') }}</template>
           </div>
@@ -1323,7 +1323,7 @@
               <div>
                 <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.riskControl.inputDetailContent') }}</p>
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {{ inputDetailRow.endpoint || '-' }} · {{ inputDetailRow.provider || '-' }} / {{ inputDetailRow.model || '-' }}
+                  {{ inputDetailRow.endpoint || '-' }}, {{ inputDetailRow.provider || '-' }}, {{ inputDetailRow.model || '-' }}
                 </p>
               </div>
               <span v-if="inputDetailRow.group_name" class="inline-flex rounded-md bg-sky-50 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
@@ -1914,7 +1914,7 @@ const apiKeyHealthSummary = computed(() => {
   if (apiKeyHealthBadges.value.length === 0) return t('admin.riskControl.apiKeyStatusUnknown')
   return apiKeyHealthBadges.value
     .map((badge) => `${apiKeyStatusLabel(badge.status)} ${badge.count}`)
-    .join(' · ')
+    .join(', ')
 })
 
 const overviewItems = computed<OverviewItem[]>(() => [
@@ -2752,7 +2752,7 @@ function apiKeyStatusMeta(row: ContentModerationAPIKeyStatus): string {
   } else {
     parts.push(t('admin.riskControl.apiKeyNotTested'))
   }
-  return parts.join(' / ')
+  return parts.join(', ')
 }
 
 function parseApiKeys(value: string): string[] {

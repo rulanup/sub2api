@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
 
 import HomeView from '../HomeView.vue'
@@ -33,9 +33,11 @@ vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>()
   return {
     ...actual,
-    useI18n: () => ({ t: (key: string) => key }),
+    useI18n: () => ({ t: (key: string) => key, locale: { value: 'zh' } }),
   }
 })
+
+let wrappers: Array<ReturnType<typeof mount>> = []
 
 function mountHome(settings: Record<string, unknown> = {}) {
   appStore.cachedPublicSettings = {
@@ -44,7 +46,7 @@ function mountHome(settings: Record<string, unknown> = {}) {
     ...settings,
   }
 
-  return mount(HomeView, {
+  const wrapper = mount(HomeView, {
     global: {
       stubs: {
         RouterLink: RouterLinkStub,
@@ -53,6 +55,8 @@ function mountHome(settings: Record<string, unknown> = {}) {
       },
     },
   })
+  wrappers.push(wrapper)
+  return wrapper
 }
 
 function compactDestination(wrapper: ReturnType<typeof mountHome>) {
@@ -66,7 +70,14 @@ function modelPlazaDestination(wrapper: ReturnType<typeof mountHome>) {
     ?.props('to')
 }
 
-describe('HomeView compact mode', () => {
+function startDestinations(wrapper: ReturnType<typeof mountHome>) {
+  return wrapper
+    .findAllComponents(RouterLinkStub)
+    .filter((link) => link.attributes('data-testid') === 'start-link')
+    .map((link) => link.props('to'))
+}
+
+describe('HomeView modes and call to action', () => {
   beforeEach(() => {
     authStore.isAuthenticated = false
     authStore.isAdmin = false
@@ -75,6 +86,12 @@ describe('HomeView compact mode', () => {
     appStore.fetchPublicSettings.mockClear()
     localStorage.clear()
     vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
+  })
+
+  afterEach(() => {
+    wrappers.forEach((wrapper) => wrapper.unmount())
+    wrappers = []
+    vi.restoreAllMocks()
   })
 
   it('renders custom HTML ahead of compact mode', () => {
@@ -103,82 +120,72 @@ describe('HomeView compact mode', () => {
     expect(wrapper.get('[data-testid="compact-home"]').text()).toContain('Test site')
   })
 
-  it.each([undefined, false])('selects the default home when compact mode is %s', (enabled) => {
+  it.each([undefined, false])('selects the four-act landing page when compact mode is %s', (enabled) => {
     const settings = enabled === undefined ? {} : { compact_home_enabled: enabled }
     const wrapper = mountHome(settings)
 
     expect(wrapper.find('[data-testid="compact-home"]').exists()).toBe(false)
-    expect(wrapper.find('.terminal-container').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="landing-page"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-act]').map((section) => section.attributes('data-act'))).toEqual([
+      'hero',
+      'optical',
+      'story',
+      'final',
+    ])
   })
 
-  it('links unauthenticated visitors to login', () => {
+  it('keeps compact-mode login and dashboard navigation', () => {
     expect(compactDestination(mountHome({ compact_home_enabled: true }))).toBe('/login')
-  })
 
-  it('links authenticated users to their dashboard', () => {
-    authStore.isAuthenticated = true
-
-    expect(compactDestination(mountHome({ compact_home_enabled: true }))).toBe('/dashboard')
-  })
-
-  it('links administrators to the admin dashboard', () => {
     authStore.isAuthenticated = true
     authStore.isAdmin = true
-
-    const wrapper = mountHome({ compact_home_enabled: true })
-    expect(compactDestination(wrapper)).toBe('/admin/dashboard')
-    expect(authStore.checkAuth).toHaveBeenCalledOnce()
+    expect(compactDestination(mountHome({ compact_home_enabled: true }))).toBe('/admin/dashboard')
+    expect(authStore.checkAuth).toHaveBeenCalled()
     expect(appStore.fetchPublicSettings).not.toHaveBeenCalled()
   })
 
-  it('shows the model plaza link to anonymous visitors when public access is enabled', () => {
-    const wrapper = mountHome({
-      compact_home_enabled: true,
-      model_plaza_enabled: true,
-      model_plaza_require_auth: false,
-    })
-
-    expect(modelPlazaDestination(wrapper)).toBe('/model-plaza')
+  it('sends anonymous visitors to registration when registration is open', () => {
+    const wrapper = mountHome({ registration_enabled: true, backend_mode_enabled: false })
+    expect(startDestinations(wrapper)).toEqual(['/register', '/register', '/register'])
   })
 
-  it('hides the model plaza link from anonymous visitors when sign-in is required', () => {
-    const wrapper = mountHome({
-      compact_home_enabled: true,
-      model_plaza_enabled: true,
-      model_plaza_require_auth: true,
-    })
+  it('sends anonymous visitors to login when registration is closed or backend mode is active', () => {
+    const loginWrapper = mountHome({ registration_enabled: false })
+    expect(startDestinations(loginWrapper)).toEqual(['/login', '/login', '/login'])
 
-    expect(modelPlazaDestination(wrapper)).toBeUndefined()
+    const backendWrapper = mountHome({ registration_enabled: true, backend_mode_enabled: true })
+    expect(startDestinations(backendWrapper)).toEqual(['/login', '/login', '/login'])
   })
 
-  it('shows the model plaza link to authenticated visitors when sign-in is required', () => {
+  it('sends authenticated users and administrators to their dashboards', () => {
     authStore.isAuthenticated = true
+    const userWrapper = mountHome()
+    expect(startDestinations(userWrapper)).toEqual(['/dashboard', '/dashboard', '/dashboard'])
 
+    authStore.isAdmin = true
+    const adminWrapper = mountHome()
+    expect(startDestinations(adminWrapper)).toEqual([
+      '/admin/dashboard',
+      '/admin/dashboard',
+      '/admin/dashboard',
+    ])
+  })
+
+  it('preserves model plaza visibility in compact mode', () => {
+    const wrapper = mountHome({
+      compact_home_enabled: true,
+      model_plaza_enabled: true,
+      model_plaza_require_auth: false,
+    })
+    expect(modelPlazaDestination(wrapper)).toBe('/model-plaza')
+  })
+
+  it('hides the model plaza link from anonymous compact visitors when sign-in is required', () => {
     const wrapper = mountHome({
       compact_home_enabled: true,
       model_plaza_enabled: true,
       model_plaza_require_auth: true,
     })
-
-    expect(modelPlazaDestination(wrapper)).toBe('/model-plaza')
-  })
-
-  it('shows the model plaza link in the default home header', () => {
-    const wrapper = mountHome({
-      model_plaza_enabled: true,
-      model_plaza_require_auth: false,
-    })
-
-    expect(modelPlazaDestination(wrapper)).toBe('/model-plaza')
-  })
-
-  it('hides the model plaza link when the feature is disabled', () => {
-    const wrapper = mountHome({
-      compact_home_enabled: true,
-      model_plaza_enabled: false,
-      model_plaza_require_auth: false,
-    })
-
     expect(modelPlazaDestination(wrapper)).toBeUndefined()
   })
 })

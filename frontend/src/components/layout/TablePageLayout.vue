@@ -12,14 +12,16 @@
 
     <!-- 滚动区域：表格 -->
     <div class="layout-section-scrollable">
-      <div class="card table-scroll-container">
-        <slot name="table" />
-      </div>
-    </div>
+      <div class="table-page-card">
+        <div class="table-scroll-container">
+          <slot name="table" />
+        </div>
 
-    <!-- 固定区域：分页器 -->
-    <div v-if="$slots.pagination" class="layout-section-fixed">
-      <slot name="pagination" />
+        <!-- 分页器与表格共用一个产品外壳，避免两者之间出现无意义留白。 -->
+        <div v-if="$slots.pagination" class="table-pagination">
+          <slot name="pagination" />
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -46,8 +48,7 @@ onUnmounted(() => {
 <style scoped>
 /* 桌面端：Flexbox 布局 */
 .table-page-layout {
-  @apply flex flex-col gap-5;
-  height: calc(100vh - 64px - 7rem); /* 减去 header 与 lg:py-6 的上下留白 */
+  @apply flex min-w-0 flex-col gap-4;
 }
 
 .layout-section-fixed {
@@ -55,17 +56,25 @@ onUnmounted(() => {
 }
 
 .layout-section-scrollable {
-  @apply flex-1 min-h-0 flex flex-col;
+  @apply flex min-h-0 flex-col;
 }
 
-/* 表格滚动容器 - 增强版表体滚动方案 */
+/* 外壳随真实行数增长；超过可用视口范围后只滚动表体。 */
+.table-page-card {
+  @apply overflow-hidden rounded-[10px] border-[0.5px] border-gray-200 bg-white shadow-none dark:border-dark-700 dark:bg-dark-900;
+}
+
 .table-scroll-container {
-  @apply flex h-full flex-col overflow-hidden rounded-lg border-[0.5px] border-gray-200 bg-white shadow-none dark:border-dark-700 dark:bg-dark-800;
+  @apply min-w-0 overflow-hidden bg-white dark:bg-dark-900;
+}
+
+.table-pagination {
+  @apply border-t-[0.5px] border-gray-200 dark:border-dark-700;
 }
 
 .table-scroll-container :deep(.table-wrapper) {
-  @apply flex-1 overflow-x-auto overflow-y-auto;
-  /* 确保横向滚动条显示在最底部 */
+  @apply overflow-x-auto overflow-y-auto;
+  max-height: clamp(20rem, calc(100dvh - 18rem), 45rem);
   scrollbar-gutter: stable;
 }
 
@@ -84,29 +93,39 @@ onUnmounted(() => {
 }
 
 .table-scroll-container :deep(th) {
-  @apply border-b-[0.5px] border-gray-200 px-5 py-3 text-left text-xs font-medium normal-case tracking-normal text-gray-500 dark:border-dark-700 dark:text-dark-300;
+  @apply h-11 border-b-[0.5px] border-gray-200 px-4 py-0 text-left text-xs font-medium normal-case tracking-normal text-gray-500 dark:border-dark-700 dark:text-dark-300;
 }
 
 .table-scroll-container :deep(td) {
-  @apply border-b-[0.5px] border-gray-100 px-5 py-3.5 text-sm text-gray-700 dark:border-dark-800 dark:text-gray-300;
+  @apply h-[52px] border-b-[0.5px] border-gray-100 px-4 py-3 text-sm text-gray-700 dark:border-dark-800 dark:text-gray-300;
 }
 
 /* 移动端：恢复正常滚动 */
 .table-page-layout.mobile-mode {
-  height: auto;
+  @apply h-auto;
+}
+
+.table-page-layout.mobile-mode .table-page-card {
+  @apply overflow-visible rounded-none border-0 bg-transparent;
 }
 
 .table-page-layout.mobile-mode .table-scroll-container {
-  @apply h-auto overflow-visible border-none shadow-none bg-transparent;
-}
-
-.table-page-layout.mobile-mode .layout-section-scrollable {
-  @apply flex-none min-h-fit;
+  @apply overflow-visible bg-transparent;
 }
 
 .table-page-layout.mobile-mode .table-scroll-container :deep(table) {
   @apply flex-none;
   display: table;
   min-width: 100%;
+}
+
+.table-page-layout.mobile-mode .table-scroll-container :deep(.table-wrapper) {
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.table-page-layout.mobile-mode .table-pagination {
+  @apply mt-3 overflow-hidden rounded-[10px] border-[0.5px] bg-white dark:bg-dark-900;
 }
 </style>

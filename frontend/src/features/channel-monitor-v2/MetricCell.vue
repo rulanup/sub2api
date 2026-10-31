@@ -36,6 +36,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { HealthState } from '@/api/channelMonitorV2'
+import { MONITOR_DETAIL_SEPARATOR } from './monitorFormat'
 
 const props = defineProps<{
   label: string
@@ -51,7 +52,7 @@ const detailParts = computed(() => {
   const raw = (props.detail || '').trim()
   if (!raw || raw === '-') return []
   return raw
-    .split(/\s*[·|]\s*/)
+    .split(MONITOR_DETAIL_SEPARATOR)
     .map((part) => part.trim())
     .filter(Boolean)
 })

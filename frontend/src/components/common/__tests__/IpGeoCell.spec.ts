@@ -59,7 +59,7 @@ describe('IpGeoCell', () => {
   it('renders success state with label, tooltip detail, and a refresh button', async () => {
     mocks.getEntry.mockReturnValue({
       status: 'success',
-      label: 'CN · Guangdong · Shenzhen',
+      label: 'CN, Guangdong, Shenzhen',
       detail: {
         organization: 'AS4134 Chinanet',
         timezone: 'Asia/Shanghai',
@@ -69,7 +69,7 @@ describe('IpGeoCell', () => {
       },
     })
     const wrapper = mount(IpGeoCell, { props: { ip: '121.35.47.43' } })
-    expect(wrapper.text()).toContain('CN · Guangdong · Shenzhen')
+    expect(wrapper.text()).toContain('CN, Guangdong, Shenzhen')
     const buttons = wrapper.findAll('button')
     expect(buttons.length).toBe(2)
     expect(buttons[0].attributes('title')).toContain('AS4134 Chinanet')
@@ -79,7 +79,7 @@ describe('IpGeoCell', () => {
   })
 
   it('opens the external lookup page when the label is clicked', async () => {
-    mocks.getEntry.mockReturnValue({ status: 'success', label: 'US · California', detail: {} })
+    mocks.getEntry.mockReturnValue({ status: 'success', label: 'US, California', detail: {} })
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
     const wrapper = mount(IpGeoCell, { props: { ip: '8.8.4.4' } })
     await wrapper.findAll('button')[0].trigger('click')

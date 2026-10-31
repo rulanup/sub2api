@@ -59,7 +59,7 @@ export default {
   "statusDisabled": "Disabled",
   "statusExpired": "Expired",
   "statusEnabled": "Enabled",
-  "summary": "Global permissions: {globals} · Resource rules: {rules}",
+  "summary": "Global permissions: {globals}, resource rules: {rules}",
   "ruleLine": "Rule {index}: {summary}",
   "expires": "Expires: {value}",
   "lastUsed": "Last used: {value}",

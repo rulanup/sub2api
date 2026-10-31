@@ -2,13 +2,13 @@
   <div class="empty-state">
     <!-- Icon -->
     <div
-      class="mb-5 flex h-20 w-20 items-center justify-center rounded-xl bg-gray-100 dark:bg-dark-800"
+      class="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border-[0.5px] border-gray-200 bg-gray-50 text-gray-400 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-500"
     >
       <slot name="icon">
-        <component v-if="icon" :is="icon" class="empty-state-icon h-10 w-10" aria-hidden="true" />
+        <component v-if="icon" :is="icon" class="empty-state-icon h-6 w-6" aria-hidden="true" />
         <svg
           v-else
-          class="empty-state-icon h-10 w-10"
+          class="empty-state-icon h-6 w-6"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -24,17 +24,17 @@
     </div>
 
     <!-- Title -->
-    <h3 class="empty-state-title">
+    <h3 class="empty-state-title text-sm">
       {{ displayTitle }}
     </h3>
 
     <!-- Description -->
-    <p class="empty-state-description">
+    <p class="empty-state-description mt-1 text-xs">
       {{ description }}
     </p>
 
     <!-- Action -->
-    <div v-if="actionText || $slots.action" class="mt-6">
+    <div v-if="actionText || $slots.action" class="mt-5">
       <slot name="action">
         <component
           :is="actionTo ? 'RouterLink' : 'button'"

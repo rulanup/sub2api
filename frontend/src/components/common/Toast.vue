@@ -17,16 +17,15 @@
           v-for="toast in toasts"
           :key="toast.id"
           :class="[
-            'pointer-events-auto min-w-[320px] max-w-md overflow-hidden rounded-lg shadow-lg',
+            'pointer-events-auto min-w-[320px] max-w-md overflow-hidden rounded-[10px] shadow-floating',
             'bg-white dark:bg-dark-800',
-            'border-l-4',
-            getBorderColor(toast.type)
+            'border-[0.5px] border-gray-200 dark:border-dark-700'
           ]"
         >
           <div class="p-4">
             <div class="flex items-start gap-3">
               <!-- Icon -->
-              <div class="mt-0.5 flex-shrink-0">
+              <div :class="['flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md', getIconSurface(toast.type)]">
                 <Icon
                   :name="getToastIconName(toast.type)"
                   size="md"
@@ -64,7 +63,7 @@
           </div>
 
           <!-- Progress bar -->
-          <div v-if="toast.duration" class="h-1 bg-gray-100 dark:bg-dark-700">
+          <div v-if="toast.duration" class="h-0.5 bg-gray-100 dark:bg-dark-700">
             <div
               :class="['h-full toast-progress', getProgressBarColor(toast.type)]"
               :style="{ animationDuration: `${toast.duration}ms` }"
@@ -109,12 +108,12 @@ const getIconColor = (type: string): string => {
   return colors[type] || colors.info
 }
 
-const getBorderColor = (type: string): string => {
+const getIconSurface = (type: string): string => {
   const colors: Record<string, string> = {
-    success: 'border-green-500',
-    error: 'border-red-500',
-    warning: 'border-yellow-500',
-    info: 'border-blue-500'
+    success: 'bg-emerald-50 dark:bg-emerald-950/50',
+    error: 'bg-red-50 dark:bg-red-950/50',
+    warning: 'bg-amber-50 dark:bg-amber-950/50',
+    info: 'bg-primary-50 dark:bg-primary-950/50'
   }
   return colors[type] || colors.info
 }

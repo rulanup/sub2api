@@ -14,6 +14,51 @@ export default {
     login: '登录',
     getStarted: '立即开始',
     goToDashboard: '进入控制台',
+    landing: {
+      nav: {
+        primary: '首页主导航',
+        docs: '文档',
+        preferences: '偏好设置',
+        skipToContent: '跳到主要内容'
+      },
+      actions: {
+        start: '开始使用'
+      },
+      preferences: {
+        title: '偏好设置',
+        language: '语言',
+        appearance: '外观',
+        light: '浅色',
+        dark: '深色',
+        system: '跟随系统'
+      },
+      hero: {
+        identitySuffix: '统一 AI API 网关',
+        title: '让 AI 触手可及。',
+        subtitle: '一个 API，轻松连接你需要的 AI 模型。',
+        scrollHint: '查看品牌艺术'
+      },
+      optical: {
+        lineOne: '不同的 AI，',
+        lineTwo: '同一种简单。'
+      },
+      story: {
+        kicker: '品牌理念',
+        title: '品牌宣言',
+        lineOne: '连接不同的 AI。',
+        lineTwo: '只需一种方式。',
+        lineThree: '让可能，持续发生。'
+      },
+      finalCta: {
+        titleLead: '你的下一步，',
+        titleAccent: '充满可能。'
+      },
+      footer: {
+        navigation: '页脚导航',
+        docs: '文档',
+        rights: '保留所有权利。'
+      }
+    },
     // 新增：面向用户的价值主张
     heroSubtitle: '一个密钥，畅用多个 AI 模型',
     heroDescription: '无需管理多个订阅账号，一站式接入 Claude、GPT、Gemini 等主流 AI 服务',

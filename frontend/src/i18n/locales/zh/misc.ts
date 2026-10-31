@@ -678,7 +678,7 @@ export default {
     chatWelcome: '选择密钥和模型后开始对话，体验接近主流 AI 官网的聊天界面。',
     assistant: '助手',
     chatPlaceholder: '输入消息，按回车发送',
-    enterToSend: 'Enter 发送 · Shift+Enter 换行',
+    enterToSend: 'Enter 发送，Shift+Enter 换行',
     send: '发送',
     stop: '停止',
     chatSettings: '聊天设置',

@@ -455,7 +455,20 @@ onUnmounted(() => {
 <style scoped>
 .custom-page-layout {
   @apply flex flex-col;
-  height: calc(100vh - 64px - 4rem);
+  height: calc(100dvh - 64px - 2rem);
+  min-height: 28rem;
+}
+
+@media (min-width: 768px) {
+  .custom-page-layout {
+    height: calc(100dvh - 64px - 2.5rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .custom-page-layout {
+    height: calc(100dvh - 64px - 3rem);
+  }
 }
 
 .toc-sidebar {
@@ -475,7 +488,7 @@ onUnmounted(() => {
     width: 70%;
     max-width: 240px;
     height: 100%;
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 2px 0 12px rgba(15, 23, 42, 0.08);
   }
 }
 

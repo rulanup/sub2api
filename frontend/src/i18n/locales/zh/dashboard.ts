@@ -595,7 +595,7 @@ export default {
     nextUpdateIn: '{n}s 后刷新',
     past: 'PAST',
     now: 'NOW',
-    maintenancePaused: '维护中 · 已暂停时间线采集',
+    maintenancePaused: '维护中，已暂停时间线采集',
     extraModelsCount: '+ {n} 模型',
     pollEvery: '{n}s 轮询',
     updatedAt: '更新于 {time}',

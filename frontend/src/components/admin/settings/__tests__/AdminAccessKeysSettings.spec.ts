@@ -177,7 +177,7 @@ describe('管理员受限密钥配置', () => {
     const wrapper = mountSettings()
     await flushPromises()
     expect(wrapper.text()).toContain('测试分组')
-    expect(wrapper.text()).toContain('全站权限：0 项')
+    expect(wrapper.text()).toContain('全站权限 0 项')
     expect(wrapper.text()).toContain('按操作和资源范围授权；未勾选操作不生效')
     await wrapper.findAll('button').find(button => button.text() === '编辑权限')!.trigger('click')
     await wrapper.get('[data-test="name"]').setValue('新名称')

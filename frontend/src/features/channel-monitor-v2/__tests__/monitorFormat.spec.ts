@@ -60,9 +60,9 @@ describe('monitorFormat accuracy', () => {
     expect(formatMonitorMs(999)).toBe('999ms')
   })
 
-  it('formats KPI secondary latency as AVG · P90 (P50 is primary)', () => {
-    expect(formatLatencyKpiSecondary(150, 400)).toBe('AVG 150ms · P90 400ms')
-    expect(formatLatencyKpiSecondary(1500, null, 2000)).toBe('AVG 1.5s · P95 2.0s')
+  it('formats KPI secondary latency as AVG and P90 (P50 is primary)', () => {
+    expect(formatLatencyKpiSecondary(150, 400)).toBe('AVG 150ms, P90 400ms')
+    expect(formatLatencyKpiSecondary(1500, null, 2000)).toBe('AVG 1.5s, P95 2.0s')
     expect(formatLatencyKpiSecondary(null, null)).toBe('-')
   })
 
@@ -129,9 +129,9 @@ describe('monitorFormat accuracy', () => {
     expect(ttftDisplayState('healthy', { p50_ms: 400, sample_count: 20 })).toBe('healthy')
   })
 
-  it('formats privacy-safe latency lines with avg/p50/p90', () => {
-    expect(formatLatencyPrivacy(100, 250, 120, 300)).toBe('AVG 120ms · P50 100ms · P90 250ms')
-    expect(formatLatencyPrivacy(100, null, null, 300)).toBe('P50 100ms · P95 300ms')
+  it('formats privacy-safe latency lines with avg, p50 and p90', () => {
+    expect(formatLatencyPrivacy(100, 250, 120, 300)).toBe('AVG 120ms, P50 100ms, P90 250ms')
+    expect(formatLatencyPrivacy(100, null, null, 300)).toBe('P50 100ms, P95 300ms')
     expect(formatLatencyPrivacy(null, null)).toBe('-')
   })
 })

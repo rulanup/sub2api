@@ -3,7 +3,6 @@
     :show="show"
     :title="t('admin.accounts.syncFromCrsTitle')"
     width="normal"
-    close-on-click-outside
     @close="handleClose"
   >
     <!-- Step 1: Input credentials -->

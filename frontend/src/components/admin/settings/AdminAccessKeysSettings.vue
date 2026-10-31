@@ -17,8 +17,8 @@
     </div>
     <p v-if="loading">{{ t('adminAccessKeys.loading') }}</p>
     <div v-for="item in items" :key="item.id" class="space-y-2 rounded-lg border border-gray-200 p-4 dark:border-dark-700">
-      <p class="font-medium">{{ item.name }} <code>{{ item.key_prefix }}…</code> · {{ status(item) }}</p>
-      <p class="text-sm text-gray-500">{{ item.description || t('adminAccessKeys.noDescription') }} · {{ t('adminAccessKeys.expires', { value: item.expires_at || t('adminAccessKeys.never') }) }}</p>
+      <p class="font-medium">{{ item.name }} <code>{{ item.key_prefix }}…</code>, {{ status(item) }}</p>
+      <p class="text-sm text-gray-500">{{ item.description || t('adminAccessKeys.noDescription') }}, {{ t('adminAccessKeys.expires', { value: item.expires_at || t('adminAccessKeys.never') }) }}</p>
       <p class="text-sm text-gray-500">{{ t('adminAccessKeys.lastUsed', { value: item.last_used_at || t('adminAccessKeys.neverUsed') }) }} {{ item.last_used_ip }}</p>
       <div class="space-y-1 text-sm text-gray-500" :aria-label="t('adminAccessKeys.summaryLabel')">
         <p>{{ t('adminAccessKeys.summary', { globals: item.policy.global_permissions.length, rules: item.policy.rules.length }) }}</p>

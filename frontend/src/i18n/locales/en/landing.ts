@@ -14,6 +14,51 @@ export default {
     login: 'Login',
     getStarted: 'Get Started',
     goToDashboard: 'Go to Dashboard',
+    landing: {
+      nav: {
+        primary: 'Primary navigation',
+        docs: 'Documentation',
+        preferences: 'Preferences',
+        skipToContent: 'Skip to main content'
+      },
+      actions: {
+        start: 'Get started'
+      },
+      preferences: {
+        title: 'Preferences',
+        language: 'Language',
+        appearance: 'Appearance',
+        light: 'Light',
+        dark: 'Dark',
+        system: 'System'
+      },
+      hero: {
+        identitySuffix: 'Unified AI API Gateway',
+        title: 'AI, within reach.',
+        subtitle: 'One API for every AI model you need.',
+        scrollHint: 'View the brand artwork'
+      },
+      optical: {
+        lineOne: 'Different AI,',
+        lineTwo: 'One simple way.'
+      },
+      story: {
+        kicker: 'DESIGNED TO CONNECT',
+        title: 'Brand statement',
+        lineOne: 'Connect the AIs you rely on.',
+        lineTwo: 'Through one simple API.',
+        lineThree: 'Keep possibility moving.'
+      },
+      finalCta: {
+        titleLead: 'Your next step,',
+        titleAccent: 'full of possibility.'
+      },
+      footer: {
+        navigation: 'Footer navigation',
+        docs: 'Documentation',
+        rights: 'All rights reserved.'
+      }
+    },
     // User-focused value proposition
     heroSubtitle: 'One Key, All AI Models',
     heroDescription: 'No need to manage multiple subscriptions. Access Claude, GPT, Gemini and more with a single API key',

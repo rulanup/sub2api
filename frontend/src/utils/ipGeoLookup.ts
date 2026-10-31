@@ -109,7 +109,7 @@ export function formatGeoLabel(detail: IpGeoDetail): string {
   const parts = [detail.countryCode, detail.region, detail.city].filter(
     (part): part is string => Boolean(part && part.trim())
   )
-  return parts.join(' · ')
+  return parts.join(', ')
 }
 
 interface RawGeoResponse {

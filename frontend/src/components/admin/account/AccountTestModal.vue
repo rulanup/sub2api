@@ -297,7 +297,7 @@
             <img
               :src="previewImageUrl"
               :alt="t('admin.accounts.imageLightboxAlt')"
-              class="max-h-[90vh] max-w-[90vw] rounded-lg border border-gray-200 object-contain shadow-lg dark:border-dark-600"
+              class="max-h-[90vh] max-w-[90vw] rounded-lg border border-gray-200 object-contain shadow-menu dark:border-dark-600"
             />
           </div>
         </Transition>
