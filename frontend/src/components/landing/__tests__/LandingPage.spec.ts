@@ -86,6 +86,18 @@ describe('Sub2API landing page', () => {
     wrapper.unmount()
   })
 
+  it('falls back to the built-in developer documentation center', () => {
+    const wrapper = mountLanding()
+
+    expect(wrapper.get('.landing-header__docs').attributes('href')).toBe(
+      '/developer/docs/getting-started',
+    )
+    expect(wrapper.findAll('.landing-footer__nav a')[0].attributes('href')).toBe(
+      '/developer/docs/getting-started',
+    )
+    wrapper.unmount()
+  })
+
   it('opens preferences and reports the selected appearance', async () => {
     const setThemeMode = vi.fn()
     const wrapper = mountLanding(setThemeMode)

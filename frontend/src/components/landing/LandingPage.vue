@@ -52,5 +52,5 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const resolvedDocsUrl = computed(() => props.docUrl || props.githubUrl)
+const resolvedDocsUrl = computed(() => props.docUrl || '/developer/docs/getting-started')
 </script>

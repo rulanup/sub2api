@@ -116,6 +116,7 @@ describe('feature route guard', () => {
     authStore.isAuthenticated = true
     authStore.isAdmin = false
     authStore.isSimpleMode = false
+    appStore.backendModeEnabled = false
     appStore.publicSettingsLoaded = false
     appStore.cachedPublicSettings = null
     appStore.fetchPublicSettings.mockReset()
@@ -137,6 +138,20 @@ describe('feature route guard', () => {
 
     deferred.resolve({ payment_enabled: true })
     await navigation
+    expect(next).toHaveBeenCalledOnce()
+    expect(next).toHaveBeenCalledWith()
+  })
+
+  it('keeps the developer portal reachable for anonymous backend-mode visitors', async () => {
+    authStore.isAuthenticated = false
+    appStore.backendModeEnabled = true
+
+    const { navigation, next } = runGuard(
+      { requiresAuth: false },
+      '/developer/docs/getting-started',
+    )
+    await navigation
+
     expect(next).toHaveBeenCalledOnce()
     expect(next).toHaveBeenCalledWith()
   })
