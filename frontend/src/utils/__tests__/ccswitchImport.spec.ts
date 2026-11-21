@@ -21,6 +21,16 @@ function decodeBase64Utf8(value: string): string {
   return new TextDecoder().decode(bytes)
 }
 
+describe('ccswitchImport defaults', () => {
+  it('defaults OpenAI CC Switch imports to the current Codex model', () => {
+    expect(OPENAI_CC_SWITCH_CODEX_MODEL).toBe('gpt-6.1-sol')
+  })
+
+  it('defaults Grok Build imports to the current Grok model', () => {
+    expect(GROK_CC_SWITCH_MODEL).toBe('grok-4.5')
+  })
+})
+
 function usageExtractor(): (response: Record<string, unknown>) => Record<string, unknown> {
   const definition = Function(`"use strict"; return ${CC_SWITCH_USAGE_SCRIPT}`)() as {
     extractor: (response: Record<string, unknown>) => Record<string, unknown>
@@ -141,6 +151,22 @@ describe('CC-Switch import targets', () => {
       expect(params.get('usageEnabled')).toBe('true')
       expect(params.get('usageAutoInterval')).toBe('30')
       expect(decodeBase64Utf8(params.get('usageScript') || '')).toBe(CC_SWITCH_USAGE_SCRIPT)
+
+      if (app === 'codex') {
+        // Upstream embeds a Codex config payload; global [features] stay with CC Switch.
+        expect(params.get('configFormat')).toBe('json')
+        const payload = JSON.parse(atob(params.get('config') || '')) as { config: string }
+        expect(payload.config).toContain(`base_url = "${endpoint}"`)
+        expect(payload.config).toContain(`model = "${OPENAI_CC_SWITCH_CODEX_MODEL}"`)
+        expect(payload.config.split('[model_providers.')[0]).toContain('web_search = "live"')
+        expect(payload.config).toContain('requires_openai_auth = false')
+        expect(payload.config).toContain('experimental_bearer_token = "sk-test"')
+        expect(payload.config).toContain('"x-openai-actor-authorization" = "local-image-extension"')
+        // Global feature choices are preserved by CC Switch, not imported per provider.
+        expect(payload.config).not.toContain('[features]')
+      } else {
+        expect(params.has('config')).toBe(false)
+      }
     }
   )
 
@@ -149,6 +175,26 @@ describe('CC-Switch import targets', () => {
       'https://api.example.com/prefix'
     )
     expect(normalizeCcSwitchRootUrl('https://api.example.com///')).toBe('https://api.example.com')
+  })
+
+  it('encodes embedded Codex configuration as UTF-8 and escapes TOML strings', () => {
+    const apiKey = 'sk-"test\\key余额'
+    const params = paramsFromDeeplink(
+      buildCcSwitchImportDeeplink({
+        baseUrl: 'https://example.com/网关',
+        platform: 'openai',
+        clientType: 'codex',
+        providerName: 'Sub2API',
+        apiKey,
+        usageScript: CC_SWITCH_USAGE_SCRIPT
+      })
+    )
+    const bytes = Uint8Array.from(atob(params.get('config') || ''), (char) => char.charCodeAt(0))
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as { config: string }
+    const root = normalizeCcSwitchRootUrl('https://example.com/网关')
+    expect(payload.config).toContain(`base_url = ${JSON.stringify(root)}`)
+    expect(payload.config).toContain(`experimental_bearer_token = ${JSON.stringify(apiKey)}`)
+    expect(params.get('apiKey')).toBe(apiKey)
   })
 
   it('rejects incompatible and unsupported targets instead of falling back to Claude', () => {
