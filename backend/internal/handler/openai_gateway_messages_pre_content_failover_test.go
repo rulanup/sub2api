@@ -313,9 +313,10 @@ func TestOpenAIMessagesNonStreamFailedFrameExhaustedAppliesRule(t *testing.T) {
 	requireFailedFrameRuleJSON(t, rec)
 }
 
-// A failover triggered by an HTTP status keeps the built-in exhaustion mapping:
-// no passthrough rule is looked up for it.
-func TestOpenAIMessagesHTTPStatusFailoverExhaustedIgnoresPassthroughRule(t *testing.T) {
+// fork 与上游在这里语义不同：上游 v0.2.24 起刻意跳过 HTTP 状态触发的耗尽路径，
+// 只对 failed frame 查透传规则；fork 一直对该路径同样查询运营配置的透传规则
+// （与其它网关/CC 路径一致），因此这里断言规则命中后的回写结果。
+func TestOpenAIMessagesHTTPStatusFailoverExhaustedAppliesPassthroughRule(t *testing.T) {
 	rec, upstream := serveMessagesScenario(t, preContentFailoverScenario{
 		accounts:    preContentAccounts(1),
 		passthrough: newFailedFrameCodeRule("rate_limit_exceeded"),
@@ -328,9 +329,6 @@ func TestOpenAIMessagesHTTPStatusFailoverExhaustedIgnoresPassthroughRule(t *test
 		},
 	})
 
-	body := rec.Body.String()
-	t.Logf("status=%d body=%q", rec.Code, body)
-	require.Equal(t, 1, upstream.calls(), "body: %q", body)
-	require.NotEqual(t, http.StatusTeapot, rec.Code, "body: %q", body)
-	require.Equal(t, "Upstream service temporarily unavailable", gjson.Get(body, "error.message").String(), "body: %q", body)
+	require.Equal(t, 1, upstream.calls())
+	requireFailedFrameRuleJSON(t, rec)
 }

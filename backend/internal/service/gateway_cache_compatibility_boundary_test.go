@@ -43,6 +43,13 @@ func TestAnthropicConverterOutputCacheFields(t *testing.T) {
 				continue
 			}
 			t.Run(test.name+"/"+route, func(t *testing.T) {
+				if strings.Contains(test.name, "overrides creation alias") {
+					// fork 保留既有 cache_creation 别名计费口径（见
+					// openai_gateway_chat_completions_raw_test.go 的
+					// "nested zero does not hide legacy alias"），未采用上游
+					// v0.2.24 的「显式 write 覆盖别名」语义，故跳过这几档。
+					t.Skip("fork keeps legacy cache creation alias semantics")
+				}
 				payload := `{"id":"chat_cache","choices":[{"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]` + test.chatUsage + `}`
 				if strings.HasPrefix(route, "responses") {
 					payload = "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_cache\",\"model\":\"gpt-5.4\"}}\n\n"

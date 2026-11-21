@@ -241,7 +241,8 @@ func TestOpenAICacheWriteTTLPrices(t *testing.T) {
 		p := *base
 		applyChannelTokenPriceOverrides(&p, &ChannelModelPricing{InputPrice: float64Ptr(0), CacheWritePrice: float64Ptr(0), CacheWrite12hPrice: float64Ptr(2e-6)})
 		cost := service.computeTokenBreakdown(&p, tokens, 1, "fast", false)
-		require.InDelta(t, 2390*4e-6, cost.CacheCreationCost, 1e-12)
+		// fork 把 fast 档定价设为 2.5x（上游默认 2x），故 12h 价格按 2.5 倍计入。
+		require.InDelta(t, 2390*5e-6, cost.CacheCreationCost, 1e-12)
 	})
 	t.Run("missing TTL does not infer a 12h write", func(t *testing.T) {
 		p := *base

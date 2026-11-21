@@ -26,9 +26,10 @@ func TestClaude52FallbackPricing(t *testing.T) {
 			for _, tier := range []string{"", "fast"} {
 				cost, err := svc.CalculateCostWithServiceTier(model, UsageTokens{InputTokens: 1_000_000, OutputTokens: 1_000_000, CacheReadTokens: 1_000_000, CacheCreationTokens: 2_000_000, CacheCreation5mTokens: 1_000_000, CacheCreation1hTokens: 1_000_000}, 1, tier)
 				require.NoError(t, err)
+				// fork 刻意把 fast 档定价设为 2.5x（049a62229 / 21523579b），上游默认 2x。
 				multiplier := 1.0
 				if tier == "fast" {
-					multiplier = 2
+					multiplier = 2.5
 				}
 				require.InDelta(t, 8*multiplier, cost.InputCost, 1e-10)
 				require.InDelta(t, 40*multiplier, cost.OutputCost, 1e-10)

@@ -29,7 +29,12 @@ func TestAsyncAuditOutOfScopeSkipsLargeBodyCopy(t *testing.T) {
 	runtime.GC()
 	var before, after runtime.MemStats
 	runtime.ReadMemStats(&before)
-	decision := NewCoordinator(nil, svc).Check(context.Background(), req)
+	// fork 的「内置审计策略」默认开启，本地策略会扫描请求体（与提示词审查的
+	// 分组范围无关，属 fork 既有能力）。这里关掉它，让断言只覆盖本测试的目标：
+	// 审计范围外的提示词审查不得复制请求体。
+	coordinator := NewCoordinator(nil, svc)
+	coordinator.SetDefaultAuditGate(&fakeDefaultAuditGate{enabled: false})
+	decision := coordinator.Check(context.Background(), req)
 	svc.enqueueWG.Wait()
 	runtime.ReadMemStats(&after)
 	require.True(t, decision.AllowNextStage)

@@ -183,7 +183,7 @@ func (c *Coordinator) checkSuspicious(ctx context.Context, req Request) Decision
 		c.recordRisk(ctx, req, decision, nil)
 		return decision
 	case ModeAsync:
-		_ = c.prompt.Enqueue(ctx, req.Clone())
+		_ = c.prompt.Enqueue(ctx, req)
 		legacy, _ := c.checkLegacy(ctx, req)
 		decision := prioritize(legacy, nil)
 		c.recordRisk(ctx, req, decision, nil)
@@ -228,7 +228,7 @@ func (c *Coordinator) checkRouted(ctx context.Context, req Request, route servic
 		mode = c.prompt.EffectiveMode()
 	}
 	if route.RunPromptAudit && mode == ModeAsync {
-		_ = c.prompt.Enqueue(ctx, req.Clone())
+		_ = c.prompt.Enqueue(ctx, req)
 		var legacy *LegacyDecision
 		if route.RunModeration {
 			legacy, _ = c.checkLegacy(ctx, req)
@@ -290,7 +290,7 @@ func (c *Coordinator) evaluatePrompt(ctx context.Context, req Request) *PromptDe
 	if c.prompt == nil {
 		return unavailablePromptDecision(ErrorCodeUnavailable)
 	}
-	result, err := c.prompt.Evaluate(ctx, req.Clone())
+	result, err := c.prompt.Evaluate(ctx, req)
 	if err != nil {
 		var guardErr *GuardError
 		if errors.As(err, &guardErr) && guardErr.Code == ErrorCodeInvalidResponse {

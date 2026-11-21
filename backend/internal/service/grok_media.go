@@ -1307,21 +1307,6 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 		return nil, fmt.Errorf("grok content policy rejection: %s", clientMsg)
 	}
 
-	if status, errType, errMsg, matched := applyErrorPassthroughRuleWithMessage(
-		c,
-		account.Platform,
-		resp.StatusCode,
-		body,
-		http.StatusBadGateway,
-		"upstream_error",
-		"Upstream request failed",
-		grokUpstreamErrorMessage,
-	); matched {
-		MarkResponseCommitted(c)
-		writeGrokMediaErrorResponse(c, status, errType, errMsg, "")
-		return nil, fmt.Errorf("upstream error: %d (passthrough rule matched) message=%s", resp.StatusCode, upstreamMsg)
-	}
-
 	if !account.ShouldHandleErrorCode(resp.StatusCode) {
 		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
 			ProxyID:            opsUpstreamProxyID(account),
@@ -1335,9 +1320,10 @@ func (s *OpenAIGatewayService) handleGrokMediaErrorResponse(
 			Message:            upstreamMsg,
 			Detail:             upstreamDetail,
 		})
-		status, errType, errMsg, _ := applyErrorPassthroughRule(
+		status, errType, errMsg, _ := applyErrorPassthroughRuleWithMessage(
 			c, account.Platform, resp.StatusCode, body,
 			http.StatusInternalServerError, "upstream_error", "Upstream gateway error",
+			grokUpstreamErrorMessage,
 		)
 		MarkResponseCommitted(c)
 		writeGrokMediaErrorResponse(c, status, errType, errMsg, "")
