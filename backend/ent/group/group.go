@@ -152,6 +152,14 @@ const (
 	FieldMaxReasoningEffortOverLimit = "max_reasoning_effort_over_limit"
 	// FieldReasoningEffortMappings holds the string denoting the reasoning_effort_mappings field in the database.
 	FieldReasoningEffortMappings = "reasoning_effort_mappings"
+	// FieldSystemPromptEnabled holds the string denoting the system_prompt_enabled field in the database.
+	FieldSystemPromptEnabled = "system_prompt_enabled"
+	// FieldSystemPrompts holds the string denoting the system_prompts field in the database.
+	FieldSystemPrompts = "system_prompts"
+	// FieldSystemPromptMode holds the string denoting the system_prompt_mode field in the database.
+	FieldSystemPromptMode = "system_prompt_mode"
+	// FieldSecurityAuditEnabled holds the string denoting the security_audit_enabled field in the database.
+	FieldSecurityAuditEnabled = "security_audit_enabled"
 	// FieldProfitControlEnabled holds the string denoting the profit_control_enabled field in the database.
 	FieldProfitControlEnabled = "profit_control_enabled"
 	// FieldProfitMinMargin holds the string denoting the profit_min_margin field in the database.
@@ -301,6 +309,10 @@ var Columns = []string{
 	FieldMaxReasoningEffort,
 	FieldMaxReasoningEffortOverLimit,
 	FieldReasoningEffortMappings,
+	FieldSystemPromptEnabled,
+	FieldSystemPrompts,
+	FieldSystemPromptMode,
+	FieldSecurityAuditEnabled,
 	FieldProfitControlEnabled,
 	FieldProfitMinMargin,
 	FieldProfitSafetyBuffer,
@@ -451,6 +463,12 @@ var (
 	MaxReasoningEffortOverLimitValidator func(string) error
 	// DefaultReasoningEffortMappings holds the default value on creation for the "reasoning_effort_mappings" field.
 	DefaultReasoningEffortMappings []domain.ReasoningEffortMapping
+	// DefaultSystemPrompts holds the default value on creation for the "system_prompts" field.
+	DefaultSystemPrompts map[string]string
+	// DefaultSystemPromptMode holds the default value on creation for the "system_prompt_mode" field.
+	DefaultSystemPromptMode string
+	// SystemPromptModeValidator is a validator for the "system_prompt_mode" field. It is called by the builders before save.
+	SystemPromptModeValidator func(string) error
 	// DefaultProfitControlEnabled holds the default value on creation for the "profit_control_enabled" field.
 	DefaultProfitControlEnabled bool
 	// DefaultProfitMinMargin holds the default value on creation for the "profit_min_margin" field.
@@ -760,6 +778,21 @@ func ByMaxReasoningEffort(opts ...sql.OrderTermOption) OrderOption {
 // ByMaxReasoningEffortOverLimit orders the results by the max_reasoning_effort_over_limit field.
 func ByMaxReasoningEffortOverLimit(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMaxReasoningEffortOverLimit, opts...).ToFunc()
+}
+
+// BySystemPromptEnabled orders the results by the system_prompt_enabled field.
+func BySystemPromptEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSystemPromptEnabled, opts...).ToFunc()
+}
+
+// BySystemPromptMode orders the results by the system_prompt_mode field.
+func BySystemPromptMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSystemPromptMode, opts...).ToFunc()
+}
+
+// BySecurityAuditEnabled orders the results by the security_audit_enabled field.
+func BySecurityAuditEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSecurityAuditEnabled, opts...).ToFunc()
 }
 
 // ByProfitControlEnabled orders the results by the profit_control_enabled field.

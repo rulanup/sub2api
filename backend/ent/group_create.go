@@ -926,6 +926,54 @@ func (_c *GroupCreate) SetReasoningEffortMappings(v []domain.ReasoningEffortMapp
 	return _c
 }
 
+// SetSystemPromptEnabled sets the "system_prompt_enabled" field.
+func (_c *GroupCreate) SetSystemPromptEnabled(v bool) *GroupCreate {
+	_c.mutation.SetSystemPromptEnabled(v)
+	return _c
+}
+
+// SetNillableSystemPromptEnabled sets the "system_prompt_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSystemPromptEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetSystemPromptEnabled(*v)
+	}
+	return _c
+}
+
+// SetSystemPrompts sets the "system_prompts" field.
+func (_c *GroupCreate) SetSystemPrompts(v map[string]string) *GroupCreate {
+	_c.mutation.SetSystemPrompts(v)
+	return _c
+}
+
+// SetSystemPromptMode sets the "system_prompt_mode" field.
+func (_c *GroupCreate) SetSystemPromptMode(v string) *GroupCreate {
+	_c.mutation.SetSystemPromptMode(v)
+	return _c
+}
+
+// SetNillableSystemPromptMode sets the "system_prompt_mode" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSystemPromptMode(v *string) *GroupCreate {
+	if v != nil {
+		_c.SetSystemPromptMode(*v)
+	}
+	return _c
+}
+
+// SetSecurityAuditEnabled sets the "security_audit_enabled" field.
+func (_c *GroupCreate) SetSecurityAuditEnabled(v bool) *GroupCreate {
+	_c.mutation.SetSecurityAuditEnabled(v)
+	return _c
+}
+
+// SetNillableSecurityAuditEnabled sets the "security_audit_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSecurityAuditEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetSecurityAuditEnabled(*v)
+	}
+	return _c
+}
+
 // SetProfitControlEnabled sets the "profit_control_enabled" field.
 func (_c *GroupCreate) SetProfitControlEnabled(v bool) *GroupCreate {
 	_c.mutation.SetProfitControlEnabled(v)
@@ -1277,6 +1325,14 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultReasoningEffortMappings
 		_c.mutation.SetReasoningEffortMappings(v)
 	}
+	if _, ok := _c.mutation.SystemPrompts(); !ok {
+		v := group.DefaultSystemPrompts
+		_c.mutation.SetSystemPrompts(v)
+	}
+	if _, ok := _c.mutation.SystemPromptMode(); !ok {
+		v := group.DefaultSystemPromptMode
+		_c.mutation.SetSystemPromptMode(v)
+	}
 	if _, ok := _c.mutation.ProfitControlEnabled(); !ok {
 		v := group.DefaultProfitControlEnabled
 		_c.mutation.SetProfitControlEnabled(v)
@@ -1498,6 +1554,17 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.ReasoningEffortMappings(); !ok {
 		return &ValidationError{Name: "reasoning_effort_mappings", err: errors.New(`ent: missing required field "Group.reasoning_effort_mappings"`)}
+	}
+	if _, ok := _c.mutation.SystemPrompts(); !ok {
+		return &ValidationError{Name: "system_prompts", err: errors.New(`ent: missing required field "Group.system_prompts"`)}
+	}
+	if _, ok := _c.mutation.SystemPromptMode(); !ok {
+		return &ValidationError{Name: "system_prompt_mode", err: errors.New(`ent: missing required field "Group.system_prompt_mode"`)}
+	}
+	if v, ok := _c.mutation.SystemPromptMode(); ok {
+		if err := group.SystemPromptModeValidator(v); err != nil {
+			return &ValidationError{Name: "system_prompt_mode", err: fmt.Errorf(`ent: validator failed for field "Group.system_prompt_mode": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.ProfitControlEnabled(); !ok {
 		return &ValidationError{Name: "profit_control_enabled", err: errors.New(`ent: missing required field "Group.profit_control_enabled"`)}
@@ -1806,6 +1873,22 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ReasoningEffortMappings(); ok {
 		_spec.SetField(group.FieldReasoningEffortMappings, field.TypeJSON, value)
 		_node.ReasoningEffortMappings = value
+	}
+	if value, ok := _c.mutation.SystemPromptEnabled(); ok {
+		_spec.SetField(group.FieldSystemPromptEnabled, field.TypeBool, value)
+		_node.SystemPromptEnabled = &value
+	}
+	if value, ok := _c.mutation.SystemPrompts(); ok {
+		_spec.SetField(group.FieldSystemPrompts, field.TypeJSON, value)
+		_node.SystemPrompts = value
+	}
+	if value, ok := _c.mutation.SystemPromptMode(); ok {
+		_spec.SetField(group.FieldSystemPromptMode, field.TypeString, value)
+		_node.SystemPromptMode = value
+	}
+	if value, ok := _c.mutation.SecurityAuditEnabled(); ok {
+		_spec.SetField(group.FieldSecurityAuditEnabled, field.TypeBool, value)
+		_node.SecurityAuditEnabled = &value
 	}
 	if value, ok := _c.mutation.ProfitControlEnabled(); ok {
 		_spec.SetField(group.FieldProfitControlEnabled, field.TypeBool, value)
@@ -3052,6 +3135,66 @@ func (u *GroupUpsert) SetReasoningEffortMappings(v []domain.ReasoningEffortMappi
 // UpdateReasoningEffortMappings sets the "reasoning_effort_mappings" field to the value that was provided on create.
 func (u *GroupUpsert) UpdateReasoningEffortMappings() *GroupUpsert {
 	u.SetExcluded(group.FieldReasoningEffortMappings)
+	return u
+}
+
+// SetSystemPromptEnabled sets the "system_prompt_enabled" field.
+func (u *GroupUpsert) SetSystemPromptEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldSystemPromptEnabled, v)
+	return u
+}
+
+// UpdateSystemPromptEnabled sets the "system_prompt_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSystemPromptEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldSystemPromptEnabled)
+	return u
+}
+
+// ClearSystemPromptEnabled clears the value of the "system_prompt_enabled" field.
+func (u *GroupUpsert) ClearSystemPromptEnabled() *GroupUpsert {
+	u.SetNull(group.FieldSystemPromptEnabled)
+	return u
+}
+
+// SetSystemPrompts sets the "system_prompts" field.
+func (u *GroupUpsert) SetSystemPrompts(v map[string]string) *GroupUpsert {
+	u.Set(group.FieldSystemPrompts, v)
+	return u
+}
+
+// UpdateSystemPrompts sets the "system_prompts" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSystemPrompts() *GroupUpsert {
+	u.SetExcluded(group.FieldSystemPrompts)
+	return u
+}
+
+// SetSystemPromptMode sets the "system_prompt_mode" field.
+func (u *GroupUpsert) SetSystemPromptMode(v string) *GroupUpsert {
+	u.Set(group.FieldSystemPromptMode, v)
+	return u
+}
+
+// UpdateSystemPromptMode sets the "system_prompt_mode" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSystemPromptMode() *GroupUpsert {
+	u.SetExcluded(group.FieldSystemPromptMode)
+	return u
+}
+
+// SetSecurityAuditEnabled sets the "security_audit_enabled" field.
+func (u *GroupUpsert) SetSecurityAuditEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldSecurityAuditEnabled, v)
+	return u
+}
+
+// UpdateSecurityAuditEnabled sets the "security_audit_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSecurityAuditEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldSecurityAuditEnabled)
+	return u
+}
+
+// ClearSecurityAuditEnabled clears the value of the "security_audit_enabled" field.
+func (u *GroupUpsert) ClearSecurityAuditEnabled() *GroupUpsert {
+	u.SetNull(group.FieldSecurityAuditEnabled)
 	return u
 }
 
@@ -4408,6 +4551,76 @@ func (u *GroupUpsertOne) SetReasoningEffortMappings(v []domain.ReasoningEffortMa
 func (u *GroupUpsertOne) UpdateReasoningEffortMappings() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateReasoningEffortMappings()
+	})
+}
+
+// SetSystemPromptEnabled sets the "system_prompt_enabled" field.
+func (u *GroupUpsertOne) SetSystemPromptEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSystemPromptEnabled(v)
+	})
+}
+
+// UpdateSystemPromptEnabled sets the "system_prompt_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSystemPromptEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSystemPromptEnabled()
+	})
+}
+
+// ClearSystemPromptEnabled clears the value of the "system_prompt_enabled" field.
+func (u *GroupUpsertOne) ClearSystemPromptEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSystemPromptEnabled()
+	})
+}
+
+// SetSystemPrompts sets the "system_prompts" field.
+func (u *GroupUpsertOne) SetSystemPrompts(v map[string]string) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSystemPrompts(v)
+	})
+}
+
+// UpdateSystemPrompts sets the "system_prompts" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSystemPrompts() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSystemPrompts()
+	})
+}
+
+// SetSystemPromptMode sets the "system_prompt_mode" field.
+func (u *GroupUpsertOne) SetSystemPromptMode(v string) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSystemPromptMode(v)
+	})
+}
+
+// UpdateSystemPromptMode sets the "system_prompt_mode" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSystemPromptMode() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSystemPromptMode()
+	})
+}
+
+// SetSecurityAuditEnabled sets the "security_audit_enabled" field.
+func (u *GroupUpsertOne) SetSecurityAuditEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSecurityAuditEnabled(v)
+	})
+}
+
+// UpdateSecurityAuditEnabled sets the "security_audit_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSecurityAuditEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSecurityAuditEnabled()
+	})
+}
+
+// ClearSecurityAuditEnabled clears the value of the "security_audit_enabled" field.
+func (u *GroupUpsertOne) ClearSecurityAuditEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSecurityAuditEnabled()
 	})
 }
 
@@ -5938,6 +6151,76 @@ func (u *GroupUpsertBulk) SetReasoningEffortMappings(v []domain.ReasoningEffortM
 func (u *GroupUpsertBulk) UpdateReasoningEffortMappings() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateReasoningEffortMappings()
+	})
+}
+
+// SetSystemPromptEnabled sets the "system_prompt_enabled" field.
+func (u *GroupUpsertBulk) SetSystemPromptEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSystemPromptEnabled(v)
+	})
+}
+
+// UpdateSystemPromptEnabled sets the "system_prompt_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSystemPromptEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSystemPromptEnabled()
+	})
+}
+
+// ClearSystemPromptEnabled clears the value of the "system_prompt_enabled" field.
+func (u *GroupUpsertBulk) ClearSystemPromptEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSystemPromptEnabled()
+	})
+}
+
+// SetSystemPrompts sets the "system_prompts" field.
+func (u *GroupUpsertBulk) SetSystemPrompts(v map[string]string) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSystemPrompts(v)
+	})
+}
+
+// UpdateSystemPrompts sets the "system_prompts" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSystemPrompts() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSystemPrompts()
+	})
+}
+
+// SetSystemPromptMode sets the "system_prompt_mode" field.
+func (u *GroupUpsertBulk) SetSystemPromptMode(v string) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSystemPromptMode(v)
+	})
+}
+
+// UpdateSystemPromptMode sets the "system_prompt_mode" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSystemPromptMode() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSystemPromptMode()
+	})
+}
+
+// SetSecurityAuditEnabled sets the "security_audit_enabled" field.
+func (u *GroupUpsertBulk) SetSecurityAuditEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetSecurityAuditEnabled(v)
+	})
+}
+
+// UpdateSecurityAuditEnabled sets the "security_audit_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSecurityAuditEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateSecurityAuditEnabled()
+	})
+}
+
+// ClearSecurityAuditEnabled clears the value of the "security_audit_enabled" field.
+func (u *GroupUpsertBulk) ClearSecurityAuditEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.ClearSecurityAuditEnabled()
 	})
 }
 

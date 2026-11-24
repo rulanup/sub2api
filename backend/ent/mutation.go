@@ -22285,6 +22285,10 @@ type GroupMutation struct {
 	max_reasoning_effort_over_limit         *string
 	reasoning_effort_mappings               *[]domain.ReasoningEffortMapping
 	appendreasoning_effort_mappings         []domain.ReasoningEffortMapping
+	system_prompt_enabled                   *bool
+	system_prompts                          *map[string]string
+	system_prompt_mode                      *string
+	security_audit_enabled                  *bool
 	profit_control_enabled                  *bool
 	profit_min_margin                       *float64
 	addprofit_min_margin                    *float64
@@ -25742,6 +25746,176 @@ func (m *GroupMutation) ResetReasoningEffortMappings() {
 	m.appendreasoning_effort_mappings = nil
 }
 
+// SetSystemPromptEnabled sets the "system_prompt_enabled" field.
+func (m *GroupMutation) SetSystemPromptEnabled(b bool) {
+	m.system_prompt_enabled = &b
+}
+
+// SystemPromptEnabled returns the value of the "system_prompt_enabled" field in the mutation.
+func (m *GroupMutation) SystemPromptEnabled() (r bool, exists bool) {
+	v := m.system_prompt_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSystemPromptEnabled returns the old "system_prompt_enabled" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSystemPromptEnabled(ctx context.Context) (v *bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSystemPromptEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSystemPromptEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSystemPromptEnabled: %w", err)
+	}
+	return oldValue.SystemPromptEnabled, nil
+}
+
+// ClearSystemPromptEnabled clears the value of the "system_prompt_enabled" field.
+func (m *GroupMutation) ClearSystemPromptEnabled() {
+	m.system_prompt_enabled = nil
+	m.clearedFields[group.FieldSystemPromptEnabled] = struct{}{}
+}
+
+// SystemPromptEnabledCleared returns if the "system_prompt_enabled" field was cleared in this mutation.
+func (m *GroupMutation) SystemPromptEnabledCleared() bool {
+	_, ok := m.clearedFields[group.FieldSystemPromptEnabled]
+	return ok
+}
+
+// ResetSystemPromptEnabled resets all changes to the "system_prompt_enabled" field.
+func (m *GroupMutation) ResetSystemPromptEnabled() {
+	m.system_prompt_enabled = nil
+	delete(m.clearedFields, group.FieldSystemPromptEnabled)
+}
+
+// SetSystemPrompts sets the "system_prompts" field.
+func (m *GroupMutation) SetSystemPrompts(value map[string]string) {
+	m.system_prompts = &value
+}
+
+// SystemPrompts returns the value of the "system_prompts" field in the mutation.
+func (m *GroupMutation) SystemPrompts() (r map[string]string, exists bool) {
+	v := m.system_prompts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSystemPrompts returns the old "system_prompts" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSystemPrompts(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSystemPrompts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSystemPrompts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSystemPrompts: %w", err)
+	}
+	return oldValue.SystemPrompts, nil
+}
+
+// ResetSystemPrompts resets all changes to the "system_prompts" field.
+func (m *GroupMutation) ResetSystemPrompts() {
+	m.system_prompts = nil
+}
+
+// SetSystemPromptMode sets the "system_prompt_mode" field.
+func (m *GroupMutation) SetSystemPromptMode(s string) {
+	m.system_prompt_mode = &s
+}
+
+// SystemPromptMode returns the value of the "system_prompt_mode" field in the mutation.
+func (m *GroupMutation) SystemPromptMode() (r string, exists bool) {
+	v := m.system_prompt_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSystemPromptMode returns the old "system_prompt_mode" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSystemPromptMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSystemPromptMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSystemPromptMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSystemPromptMode: %w", err)
+	}
+	return oldValue.SystemPromptMode, nil
+}
+
+// ResetSystemPromptMode resets all changes to the "system_prompt_mode" field.
+func (m *GroupMutation) ResetSystemPromptMode() {
+	m.system_prompt_mode = nil
+}
+
+// SetSecurityAuditEnabled sets the "security_audit_enabled" field.
+func (m *GroupMutation) SetSecurityAuditEnabled(b bool) {
+	m.security_audit_enabled = &b
+}
+
+// SecurityAuditEnabled returns the value of the "security_audit_enabled" field in the mutation.
+func (m *GroupMutation) SecurityAuditEnabled() (r bool, exists bool) {
+	v := m.security_audit_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSecurityAuditEnabled returns the old "security_audit_enabled" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldSecurityAuditEnabled(ctx context.Context) (v *bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSecurityAuditEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSecurityAuditEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSecurityAuditEnabled: %w", err)
+	}
+	return oldValue.SecurityAuditEnabled, nil
+}
+
+// ClearSecurityAuditEnabled clears the value of the "security_audit_enabled" field.
+func (m *GroupMutation) ClearSecurityAuditEnabled() {
+	m.security_audit_enabled = nil
+	m.clearedFields[group.FieldSecurityAuditEnabled] = struct{}{}
+}
+
+// SecurityAuditEnabledCleared returns if the "security_audit_enabled" field was cleared in this mutation.
+func (m *GroupMutation) SecurityAuditEnabledCleared() bool {
+	_, ok := m.clearedFields[group.FieldSecurityAuditEnabled]
+	return ok
+}
+
+// ResetSecurityAuditEnabled resets all changes to the "security_audit_enabled" field.
+func (m *GroupMutation) ResetSecurityAuditEnabled() {
+	m.security_audit_enabled = nil
+	delete(m.clearedFields, group.FieldSecurityAuditEnabled)
+}
+
 // SetProfitControlEnabled sets the "profit_control_enabled" field.
 func (m *GroupMutation) SetProfitControlEnabled(b bool) {
 	m.profit_control_enabled = &b
@@ -26248,7 +26422,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 71)
+	fields := make([]string, 0, 75)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -26453,6 +26627,18 @@ func (m *GroupMutation) Fields() []string {
 	if m.reasoning_effort_mappings != nil {
 		fields = append(fields, group.FieldReasoningEffortMappings)
 	}
+	if m.system_prompt_enabled != nil {
+		fields = append(fields, group.FieldSystemPromptEnabled)
+	}
+	if m.system_prompts != nil {
+		fields = append(fields, group.FieldSystemPrompts)
+	}
+	if m.system_prompt_mode != nil {
+		fields = append(fields, group.FieldSystemPromptMode)
+	}
+	if m.security_audit_enabled != nil {
+		fields = append(fields, group.FieldSecurityAuditEnabled)
+	}
 	if m.profit_control_enabled != nil {
 		fields = append(fields, group.FieldProfitControlEnabled)
 	}
@@ -26606,6 +26792,14 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.MaxReasoningEffortOverLimit()
 	case group.FieldReasoningEffortMappings:
 		return m.ReasoningEffortMappings()
+	case group.FieldSystemPromptEnabled:
+		return m.SystemPromptEnabled()
+	case group.FieldSystemPrompts:
+		return m.SystemPrompts()
+	case group.FieldSystemPromptMode:
+		return m.SystemPromptMode()
+	case group.FieldSecurityAuditEnabled:
+		return m.SecurityAuditEnabled()
 	case group.FieldProfitControlEnabled:
 		return m.ProfitControlEnabled()
 	case group.FieldProfitMinMargin:
@@ -26757,6 +26951,14 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldMaxReasoningEffortOverLimit(ctx)
 	case group.FieldReasoningEffortMappings:
 		return m.OldReasoningEffortMappings(ctx)
+	case group.FieldSystemPromptEnabled:
+		return m.OldSystemPromptEnabled(ctx)
+	case group.FieldSystemPrompts:
+		return m.OldSystemPrompts(ctx)
+	case group.FieldSystemPromptMode:
+		return m.OldSystemPromptMode(ctx)
+	case group.FieldSecurityAuditEnabled:
+		return m.OldSecurityAuditEnabled(ctx)
 	case group.FieldProfitControlEnabled:
 		return m.OldProfitControlEnabled(ctx)
 	case group.FieldProfitMinMargin:
@@ -27248,6 +27450,34 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetReasoningEffortMappings(v)
 		return nil
+	case group.FieldSystemPromptEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSystemPromptEnabled(v)
+		return nil
+	case group.FieldSystemPrompts:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSystemPrompts(v)
+		return nil
+	case group.FieldSystemPromptMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSystemPromptMode(v)
+		return nil
+	case group.FieldSecurityAuditEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSecurityAuditEnabled(v)
+		return nil
 	case group.FieldProfitControlEnabled:
 		v, ok := value.(bool)
 		if !ok {
@@ -27707,6 +27937,12 @@ func (m *GroupMutation) ClearedFields() []string {
 	if m.FieldCleared(group.FieldModelRouting) {
 		fields = append(fields, group.FieldModelRouting)
 	}
+	if m.FieldCleared(group.FieldSystemPromptEnabled) {
+		fields = append(fields, group.FieldSystemPromptEnabled)
+	}
+	if m.FieldCleared(group.FieldSecurityAuditEnabled) {
+		fields = append(fields, group.FieldSecurityAuditEnabled)
+	}
 	return fields
 }
 
@@ -27789,6 +28025,12 @@ func (m *GroupMutation) ClearField(name string) error {
 		return nil
 	case group.FieldModelRouting:
 		m.ClearModelRouting()
+		return nil
+	case group.FieldSystemPromptEnabled:
+		m.ClearSystemPromptEnabled()
+		return nil
+	case group.FieldSecurityAuditEnabled:
+		m.ClearSecurityAuditEnabled()
 		return nil
 	}
 	return fmt.Errorf("unknown Group nullable field %s", name)
@@ -28001,6 +28243,18 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldReasoningEffortMappings:
 		m.ResetReasoningEffortMappings()
+		return nil
+	case group.FieldSystemPromptEnabled:
+		m.ResetSystemPromptEnabled()
+		return nil
+	case group.FieldSystemPrompts:
+		m.ResetSystemPrompts()
+		return nil
+	case group.FieldSystemPromptMode:
+		m.ResetSystemPromptMode()
+		return nil
+	case group.FieldSecurityAuditEnabled:
+		m.ResetSecurityAuditEnabled()
 		return nil
 	case group.FieldProfitControlEnabled:
 		m.ResetProfitControlEnabled()

@@ -350,6 +350,21 @@ func MaxReasoningEffortOverLimit(v string) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldMaxReasoningEffortOverLimit, v))
 }
 
+// SystemPromptEnabled applies equality check predicate on the "system_prompt_enabled" field. It's identical to SystemPromptEnabledEQ.
+func SystemPromptEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSystemPromptEnabled, v))
+}
+
+// SystemPromptMode applies equality check predicate on the "system_prompt_mode" field. It's identical to SystemPromptModeEQ.
+func SystemPromptMode(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSystemPromptMode, v))
+}
+
+// SecurityAuditEnabled applies equality check predicate on the "security_audit_enabled" field. It's identical to SecurityAuditEnabledEQ.
+func SecurityAuditEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSecurityAuditEnabled, v))
+}
+
 // ProfitControlEnabled applies equality check predicate on the "profit_control_enabled" field. It's identical to ProfitControlEnabledEQ.
 func ProfitControlEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldProfitControlEnabled, v))
@@ -2658,6 +2673,111 @@ func MaxReasoningEffortOverLimitEqualFold(v string) predicate.Group {
 // MaxReasoningEffortOverLimitContainsFold applies the ContainsFold predicate on the "max_reasoning_effort_over_limit" field.
 func MaxReasoningEffortOverLimitContainsFold(v string) predicate.Group {
 	return predicate.Group(sql.FieldContainsFold(FieldMaxReasoningEffortOverLimit, v))
+}
+
+// SystemPromptEnabledEQ applies the EQ predicate on the "system_prompt_enabled" field.
+func SystemPromptEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSystemPromptEnabled, v))
+}
+
+// SystemPromptEnabledNEQ applies the NEQ predicate on the "system_prompt_enabled" field.
+func SystemPromptEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSystemPromptEnabled, v))
+}
+
+// SystemPromptEnabledIsNil applies the IsNil predicate on the "system_prompt_enabled" field.
+func SystemPromptEnabledIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldSystemPromptEnabled))
+}
+
+// SystemPromptEnabledNotNil applies the NotNil predicate on the "system_prompt_enabled" field.
+func SystemPromptEnabledNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldSystemPromptEnabled))
+}
+
+// SystemPromptModeEQ applies the EQ predicate on the "system_prompt_mode" field.
+func SystemPromptModeEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeNEQ applies the NEQ predicate on the "system_prompt_mode" field.
+func SystemPromptModeNEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeIn applies the In predicate on the "system_prompt_mode" field.
+func SystemPromptModeIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldSystemPromptMode, vs...))
+}
+
+// SystemPromptModeNotIn applies the NotIn predicate on the "system_prompt_mode" field.
+func SystemPromptModeNotIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldSystemPromptMode, vs...))
+}
+
+// SystemPromptModeGT applies the GT predicate on the "system_prompt_mode" field.
+func SystemPromptModeGT(v string) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeGTE applies the GTE predicate on the "system_prompt_mode" field.
+func SystemPromptModeGTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeLT applies the LT predicate on the "system_prompt_mode" field.
+func SystemPromptModeLT(v string) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeLTE applies the LTE predicate on the "system_prompt_mode" field.
+func SystemPromptModeLTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeContains applies the Contains predicate on the "system_prompt_mode" field.
+func SystemPromptModeContains(v string) predicate.Group {
+	return predicate.Group(sql.FieldContains(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeHasPrefix applies the HasPrefix predicate on the "system_prompt_mode" field.
+func SystemPromptModeHasPrefix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasPrefix(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeHasSuffix applies the HasSuffix predicate on the "system_prompt_mode" field.
+func SystemPromptModeHasSuffix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasSuffix(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeEqualFold applies the EqualFold predicate on the "system_prompt_mode" field.
+func SystemPromptModeEqualFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldEqualFold(FieldSystemPromptMode, v))
+}
+
+// SystemPromptModeContainsFold applies the ContainsFold predicate on the "system_prompt_mode" field.
+func SystemPromptModeContainsFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldContainsFold(FieldSystemPromptMode, v))
+}
+
+// SecurityAuditEnabledEQ applies the EQ predicate on the "security_audit_enabled" field.
+func SecurityAuditEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldSecurityAuditEnabled, v))
+}
+
+// SecurityAuditEnabledNEQ applies the NEQ predicate on the "security_audit_enabled" field.
+func SecurityAuditEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldSecurityAuditEnabled, v))
+}
+
+// SecurityAuditEnabledIsNil applies the IsNil predicate on the "security_audit_enabled" field.
+func SecurityAuditEnabledIsNil() predicate.Group {
+	return predicate.Group(sql.FieldIsNull(FieldSecurityAuditEnabled))
+}
+
+// SecurityAuditEnabledNotNil applies the NotNil predicate on the "security_audit_enabled" field.
+func SecurityAuditEnabledNotNil() predicate.Group {
+	return predicate.Group(sql.FieldNotNull(FieldSecurityAuditEnabled))
 }
 
 // ProfitControlEnabledEQ applies the EQ predicate on the "profit_control_enabled" field.

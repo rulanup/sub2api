@@ -1237,6 +1237,66 @@ func (_u *GroupUpdate) AppendReasoningEffortMappings(v []domain.ReasoningEffortM
 	return _u
 }
 
+// SetSystemPromptEnabled sets the "system_prompt_enabled" field.
+func (_u *GroupUpdate) SetSystemPromptEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetSystemPromptEnabled(v)
+	return _u
+}
+
+// SetNillableSystemPromptEnabled sets the "system_prompt_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSystemPromptEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetSystemPromptEnabled(*v)
+	}
+	return _u
+}
+
+// ClearSystemPromptEnabled clears the value of the "system_prompt_enabled" field.
+func (_u *GroupUpdate) ClearSystemPromptEnabled() *GroupUpdate {
+	_u.mutation.ClearSystemPromptEnabled()
+	return _u
+}
+
+// SetSystemPrompts sets the "system_prompts" field.
+func (_u *GroupUpdate) SetSystemPrompts(v map[string]string) *GroupUpdate {
+	_u.mutation.SetSystemPrompts(v)
+	return _u
+}
+
+// SetSystemPromptMode sets the "system_prompt_mode" field.
+func (_u *GroupUpdate) SetSystemPromptMode(v string) *GroupUpdate {
+	_u.mutation.SetSystemPromptMode(v)
+	return _u
+}
+
+// SetNillableSystemPromptMode sets the "system_prompt_mode" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSystemPromptMode(v *string) *GroupUpdate {
+	if v != nil {
+		_u.SetSystemPromptMode(*v)
+	}
+	return _u
+}
+
+// SetSecurityAuditEnabled sets the "security_audit_enabled" field.
+func (_u *GroupUpdate) SetSecurityAuditEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetSecurityAuditEnabled(v)
+	return _u
+}
+
+// SetNillableSecurityAuditEnabled sets the "security_audit_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSecurityAuditEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetSecurityAuditEnabled(*v)
+	}
+	return _u
+}
+
+// ClearSecurityAuditEnabled clears the value of the "security_audit_enabled" field.
+func (_u *GroupUpdate) ClearSecurityAuditEnabled() *GroupUpdate {
+	_u.mutation.ClearSecurityAuditEnabled()
+	return _u
+}
+
 // SetProfitControlEnabled sets the "profit_control_enabled" field.
 func (_u *GroupUpdate) SetProfitControlEnabled(v bool) *GroupUpdate {
 	_u.mutation.SetProfitControlEnabled(v)
@@ -1623,6 +1683,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "max_reasoning_effort_over_limit", err: fmt.Errorf(`ent: validator failed for field "Group.max_reasoning_effort_over_limit": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SystemPromptMode(); ok {
+		if err := group.SystemPromptModeValidator(v); err != nil {
+			return &ValidationError{Name: "system_prompt_mode", err: fmt.Errorf(`ent: validator failed for field "Group.system_prompt_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -1997,6 +2062,24 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, group.FieldReasoningEffortMappings, value)
 		})
+	}
+	if value, ok := _u.mutation.SystemPromptEnabled(); ok {
+		_spec.SetField(group.FieldSystemPromptEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.SystemPromptEnabledCleared() {
+		_spec.ClearField(group.FieldSystemPromptEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.SystemPrompts(); ok {
+		_spec.SetField(group.FieldSystemPrompts, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.SystemPromptMode(); ok {
+		_spec.SetField(group.FieldSystemPromptMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SecurityAuditEnabled(); ok {
+		_spec.SetField(group.FieldSecurityAuditEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.SecurityAuditEnabledCleared() {
+		_spec.ClearField(group.FieldSecurityAuditEnabled, field.TypeBool)
 	}
 	if value, ok := _u.mutation.ProfitControlEnabled(); ok {
 		_spec.SetField(group.FieldProfitControlEnabled, field.TypeBool, value)
@@ -3527,6 +3610,66 @@ func (_u *GroupUpdateOne) AppendReasoningEffortMappings(v []domain.ReasoningEffo
 	return _u
 }
 
+// SetSystemPromptEnabled sets the "system_prompt_enabled" field.
+func (_u *GroupUpdateOne) SetSystemPromptEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetSystemPromptEnabled(v)
+	return _u
+}
+
+// SetNillableSystemPromptEnabled sets the "system_prompt_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSystemPromptEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSystemPromptEnabled(*v)
+	}
+	return _u
+}
+
+// ClearSystemPromptEnabled clears the value of the "system_prompt_enabled" field.
+func (_u *GroupUpdateOne) ClearSystemPromptEnabled() *GroupUpdateOne {
+	_u.mutation.ClearSystemPromptEnabled()
+	return _u
+}
+
+// SetSystemPrompts sets the "system_prompts" field.
+func (_u *GroupUpdateOne) SetSystemPrompts(v map[string]string) *GroupUpdateOne {
+	_u.mutation.SetSystemPrompts(v)
+	return _u
+}
+
+// SetSystemPromptMode sets the "system_prompt_mode" field.
+func (_u *GroupUpdateOne) SetSystemPromptMode(v string) *GroupUpdateOne {
+	_u.mutation.SetSystemPromptMode(v)
+	return _u
+}
+
+// SetNillableSystemPromptMode sets the "system_prompt_mode" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSystemPromptMode(v *string) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSystemPromptMode(*v)
+	}
+	return _u
+}
+
+// SetSecurityAuditEnabled sets the "security_audit_enabled" field.
+func (_u *GroupUpdateOne) SetSecurityAuditEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetSecurityAuditEnabled(v)
+	return _u
+}
+
+// SetNillableSecurityAuditEnabled sets the "security_audit_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSecurityAuditEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSecurityAuditEnabled(*v)
+	}
+	return _u
+}
+
+// ClearSecurityAuditEnabled clears the value of the "security_audit_enabled" field.
+func (_u *GroupUpdateOne) ClearSecurityAuditEnabled() *GroupUpdateOne {
+	_u.mutation.ClearSecurityAuditEnabled()
+	return _u
+}
+
 // SetProfitControlEnabled sets the "profit_control_enabled" field.
 func (_u *GroupUpdateOne) SetProfitControlEnabled(v bool) *GroupUpdateOne {
 	_u.mutation.SetProfitControlEnabled(v)
@@ -3926,6 +4069,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "max_reasoning_effort_over_limit", err: fmt.Errorf(`ent: validator failed for field "Group.max_reasoning_effort_over_limit": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SystemPromptMode(); ok {
+		if err := group.SystemPromptModeValidator(v); err != nil {
+			return &ValidationError{Name: "system_prompt_mode", err: fmt.Errorf(`ent: validator failed for field "Group.system_prompt_mode": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -4317,6 +4465,24 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, group.FieldReasoningEffortMappings, value)
 		})
+	}
+	if value, ok := _u.mutation.SystemPromptEnabled(); ok {
+		_spec.SetField(group.FieldSystemPromptEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.SystemPromptEnabledCleared() {
+		_spec.ClearField(group.FieldSystemPromptEnabled, field.TypeBool)
+	}
+	if value, ok := _u.mutation.SystemPrompts(); ok {
+		_spec.SetField(group.FieldSystemPrompts, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.SystemPromptMode(); ok {
+		_spec.SetField(group.FieldSystemPromptMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SecurityAuditEnabled(); ok {
+		_spec.SetField(group.FieldSecurityAuditEnabled, field.TypeBool, value)
+	}
+	if _u.mutation.SecurityAuditEnabledCleared() {
+		_spec.ClearField(group.FieldSecurityAuditEnabled, field.TypeBool)
 	}
 	if value, ok := _u.mutation.ProfitControlEnabled(); ok {
 		_spec.SetField(group.FieldProfitControlEnabled, field.TypeBool, value)
