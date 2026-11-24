@@ -1,5 +1,8 @@
 name: Ent Generate (temporary)
 on:
+  push:
+    branches:
+      - feat/group-system-prompt
   workflow_dispatch:
 permissions:
   contents: write
