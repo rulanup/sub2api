@@ -134,7 +134,13 @@ func TestApplySecuritySystemPrompt_SinglePromptCoversAllProtocols(t *testing.T) 
 
 	geminiBody, err := applySecuritySystemPrompt([]byte(`{"contents":[]}`), "gemini", apiKey, "m", nil)
 	require.NoError(t, err)
-	require.Equal(t, "POLICY", gjson.GetBytes(geminiBody, "systemInstruction.parts.0.text").String())
+	// 请求本身没有 systemInstruction 时，注入器会落到 system_instruction（snake_case）；
+	// 两种键 Gemini 都接受，这里两种都认。
+	geminiText := gjson.GetBytes(geminiBody, "systemInstruction.parts.0.text").String()
+	if geminiText == "" {
+		geminiText = gjson.GetBytes(geminiBody, "system_instruction.parts.0.text").String()
+	}
+	require.Equal(t, "POLICY", geminiText)
 }
 
 func TestApplySecuritySystemPrompt_GroupDisabledSkipsGlobal(t *testing.T) {
