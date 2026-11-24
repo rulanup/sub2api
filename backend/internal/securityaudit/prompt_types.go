@@ -85,8 +85,6 @@ type Request struct {
 	// ForceAudit 由分组级「强制开启审查」置位：跳过全局分组范围判定，
 	// 仅当分组显式要求开启时使用。
 	ForceAudit bool
-}	Body       []byte
-	Stage      string
 }
 
 func (r Request) Clone() Request {
