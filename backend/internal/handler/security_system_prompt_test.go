@@ -110,9 +110,7 @@ func TestApplySecuritySystemPrompt_GroupOverridePrependWithPlaceholders(t *testi
 	apiKey := &service.APIKey{GroupID: &group.ID, UserID: 42, Group: group}
 	body, err := applySecuritySystemPrompt([]byte(`{"system":"client"}`), "anthropic_messages", apiKey, "claude-x", nil)
 	require.NoError(t, err)
-	require.Equal(t, "GROUP Alpha/42/claude-x
-
-client", gjson.GetBytes(body, "system").String())
+	require.Equal(t, "GROUP Alpha/42/claude-x\n\nclient", gjson.GetBytes(body, "system").String())
 }
 
 func TestApplySecuritySystemPrompt_GroupDisabledSkipsGlobal(t *testing.T) {
