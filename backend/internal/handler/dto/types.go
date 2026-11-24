@@ -208,7 +208,7 @@ type AdminGroup struct {
 	CodexModelsManifestConfig domain.GroupCodexModelsManifestConfig `json:"codex_models_manifest_config"`
 	// 分组级系统提示词注入与审查开关（inherit/on/off）。
 	SystemPromptEnabled   string            `json:"system_prompt_enabled"`
-	SystemPrompts         map[string]string `json:"system_prompts,omitempty"`
+	SystemPrompt          string            `json:"system_prompt,omitempty"`
 	SystemPromptMode      string            `json:"system_prompt_mode,omitempty"`
 	SecurityAuditEnabled  string            `json:"security_audit_enabled"`
 

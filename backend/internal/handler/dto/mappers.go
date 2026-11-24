@@ -172,7 +172,7 @@ func GroupFromServiceAdmin(g *service.Group) *AdminGroup {
 		ModelAllowlist:              g.ModelAllowlist,
 		CodexModelsManifestConfig:   g.CodexModelsManifestConfig,
 		SystemPromptEnabled:         service.GroupToggleState(g.SystemPromptEnabled),
-		SystemPrompts:               g.SystemPrompts,
+		SystemPrompt:                g.SystemPrompt,
 		SystemPromptMode:            g.SystemPromptMode,
 		SecurityAuditEnabled:        service.GroupToggleState(g.SecurityAuditEnabled),
 		SupportedModelScopes:        g.SupportedModelScopes,

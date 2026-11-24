@@ -981,7 +981,7 @@ export default {
       systemPrompt: {
         title: 'System prompt and security audit',
         description:
-          'Configure per-protocol system prompt injection and the security audit switch for this group. Both follow the global prompt-audit configuration unless overridden here.',
+          'Configure the system prompt injected for this group and its security audit switch. A group belongs to a single platform, so one prompt covers every entry. Both follow the global prompt-audit configuration unless overridden here.',
         injectEnabled: 'System prompt injection',
         injectEnabledHint:
           'Inherit keeps the global prompt-audit behavior. Force on always injects, force off never injects.',
@@ -996,10 +996,9 @@ export default {
           'Prepend adds the group prompt to the start of the system prompt. Only when absent injects it only if the request has no system prompt.',
         prepend: 'Prepend to system prompt',
         ifAbsent: 'Only when system prompt is absent',
-        protocolAnthropicMessages: 'Anthropic Messages',
-        protocolOpenai: 'OpenAI',
-        protocolGemini: 'Gemini',
-        protocolPlaceholder: 'Leave empty to skip injection for this protocol',
+        promptLabel: 'System prompt',
+        promptPlaceholder: 'Leave empty to skip injection for this group',
+        platformHint: 'Injected into the {platform} entry of this group automatically.',
         placeholders: 'Available placeholders:',
         tooLong:
           'Too long: {count}/8000 characters. Shorten it before saving; the backend rejects prompts above 8000 characters.',

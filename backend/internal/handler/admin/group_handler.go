@@ -250,7 +250,7 @@ type CreateGroupRequest struct {
 	CodexModelsManifestConfig service.GroupCodexModelsManifestConfig `json:"codex_models_manifest_config"`
 	// 分组级系统提示词注入（inherit/on/off；空字符串等于 inherit）。
 	SystemPromptEnabled *string            `json:"system_prompt_enabled"`
-	SystemPrompts       *map[string]string `json:"system_prompts"`
+	SystemPrompt        *string            `json:"system_prompt"`
 	SystemPromptMode    *string            `json:"system_prompt_mode"`
 	// 分组级安全审查开关（inherit/on/off）。
 	SecurityAuditEnabled *string `json:"security_audit_enabled"`
@@ -334,7 +334,7 @@ type UpdateGroupRequest struct {
 	CodexModelsManifestConfig *service.GroupCodexModelsManifestConfig `json:"codex_models_manifest_config"`
 	// 分组级系统提示词注入（nil 不修改；inherit/on/off）。
 	SystemPromptEnabled *string            `json:"system_prompt_enabled"`
-	SystemPrompts       *map[string]string `json:"system_prompts"`
+	SystemPrompt        *string            `json:"system_prompt"`
 	SystemPromptMode    *string            `json:"system_prompt_mode"`
 	// 分组级安全审查开关（nil 不修改；inherit/on/off）。
 	SecurityAuditEnabled *string `json:"security_audit_enabled"`
@@ -742,7 +742,7 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		ModelAllowlist:                  req.ModelAllowlist,
 		CodexModelsManifestConfig:       req.CodexModelsManifestConfig,
 		SystemPromptEnabled:             req.SystemPromptEnabled,
-		SystemPrompts:                   req.SystemPrompts,
+		SystemPrompt:                    req.SystemPrompt,
 		SystemPromptMode:                req.SystemPromptMode,
 		SecurityAuditEnabled:            req.SecurityAuditEnabled,
 		RPMLimit:                        req.RPMLimit,
@@ -895,7 +895,7 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		ModelAllowlist:                  req.ModelAllowlist,
 		CodexModelsManifestConfig:       req.CodexModelsManifestConfig,
 		SystemPromptEnabled:             req.SystemPromptEnabled,
-		SystemPrompts:                   req.SystemPrompts,
+		SystemPrompt:                    req.SystemPrompt,
 		SystemPromptMode:                req.SystemPromptMode,
 		SecurityAuditEnabled:            req.SecurityAuditEnabled,
 		RPMLimit:                        req.RPMLimit,

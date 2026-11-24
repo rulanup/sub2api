@@ -305,7 +305,7 @@ type CreateGroupInput struct {
 	CodexModelsManifestConfig GroupCodexModelsManifestConfig
 	// 分组级系统提示词注入（inherit/on/off；空字符串等于 inherit）。
 	SystemPromptEnabled *string
-	SystemPrompts       *map[string]string
+	SystemPrompt        *string
 	SystemPromptMode    *string
 	// 分组级安全审查开关（inherit/on/off；空字符串等于 inherit）。
 	SecurityAuditEnabled *string
@@ -395,7 +395,7 @@ type UpdateGroupInput struct {
 	CodexModelsManifestConfig *GroupCodexModelsManifestConfig
 	// 分组级系统提示词注入（nil 表示不修改；inherit/on/off）。
 	SystemPromptEnabled *string
-	SystemPrompts       *map[string]string
+	SystemPrompt        *string
 	SystemPromptMode    *string
 	// 分组级安全审查开关（nil 表示不修改；inherit/on/off）。
 	SecurityAuditEnabled *string

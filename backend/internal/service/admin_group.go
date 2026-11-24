@@ -660,7 +660,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if group.Platform != PlatformOpenAI && group.Platform != PlatformComposite {
 		group.AllowLive = false
 	}
-	if err := ApplyGroupSystemPromptInput(group, input.SystemPromptEnabled, input.SystemPrompts, input.SystemPromptMode, input.SecurityAuditEnabled); err != nil {
+	if err := ApplyGroupSystemPromptInput(group, input.SystemPromptEnabled, input.SystemPrompt, input.SystemPromptMode, input.SecurityAuditEnabled); err != nil {
 		return nil, infraerrors.Newf(http.StatusBadRequest, "INVALID_GROUP_SYSTEM_PROMPT", "%v", err)
 	}
 	sanitizeGroupReasoningEffortPolicy(group)
@@ -1105,7 +1105,7 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 		}
 	}
 
-	if err := ApplyGroupSystemPromptInput(group, input.SystemPromptEnabled, input.SystemPrompts, input.SystemPromptMode, input.SecurityAuditEnabled); err != nil {
+	if err := ApplyGroupSystemPromptInput(group, input.SystemPromptEnabled, input.SystemPrompt, input.SystemPromptMode, input.SecurityAuditEnabled); err != nil {
 		return nil, infraerrors.Newf(http.StatusBadRequest, "INVALID_GROUP_SYSTEM_PROMPT", "%v", err)
 	}
 	if err := s.groupRepo.Update(ctx, group); err != nil {

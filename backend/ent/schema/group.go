@@ -311,10 +311,10 @@ func (Group) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			Comment("分组级系统提示词注入开关；NULL 继承全局配置"),
-		field.JSON("system_prompts", map[string]string{}).
-			Default(map[string]string{}).
-			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
-			Comment("按协议的系统提示词文本：anthropic_messages/openai/gemini"),
+		field.String("system_prompt").
+			MaxLen(8000).
+			Default("").
+			Comment("分组级系统提示词文本；注入位置由请求协议决定"),
 		field.String("system_prompt_mode").
 			MaxLen(16).
 			Default("").

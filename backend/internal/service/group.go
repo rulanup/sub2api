@@ -132,8 +132,9 @@ type Group struct {
 	ReasoningEffortMappings []ReasoningEffortMapping
 
 	// 分组级系统提示词注入（nil 表示继承全局 prompt-audit 配置）。
+	// 一个分组只属于一个平台，因此只有一份文本；注入位置由请求协议决定。
 	SystemPromptEnabled *bool
-	SystemPrompts       GroupSystemPrompts
+	SystemPrompt        string
 	SystemPromptMode    string
 	// 分组级安全审查开关（nil 表示按全局分组范围）。
 	SecurityAuditEnabled *bool

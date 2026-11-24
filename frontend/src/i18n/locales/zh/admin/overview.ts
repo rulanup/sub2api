@@ -963,7 +963,7 @@ export default {
       systemPrompt: {
         title: '系统提示词与安全审查',
         description:
-          '配置本分组各协议的系统提示词注入与安全审查开关。未覆盖时沿用全局 prompt-audit 配置。',
+          '配置本分组的系统提示词注入与安全审查开关。一个分组只属于一个平台，一份提示词即可覆盖该平台的全部入口；未覆盖时沿用全局 prompt-audit 配置。',
         injectEnabled: '系统提示词注入',
         injectEnabledHint:
           '继承全局表示沿用全局 prompt-audit 行为；开启表示强制注入，关闭表示强制不注入。',
@@ -978,10 +978,9 @@ export default {
           'prepend 表示追加到 system 提示词开头；if_absent 表示仅当请求本身没有 system 提示词时才注入。',
         prepend: '追加到 system 开头',
         ifAbsent: '仅在缺少 system 时注入',
-        protocolAnthropicMessages: 'Anthropic Messages',
-        protocolOpenai: 'OpenAI',
-        protocolGemini: 'Gemini',
-        protocolPlaceholder: '留空表示该协议不注入',
+        promptLabel: '系统提示词',
+        promptPlaceholder: '留空表示该分组不注入',
+        platformHint: '会按分组平台自动注入到 {platform} 入口。',
         placeholders: '可用占位符：',
         tooLong:
           '超长：{count}/8000 字符，请缩短后保存；超过 8000 字符后端会拒绝。',

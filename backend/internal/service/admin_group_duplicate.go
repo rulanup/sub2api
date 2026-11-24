@@ -163,7 +163,7 @@ func cloneGroupForDuplicate(source *Group, operationID string) *Group {
 		MaxReasoningEffort:          source.MaxReasoningEffort,
 		MaxReasoningEffortOverLimit: source.MaxReasoningEffortOverLimit,
 		SystemPromptEnabled:         cloneBoolPtr(source.SystemPromptEnabled),
-		SystemPrompts:               cloneGroupSystemPrompts(source.SystemPrompts),
+		SystemPrompt:                source.SystemPrompt,
 		SystemPromptMode:            source.SystemPromptMode,
 		SecurityAuditEnabled:        cloneBoolPtr(source.SecurityAuditEnabled),
 		ReasoningEffortMappings:     append([]ReasoningEffortMapping(nil), source.ReasoningEffortMappings...),

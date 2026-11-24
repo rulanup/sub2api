@@ -814,48 +814,40 @@
               {{ t("admin.groups.systemPrompt.injectModeHint") }}
             </p>
           </div>
-          <div class="mt-3 space-y-3">
-            <div
-              v-for="protocol in groupSystemPromptProtocols"
-              :key="protocol.key"
-            >
-              <div class="flex items-center justify-between gap-2">
-                <label
-                  class="input-label"
-                  :for="'create-group-system-prompt-' + protocol.key"
-                >
-                  {{ t(protocol.labelKey) }}
-                </label>
-                <span
-                  class="text-xs"
-                  :class="
-                    groupSystemPromptLength(createForm.system_prompts, protocol.key) >
-                    GROUP_SYSTEM_PROMPT_MAX_LENGTH
-                      ? 'text-red-500'
-                      : 'text-gray-500 dark:text-gray-400'
-                  "
-                >
-                  {{ groupSystemPromptLength(createForm.system_prompts, protocol.key) }}/{{ GROUP_SYSTEM_PROMPT_MAX_LENGTH }}
-                </span>
-              </div>
-              <textarea
-                :id="'create-group-system-prompt-' + protocol.key"
-                v-model="createForm.system_prompts[protocol.key]"
-                rows="3"
-                class="input"
-                :placeholder="t('admin.groups.systemPrompt.protocolPlaceholder')"
-              ></textarea>
-              <p
-                v-if="groupSystemPromptLength(createForm.system_prompts, protocol.key) > GROUP_SYSTEM_PROMPT_MAX_LENGTH"
-                class="mt-1 text-xs text-red-500"
+          <div class="mt-3">
+            <div class="flex items-center justify-between gap-2">
+              <label class="input-label" for="create-group-system-prompt">
+                {{ t("admin.groups.systemPrompt.promptLabel") }}
+              </label>
+              <span
+                class="text-xs"
+                :class="
+                  groupSystemPromptLength(createForm.system_prompt) >
+                  GROUP_SYSTEM_PROMPT_MAX_LENGTH
+                    ? 'text-red-500'
+                    : 'text-gray-500 dark:text-gray-400'
+                "
               >
-                {{
-                  t("admin.groups.systemPrompt.tooLong", {
-                    count: groupSystemPromptLength(createForm.system_prompts, protocol.key),
-                  })
-                }}
-              </p>
+                {{ groupSystemPromptLength(createForm.system_prompt) }}/{{ GROUP_SYSTEM_PROMPT_MAX_LENGTH }}
+              </span>
             </div>
+            <textarea
+              id="create-group-system-prompt"
+              v-model="createForm.system_prompt"
+              rows="4"
+              class="input"
+              :placeholder="t('admin.groups.systemPrompt.promptPlaceholder')"
+            ></textarea>
+            <p class="input-hint">
+              {{ t("admin.groups.systemPrompt.platformHint", { platform: groupSystemPromptPlatformLabel(createForm.platform) }) }}
+            </p>
+            <p
+              v-if="groupSystemPromptLength(createForm.system_prompt) > GROUP_SYSTEM_PROMPT_MAX_LENGTH"
+              class="mt-1 text-xs text-red-500"
+            >
+              {{ t("admin.groups.systemPrompt.tooLong", { count: groupSystemPromptLength(createForm.system_prompt) }) }}
+            </p>
+          </div>
           </div>
           <p class="mt-2 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
             <span>{{ t("admin.groups.systemPrompt.placeholders") }}</span>
@@ -2625,48 +2617,40 @@
               {{ t("admin.groups.systemPrompt.injectModeHint") }}
             </p>
           </div>
-          <div class="mt-3 space-y-3">
-            <div
-              v-for="protocol in groupSystemPromptProtocols"
-              :key="protocol.key"
-            >
-              <div class="flex items-center justify-between gap-2">
-                <label
-                  class="input-label"
-                  :for="'edit-group-system-prompt-' + protocol.key"
-                >
-                  {{ t(protocol.labelKey) }}
-                </label>
-                <span
-                  class="text-xs"
-                  :class="
-                    groupSystemPromptLength(editForm.system_prompts, protocol.key) >
-                    GROUP_SYSTEM_PROMPT_MAX_LENGTH
-                      ? 'text-red-500'
-                      : 'text-gray-500 dark:text-gray-400'
-                  "
-                >
-                  {{ groupSystemPromptLength(editForm.system_prompts, protocol.key) }}/{{ GROUP_SYSTEM_PROMPT_MAX_LENGTH }}
-                </span>
-              </div>
-              <textarea
-                :id="'edit-group-system-prompt-' + protocol.key"
-                v-model="editForm.system_prompts[protocol.key]"
-                rows="3"
-                class="input"
-                :placeholder="t('admin.groups.systemPrompt.protocolPlaceholder')"
-              ></textarea>
-              <p
-                v-if="groupSystemPromptLength(editForm.system_prompts, protocol.key) > GROUP_SYSTEM_PROMPT_MAX_LENGTH"
-                class="mt-1 text-xs text-red-500"
+          <div class="mt-3">
+            <div class="flex items-center justify-between gap-2">
+              <label class="input-label" for="edit-group-system-prompt">
+                {{ t("admin.groups.systemPrompt.promptLabel") }}
+              </label>
+              <span
+                class="text-xs"
+                :class="
+                  groupSystemPromptLength(editForm.system_prompt) >
+                  GROUP_SYSTEM_PROMPT_MAX_LENGTH
+                    ? 'text-red-500'
+                    : 'text-gray-500 dark:text-gray-400'
+                "
               >
-                {{
-                  t("admin.groups.systemPrompt.tooLong", {
-                    count: groupSystemPromptLength(editForm.system_prompts, protocol.key),
-                  })
-                }}
-              </p>
+                {{ groupSystemPromptLength(editForm.system_prompt) }}/{{ GROUP_SYSTEM_PROMPT_MAX_LENGTH }}
+              </span>
             </div>
+            <textarea
+              id="edit-group-system-prompt"
+              v-model="editForm.system_prompt"
+              rows="4"
+              class="input"
+              :placeholder="t('admin.groups.systemPrompt.promptPlaceholder')"
+            ></textarea>
+            <p class="input-hint">
+              {{ t("admin.groups.systemPrompt.platformHint", { platform: groupSystemPromptPlatformLabel(editForm.platform) }) }}
+            </p>
+            <p
+              v-if="groupSystemPromptLength(editForm.system_prompt) > GROUP_SYSTEM_PROMPT_MAX_LENGTH"
+              class="mt-1 text-xs text-red-500"
+            >
+              {{ t("admin.groups.systemPrompt.tooLong", { count: groupSystemPromptLength(editForm.system_prompt) }) }}
+            </p>
+          </div>
           </div>
           <p class="mt-2 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
             <span>{{ t("admin.groups.systemPrompt.placeholders") }}</span>
@@ -5454,22 +5438,8 @@ const editCodexManifestAccountNames = ref<Record<number, string>>({});
 // 分组级系统提示词注入与安全审查（三态：inherit 沿用全局 / on 强制开启 / off 强制关闭）
 type GroupTriState = "inherit" | "on" | "off";
 type GroupSystemPromptMode = "prepend" | "if_absent";
-type GroupSystemPromptProtocol = "anthropic_messages" | "openai" | "gemini";
 
-// 后端只认这三个协议键：anthropic_messages / openai / gemini
-const groupSystemPromptProtocols: {
-  key: GroupSystemPromptProtocol;
-  labelKey: string;
-}[] = [
-  {
-    key: "anthropic_messages",
-    labelKey: "admin.groups.systemPrompt.protocolAnthropicMessages",
-  },
-  { key: "openai", labelKey: "admin.groups.systemPrompt.protocolOpenai" },
-  { key: "gemini", labelKey: "admin.groups.systemPrompt.protocolGemini" },
-];
-
-// 单个协议提示词上限（后端校验；前端只提示，不截断）
+// 一个分组只属于一个平台，因此只维护一份提示词；注入位置由请求协议自动决定。
 const GROUP_SYSTEM_PROMPT_MAX_LENGTH = 8000;
 
 // 占位符提示用数据渲染，避免模板里的双大括号被当成插值
@@ -5479,24 +5449,8 @@ const groupSystemPromptPlaceholders = [
   "{{user_id}}",
 ];
 
-const createGroupSystemPromptsDefaults = (): Record<string, string> => ({
-  anthropic_messages: "",
-  openai: "",
-  gemini: "",
-});
-
-// 回显时丢弃未知键，提交时补齐缺失键为空串，保证请求体形状稳定
-const normalizeGroupSystemPrompts = (
-  prompts?: Record<string, string> | null,
-): Record<string, string> => {
-  const normalized = createGroupSystemPromptsDefaults();
-  if (!prompts) return normalized;
-  for (const protocol of groupSystemPromptProtocols) {
-    const value = prompts[protocol.key];
-    normalized[protocol.key] = typeof value === "string" ? value : "";
-  }
-  return normalized;
-};
+const normalizeGroupSystemPrompt = (value?: string | null): string =>
+  typeof value === "string" ? value : "";
 
 const normalizeGroupTriState = (value?: string | null): GroupTriState =>
   value === "on" || value === "off" ? value : "inherit";
@@ -5505,10 +5459,28 @@ const normalizeGroupSystemPromptMode = (
   value?: string | null,
 ): GroupSystemPromptMode => (value === "if_absent" ? "if_absent" : "prepend");
 
-const groupSystemPromptLength = (
-  prompts: Record<string, string>,
-  key: string,
-): number => (prompts[key] ?? "").length;
+const groupSystemPromptLength = (value?: string | null): number =>
+  (value ?? "").length;
+
+// 注入落点提示：按分组平台说明会注入到哪个协议入口
+const groupSystemPromptPlatformLabel = (platform?: string | null): string => {
+  switch (platform) {
+    case "anthropic":
+      return "Anthropic Messages";
+    case "openai":
+      return "OpenAI Chat / Responses";
+    case "gemini":
+      return "Gemini generateContent";
+    case "antigravity":
+      return "Antigravity（Gemini / Anthropic Messages）";
+    case "grok":
+      return "Grok（OpenAI Chat / Responses）";
+    case "composite":
+      return "composite（按实际路由的协议）";
+    default:
+      return platform || "-";
+  }
+};
 const modelAllowlistCandidatesTracker = createModelAllowlistCandidatesTracker();
 const createModelAllowlistSelectedCount = computed(
   () => createModelAllowlistState.items.filter((item) => item.selected).length,
@@ -5623,7 +5595,7 @@ const createForm = reactive({
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
   // 分组级系统提示词注入与安全审查（三态字符串，默认继承全局）
   system_prompt_enabled: "inherit" as GroupTriState,
-  system_prompts: createGroupSystemPromptsDefaults(),
+  system_prompt: "",
   system_prompt_mode: "prepend" as GroupSystemPromptMode,
   security_audit_enabled: "inherit" as GroupTriState,
 });
@@ -5997,7 +5969,7 @@ const editForm = reactive({
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
   // 分组级系统提示词注入与安全审查（三态字符串，默认继承全局）
   system_prompt_enabled: "inherit" as GroupTriState,
-  system_prompts: createGroupSystemPromptsDefaults(),
+  system_prompt: "",
   system_prompt_mode: "prepend" as GroupSystemPromptMode,
   security_audit_enabled: "inherit" as GroupTriState,
 });
@@ -6484,7 +6456,7 @@ const closeCreateModal = () => {
   createForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
   createForm.reasoning_effort_mappings = [];
   createForm.system_prompt_enabled = "inherit";
-  createForm.system_prompts = createGroupSystemPromptsDefaults();
+  createForm.system_prompt = "";
   createForm.system_prompt_mode = "prepend";
   createForm.security_audit_enabled = "inherit";
   createReasoningEffortPolicyRef.value?.resetValidation();
@@ -6637,7 +6609,7 @@ const handleCreateGroup = async () => {
       system_prompt_enabled: normalizeGroupTriState(
         createForm.system_prompt_enabled,
       ),
-      system_prompts: normalizeGroupSystemPrompts(createForm.system_prompts),
+      system_prompt: normalizeGroupSystemPrompt(createForm.system_prompt),
       system_prompt_mode: normalizeGroupSystemPromptMode(
         createForm.system_prompt_mode,
       ),
@@ -6840,7 +6812,7 @@ const handleEdit = async (group: AdminGroup) => {
   editForm.system_prompt_enabled = normalizeGroupTriState(
     group.system_prompt_enabled,
   );
-  editForm.system_prompts = normalizeGroupSystemPrompts(group.system_prompts);
+  editForm.system_prompt = normalizeGroupSystemPrompt(group.system_prompt);
   editForm.system_prompt_mode = normalizeGroupSystemPromptMode(
     group.system_prompt_mode,
   );
@@ -6892,7 +6864,7 @@ const closeEditModal = () => {
   editForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
   editForm.reasoning_effort_mappings = [];
   editForm.system_prompt_enabled = "inherit";
-  editForm.system_prompts = createGroupSystemPromptsDefaults();
+  editForm.system_prompt = "";
   editForm.system_prompt_mode = "prepend";
   editForm.security_audit_enabled = "inherit";
   editReasoningEffortPolicyRef.value?.resetValidation();
@@ -7039,7 +7011,7 @@ const handleUpdateGroup = async () => {
       system_prompt_enabled: normalizeGroupTriState(
         editForm.system_prompt_enabled,
       ),
-      system_prompts: normalizeGroupSystemPrompts(editForm.system_prompts),
+      system_prompt: normalizeGroupSystemPrompt(editForm.system_prompt),
       system_prompt_mode: normalizeGroupSystemPromptMode(
         editForm.system_prompt_mode,
       ),

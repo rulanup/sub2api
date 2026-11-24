@@ -104,13 +104,37 @@ func TestApplySecuritySystemPrompt_IfAbsentTreatsEmptyPromptAsAbsent(t *testing.
 func TestApplySecuritySystemPrompt_GroupOverridePrependWithPlaceholders(t *testing.T) {
 	enabled := true
 	group := &service.Group{
-		ID: 7, Name: "Alpha", SystemPromptEnabled: &enabled, SystemPromptMode: "prepend",
-		SystemPrompts: service.GroupSystemPrompts{"anthropic_messages": "GROUP {{group_name}}/{{user_id}}/{{model}}"},
+		ID: 7, Name: "Alpha", Platform: service.PlatformOpenAI, SystemPromptEnabled: &enabled,
+		SystemPromptMode: "prepend",
+		SystemPrompt:     "GROUP {{group_name}}/{{user_id}}/{{model}}",
 	}
 	apiKey := &service.APIKey{GroupID: &group.ID, UserID: 42, Group: group}
 	body, err := applySecuritySystemPrompt([]byte(`{"system":"client"}`), "anthropic_messages", apiKey, "claude-x", nil)
 	require.NoError(t, err)
 	require.Equal(t, "GROUP Alpha/42/claude-x\n\nclient", gjson.GetBytes(body, "system").String())
+}
+
+// 同一份文本应落到该分组所有协议入口：OpenAI 分组走 chat/responses，Anthropic 分组走 messages。
+func TestApplySecuritySystemPrompt_SinglePromptCoversAllProtocols(t *testing.T) {
+	enabled := true
+	group := &service.Group{ID: 9, Name: "All", SystemPromptEnabled: &enabled, SystemPrompt: "POLICY"}
+	apiKey := &service.APIKey{GroupID: &group.ID, UserID: 7, Group: group}
+
+	anthropicBody, err := applySecuritySystemPrompt([]byte(`{"system":"c"}`), "anthropic_messages", apiKey, "m", nil)
+	require.NoError(t, err)
+	require.Equal(t, "POLICY\n\nc", gjson.GetBytes(anthropicBody, "system").String())
+
+	chatBody, err := applySecuritySystemPrompt([]byte(`{"messages":[{"role":"user","content":"hi"}]}`), "openai_chat_completions", apiKey, "m", nil)
+	require.NoError(t, err)
+	require.Equal(t, "POLICY", gjson.GetBytes(chatBody, "messages.0.content").String())
+
+	responsesBody, err := applySecuritySystemPrompt([]byte(`{"input":"hi"}`), "openai_responses", apiKey, "m", nil)
+	require.NoError(t, err)
+	require.Equal(t, "POLICY", gjson.GetBytes(responsesBody, "instructions").String())
+
+	geminiBody, err := applySecuritySystemPrompt([]byte(`{"contents":[]}`), "gemini", apiKey, "m", nil)
+	require.NoError(t, err)
+	require.Equal(t, "POLICY", gjson.GetBytes(geminiBody, "systemInstruction.parts.0.text").String())
 }
 
 func TestApplySecuritySystemPrompt_GroupDisabledSkipsGlobal(t *testing.T) {
@@ -122,23 +146,11 @@ func TestApplySecuritySystemPrompt_GroupDisabledSkipsGlobal(t *testing.T) {
 	require.Equal(t, "client", gjson.GetBytes(body, "system").String())
 }
 
-func TestApplySecuritySystemPrompt_GroupProtocolIsolation(t *testing.T) {
-	enabled := true
-	group := &service.Group{
-		ID: 7, Name: "Gamma", SystemPromptEnabled: &enabled,
-		SystemPrompts: service.GroupSystemPrompts{"gemini": "GEMINI POLICY"},
-	}
-	apiKey := &service.APIKey{GroupID: &group.ID, Group: group}
-	body, err := applySecuritySystemPrompt([]byte(`{"system":"client"}`), "anthropic_messages", apiKey, "m", nil)
-	require.NoError(t, err)
-	require.Equal(t, "client", gjson.GetBytes(body, "system").String())
-}
-
 func TestApplySecuritySystemPrompt_TruncatesOversizedPrompt(t *testing.T) {
 	enabled := true
 	group := &service.Group{
 		ID: 7, Name: "Delta", SystemPromptEnabled: &enabled,
-		SystemPrompts: service.GroupSystemPrompts{"anthropic_messages": strings.Repeat("x", domain.GroupSystemPromptMaxLength+10)},
+		SystemPrompt: strings.Repeat("x", domain.GroupSystemPromptMaxLength+10),
 	}
 	apiKey := &service.APIKey{GroupID: &group.ID, Group: group}
 	body, err := applySecuritySystemPrompt([]byte(`{"system":"client"}`), "anthropic_messages", apiKey, "m", nil)

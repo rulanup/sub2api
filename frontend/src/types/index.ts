@@ -681,7 +681,7 @@ export interface AdminGroup extends Group {
   // 分组级系统提示词注入与安全审查：inherit 沿用全局 prompt-audit 配置 / on 强制开启 / off 强制关闭
   system_prompt_enabled?: 'inherit' | 'on' | 'off'
   // 各协议系统提示词（anthropic_messages / openai / gemini），空串表示该协议不注入
-  system_prompts?: Record<string, string>
+  system_prompt?: string
   system_prompt_mode?: 'prepend' | 'if_absent'
   security_audit_enabled?: 'inherit' | 'on' | 'off'
 
@@ -880,7 +880,7 @@ export interface CreateGroupRequest {
   // 分组级系统提示词注入与安全审查：inherit 沿用全局 prompt-audit 配置 / on 强制开启 / off 强制关闭
   system_prompt_enabled?: 'inherit' | 'on' | 'off'
   // 各协议系统提示词（anthropic_messages / openai / gemini），空串表示该协议不注入
-  system_prompts?: Record<string, string>
+  system_prompt?: string
   system_prompt_mode?: 'prepend' | 'if_absent'
   security_audit_enabled?: 'inherit' | 'on' | 'off'
   allow_messages_dispatch?: boolean
@@ -955,7 +955,7 @@ export interface UpdateGroupRequest {
   // 分组级系统提示词注入与安全审查：inherit 沿用全局 prompt-audit 配置 / on 强制开启 / off 强制关闭
   system_prompt_enabled?: 'inherit' | 'on' | 'off'
   // 各协议系统提示词（anthropic_messages / openai / gemini），空串表示该协议不注入
-  system_prompts?: Record<string, string>
+  system_prompt?: string
   system_prompt_mode?: 'prepend' | 'if_absent'
   security_audit_enabled?: 'inherit' | 'on' | 'off'
   allow_messages_dispatch?: boolean

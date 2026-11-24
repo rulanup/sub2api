@@ -29,7 +29,7 @@ func applySecuritySystemPrompt(body []byte, protocol string, apiKey *service.API
 		group = apiKey.Group
 		userID = apiKey.UserID
 	}
-	prompt, mode, decided := group.SystemPromptFor(protocol)
+	prompt, mode, decided := group.SystemPromptFor()
 	if !decided {
 		if coordinator == nil {
 			return body, nil

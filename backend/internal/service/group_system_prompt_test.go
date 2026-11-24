@@ -7,21 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNormalizeGroupSystemPrompts_ValidatesProtocolAndLength(t *testing.T) {
-	out, err := NormalizeGroupSystemPrompts(map[string]string{
-		"anthropic_messages": " a ",
-		"openai_responses":   "b",
-		"gemini":             "c",
-	})
+func TestNormalizeGroupSystemPrompt_TrimsAndLimitsLength(t *testing.T) {
+	out, err := NormalizeGroupSystemPrompt("  hello  ")
 	require.NoError(t, err)
-	require.Equal(t, "a", out["anthropic_messages"])
-	require.Equal(t, "b", out["openai"])
-	require.Equal(t, "c", out["gemini"])
+	require.Equal(t, "hello", out)
 
-	_, err = NormalizeGroupSystemPrompts(map[string]string{"unknown": "x"})
-	require.Error(t, err)
-
-	_, err = NormalizeGroupSystemPrompts(map[string]string{"gemini": strings.Repeat("x", 8001)})
+	_, err = NormalizeGroupSystemPrompt(strings.Repeat("x", 8001))
 	require.Error(t, err)
 }
 
@@ -30,20 +21,20 @@ func TestGroupSystemPromptFor_TriState(t *testing.T) {
 	disabled := false
 	group := &Group{
 		ID: 1, Name: "g", SystemPromptEnabled: &enabled, SystemPromptMode: "if_absent",
-		SystemPrompts: GroupSystemPrompts{"openai": " hi "},
+		SystemPrompt: " hi ",
 	}
-	text, mode, decided := group.SystemPromptFor("openai_chat_completions")
+	text, mode, decided := group.SystemPromptFor()
 	require.True(t, decided)
 	require.Equal(t, "hi", text)
 	require.Equal(t, "if_absent", mode)
 
 	group.SystemPromptEnabled = &disabled
-	text, _, decided = group.SystemPromptFor("openai")
+	text, _, decided = group.SystemPromptFor()
 	require.True(t, decided)
 	require.Empty(t, text)
 
 	group.SystemPromptEnabled = nil
-	_, _, decided = group.SystemPromptFor("openai")
+	_, _, decided = group.SystemPromptFor()
 	require.False(t, decided)
 }
 
