@@ -978,7 +978,7 @@ var (
 		{Name: "max_reasoning_effort_over_limit", Type: field.TypeString, Size: 20, Default: "downgrade"},
 		{Name: "reasoning_effort_mappings", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "system_prompt_enabled", Type: field.TypeBool, Nullable: true},
-		{Name: "system_prompts", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "system_prompt", Type: field.TypeString, Size: 8000, Default: ""},
 		{Name: "system_prompt_mode", Type: field.TypeString, Size: 16, Default: ""},
 		{Name: "security_audit_enabled", Type: field.TypeBool, Nullable: true},
 		{Name: "profit_control_enabled", Type: field.TypeBool, Default: false},

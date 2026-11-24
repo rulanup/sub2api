@@ -22286,7 +22286,7 @@ type GroupMutation struct {
 	reasoning_effort_mappings               *[]domain.ReasoningEffortMapping
 	appendreasoning_effort_mappings         []domain.ReasoningEffortMapping
 	system_prompt_enabled                   *bool
-	system_prompts                          *map[string]string
+	system_prompt                           *string
 	system_prompt_mode                      *string
 	security_audit_enabled                  *bool
 	profit_control_enabled                  *bool
@@ -25795,40 +25795,40 @@ func (m *GroupMutation) ResetSystemPromptEnabled() {
 	delete(m.clearedFields, group.FieldSystemPromptEnabled)
 }
 
-// SetSystemPrompts sets the "system_prompts" field.
-func (m *GroupMutation) SetSystemPrompts(value map[string]string) {
-	m.system_prompts = &value
+// SetSystemPrompt sets the "system_prompt" field.
+func (m *GroupMutation) SetSystemPrompt(s string) {
+	m.system_prompt = &s
 }
 
-// SystemPrompts returns the value of the "system_prompts" field in the mutation.
-func (m *GroupMutation) SystemPrompts() (r map[string]string, exists bool) {
-	v := m.system_prompts
+// SystemPrompt returns the value of the "system_prompt" field in the mutation.
+func (m *GroupMutation) SystemPrompt() (r string, exists bool) {
+	v := m.system_prompt
 	if v == nil {
 		return
 	}
 	return *v, true
 }
 
-// OldSystemPrompts returns the old "system_prompts" field's value of the Group entity.
+// OldSystemPrompt returns the old "system_prompt" field's value of the Group entity.
 // If the Group object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *GroupMutation) OldSystemPrompts(ctx context.Context) (v map[string]string, err error) {
+func (m *GroupMutation) OldSystemPrompt(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSystemPrompts is only allowed on UpdateOne operations")
+		return v, errors.New("OldSystemPrompt is only allowed on UpdateOne operations")
 	}
 	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSystemPrompts requires an ID field in the mutation")
+		return v, errors.New("OldSystemPrompt requires an ID field in the mutation")
 	}
 	oldValue, err := m.oldValue(ctx)
 	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSystemPrompts: %w", err)
+		return v, fmt.Errorf("querying old value for OldSystemPrompt: %w", err)
 	}
-	return oldValue.SystemPrompts, nil
+	return oldValue.SystemPrompt, nil
 }
 
-// ResetSystemPrompts resets all changes to the "system_prompts" field.
-func (m *GroupMutation) ResetSystemPrompts() {
-	m.system_prompts = nil
+// ResetSystemPrompt resets all changes to the "system_prompt" field.
+func (m *GroupMutation) ResetSystemPrompt() {
+	m.system_prompt = nil
 }
 
 // SetSystemPromptMode sets the "system_prompt_mode" field.
@@ -26630,8 +26630,8 @@ func (m *GroupMutation) Fields() []string {
 	if m.system_prompt_enabled != nil {
 		fields = append(fields, group.FieldSystemPromptEnabled)
 	}
-	if m.system_prompts != nil {
-		fields = append(fields, group.FieldSystemPrompts)
+	if m.system_prompt != nil {
+		fields = append(fields, group.FieldSystemPrompt)
 	}
 	if m.system_prompt_mode != nil {
 		fields = append(fields, group.FieldSystemPromptMode)
@@ -26794,8 +26794,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.ReasoningEffortMappings()
 	case group.FieldSystemPromptEnabled:
 		return m.SystemPromptEnabled()
-	case group.FieldSystemPrompts:
-		return m.SystemPrompts()
+	case group.FieldSystemPrompt:
+		return m.SystemPrompt()
 	case group.FieldSystemPromptMode:
 		return m.SystemPromptMode()
 	case group.FieldSecurityAuditEnabled:
@@ -26953,8 +26953,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldReasoningEffortMappings(ctx)
 	case group.FieldSystemPromptEnabled:
 		return m.OldSystemPromptEnabled(ctx)
-	case group.FieldSystemPrompts:
-		return m.OldSystemPrompts(ctx)
+	case group.FieldSystemPrompt:
+		return m.OldSystemPrompt(ctx)
 	case group.FieldSystemPromptMode:
 		return m.OldSystemPromptMode(ctx)
 	case group.FieldSecurityAuditEnabled:
@@ -27457,12 +27457,12 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetSystemPromptEnabled(v)
 		return nil
-	case group.FieldSystemPrompts:
-		v, ok := value.(map[string]string)
+	case group.FieldSystemPrompt:
+		v, ok := value.(string)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
-		m.SetSystemPrompts(v)
+		m.SetSystemPrompt(v)
 		return nil
 	case group.FieldSystemPromptMode:
 		v, ok := value.(string)
@@ -28247,8 +28247,8 @@ func (m *GroupMutation) ResetField(name string) error {
 	case group.FieldSystemPromptEnabled:
 		m.ResetSystemPromptEnabled()
 		return nil
-	case group.FieldSystemPrompts:
-		m.ResetSystemPrompts()
+	case group.FieldSystemPrompt:
+		m.ResetSystemPrompt()
 		return nil
 	case group.FieldSystemPromptMode:
 		m.ResetSystemPromptMode()

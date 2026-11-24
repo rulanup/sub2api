@@ -940,9 +940,17 @@ func (_c *GroupCreate) SetNillableSystemPromptEnabled(v *bool) *GroupCreate {
 	return _c
 }
 
-// SetSystemPrompts sets the "system_prompts" field.
-func (_c *GroupCreate) SetSystemPrompts(v map[string]string) *GroupCreate {
-	_c.mutation.SetSystemPrompts(v)
+// SetSystemPrompt sets the "system_prompt" field.
+func (_c *GroupCreate) SetSystemPrompt(v string) *GroupCreate {
+	_c.mutation.SetSystemPrompt(v)
+	return _c
+}
+
+// SetNillableSystemPrompt sets the "system_prompt" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableSystemPrompt(v *string) *GroupCreate {
+	if v != nil {
+		_c.SetSystemPrompt(*v)
+	}
 	return _c
 }
 
@@ -1325,9 +1333,9 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultReasoningEffortMappings
 		_c.mutation.SetReasoningEffortMappings(v)
 	}
-	if _, ok := _c.mutation.SystemPrompts(); !ok {
-		v := group.DefaultSystemPrompts
-		_c.mutation.SetSystemPrompts(v)
+	if _, ok := _c.mutation.SystemPrompt(); !ok {
+		v := group.DefaultSystemPrompt
+		_c.mutation.SetSystemPrompt(v)
 	}
 	if _, ok := _c.mutation.SystemPromptMode(); !ok {
 		v := group.DefaultSystemPromptMode
@@ -1555,8 +1563,13 @@ func (_c *GroupCreate) check() error {
 	if _, ok := _c.mutation.ReasoningEffortMappings(); !ok {
 		return &ValidationError{Name: "reasoning_effort_mappings", err: errors.New(`ent: missing required field "Group.reasoning_effort_mappings"`)}
 	}
-	if _, ok := _c.mutation.SystemPrompts(); !ok {
-		return &ValidationError{Name: "system_prompts", err: errors.New(`ent: missing required field "Group.system_prompts"`)}
+	if _, ok := _c.mutation.SystemPrompt(); !ok {
+		return &ValidationError{Name: "system_prompt", err: errors.New(`ent: missing required field "Group.system_prompt"`)}
+	}
+	if v, ok := _c.mutation.SystemPrompt(); ok {
+		if err := group.SystemPromptValidator(v); err != nil {
+			return &ValidationError{Name: "system_prompt", err: fmt.Errorf(`ent: validator failed for field "Group.system_prompt": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.SystemPromptMode(); !ok {
 		return &ValidationError{Name: "system_prompt_mode", err: errors.New(`ent: missing required field "Group.system_prompt_mode"`)}
@@ -1878,9 +1891,9 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		_spec.SetField(group.FieldSystemPromptEnabled, field.TypeBool, value)
 		_node.SystemPromptEnabled = &value
 	}
-	if value, ok := _c.mutation.SystemPrompts(); ok {
-		_spec.SetField(group.FieldSystemPrompts, field.TypeJSON, value)
-		_node.SystemPrompts = value
+	if value, ok := _c.mutation.SystemPrompt(); ok {
+		_spec.SetField(group.FieldSystemPrompt, field.TypeString, value)
+		_node.SystemPrompt = value
 	}
 	if value, ok := _c.mutation.SystemPromptMode(); ok {
 		_spec.SetField(group.FieldSystemPromptMode, field.TypeString, value)
@@ -3156,15 +3169,15 @@ func (u *GroupUpsert) ClearSystemPromptEnabled() *GroupUpsert {
 	return u
 }
 
-// SetSystemPrompts sets the "system_prompts" field.
-func (u *GroupUpsert) SetSystemPrompts(v map[string]string) *GroupUpsert {
-	u.Set(group.FieldSystemPrompts, v)
+// SetSystemPrompt sets the "system_prompt" field.
+func (u *GroupUpsert) SetSystemPrompt(v string) *GroupUpsert {
+	u.Set(group.FieldSystemPrompt, v)
 	return u
 }
 
-// UpdateSystemPrompts sets the "system_prompts" field to the value that was provided on create.
-func (u *GroupUpsert) UpdateSystemPrompts() *GroupUpsert {
-	u.SetExcluded(group.FieldSystemPrompts)
+// UpdateSystemPrompt sets the "system_prompt" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateSystemPrompt() *GroupUpsert {
+	u.SetExcluded(group.FieldSystemPrompt)
 	return u
 }
 
@@ -4575,17 +4588,17 @@ func (u *GroupUpsertOne) ClearSystemPromptEnabled() *GroupUpsertOne {
 	})
 }
 
-// SetSystemPrompts sets the "system_prompts" field.
-func (u *GroupUpsertOne) SetSystemPrompts(v map[string]string) *GroupUpsertOne {
+// SetSystemPrompt sets the "system_prompt" field.
+func (u *GroupUpsertOne) SetSystemPrompt(v string) *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
-		s.SetSystemPrompts(v)
+		s.SetSystemPrompt(v)
 	})
 }
 
-// UpdateSystemPrompts sets the "system_prompts" field to the value that was provided on create.
-func (u *GroupUpsertOne) UpdateSystemPrompts() *GroupUpsertOne {
+// UpdateSystemPrompt sets the "system_prompt" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateSystemPrompt() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
-		s.UpdateSystemPrompts()
+		s.UpdateSystemPrompt()
 	})
 }
 
@@ -6175,17 +6188,17 @@ func (u *GroupUpsertBulk) ClearSystemPromptEnabled() *GroupUpsertBulk {
 	})
 }
 
-// SetSystemPrompts sets the "system_prompts" field.
-func (u *GroupUpsertBulk) SetSystemPrompts(v map[string]string) *GroupUpsertBulk {
+// SetSystemPrompt sets the "system_prompt" field.
+func (u *GroupUpsertBulk) SetSystemPrompt(v string) *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
-		s.SetSystemPrompts(v)
+		s.SetSystemPrompt(v)
 	})
 }
 
-// UpdateSystemPrompts sets the "system_prompts" field to the value that was provided on create.
-func (u *GroupUpsertBulk) UpdateSystemPrompts() *GroupUpsertBulk {
+// UpdateSystemPrompt sets the "system_prompt" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateSystemPrompt() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
-		s.UpdateSystemPrompts()
+		s.UpdateSystemPrompt()
 	})
 }
 

@@ -158,8 +158,8 @@ type Group struct {
 	ReasoningEffortMappings []domain.ReasoningEffortMapping `json:"reasoning_effort_mappings,omitempty"`
 	// 分组级系统提示词注入开关；NULL 继承全局配置
 	SystemPromptEnabled *bool `json:"system_prompt_enabled,omitempty"`
-	// 按协议的系统提示词文本：anthropic_messages/openai/gemini
-	SystemPrompts map[string]string `json:"system_prompts,omitempty"`
+	// 分组级系统提示词文本；注入位置由请求协议决定
+	SystemPrompt string `json:"system_prompt,omitempty"`
 	// 注入位置：prepend（默认）或 if_absent
 	SystemPromptMode string `json:"system_prompt_mode,omitempty"`
 	// 分组级安全审查开关；NULL 按全局分组范围
@@ -276,7 +276,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case group.FieldI18n, group.FieldVideoModelPrices, group.FieldModelPricing, group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldMessagesDispatchModelConfig, group.FieldModelAllowlist, group.FieldCodexModelsManifestConfig, group.FieldReasoningEffortMappings, group.FieldSystemPrompts:
+		case group.FieldI18n, group.FieldVideoModelPrices, group.FieldModelPricing, group.FieldModelRouting, group.FieldSupportedModelScopes, group.FieldMessagesDispatchModelConfig, group.FieldModelAllowlist, group.FieldCodexModelsManifestConfig, group.FieldReasoningEffortMappings:
 			values[i] = new([]byte)
 		case group.FieldPeakRateEnabled, group.FieldIsExclusive, group.FieldIsPrivate, group.FieldAllowImageGeneration, group.FieldAllowBatchImageGeneration, group.FieldImageCountBilling, group.FieldImageRateIndependent, group.FieldVideoRateIndependent, group.FieldLongContextPricingEnabled, group.FieldClaudeCodeOnly, group.FieldModelRoutingEnabled, group.FieldMcpXMLInject, group.FieldAllowMessagesDispatch, group.FieldAllowLive, group.FieldForceOpenaiFast, group.FieldForceOpenaiUltrafast, group.FieldFreeOpenaiFast, group.FieldRequireOauthOnly, group.FieldRequirePrivacySet, group.FieldSystemPromptEnabled, group.FieldSecurityAuditEnabled, group.FieldProfitControlEnabled:
 			values[i] = new(sql.NullBool)
@@ -284,7 +284,7 @@ func (*Group) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case group.FieldID, group.FieldOwnerUserID, group.FieldDefaultValidityDays, group.FieldFallbackGroupID, group.FieldFallbackGroupIDOnInvalidRequest, group.FieldSortOrder, group.FieldRpmLimit:
 			values[i] = new(sql.NullInt64)
-		case group.FieldName, group.FieldDescription, group.FieldPeakStart, group.FieldPeakEnd, group.FieldStatus, group.FieldDuplicateOperationID, group.FieldPlatform, group.FieldSubscriptionType, group.FieldDefaultMappedModel, group.FieldMaxReasoningEffort, group.FieldMaxReasoningEffortOverLimit, group.FieldSystemPromptMode:
+		case group.FieldName, group.FieldDescription, group.FieldPeakStart, group.FieldPeakEnd, group.FieldStatus, group.FieldDuplicateOperationID, group.FieldPlatform, group.FieldSubscriptionType, group.FieldDefaultMappedModel, group.FieldMaxReasoningEffort, group.FieldMaxReasoningEffortOverLimit, group.FieldSystemPrompt, group.FieldSystemPromptMode:
 			values[i] = new(sql.NullString)
 		case group.FieldCreatedAt, group.FieldUpdatedAt, group.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
@@ -762,13 +762,11 @@ func (_m *Group) assignValues(columns []string, values []any) error {
 				_m.SystemPromptEnabled = new(bool)
 				*_m.SystemPromptEnabled = value.Bool
 			}
-		case group.FieldSystemPrompts:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field system_prompts", values[i])
-			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &_m.SystemPrompts); err != nil {
-					return fmt.Errorf("unmarshal field system_prompts: %w", err)
-				}
+		case group.FieldSystemPrompt:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field system_prompt", values[i])
+			} else if value.Valid {
+				_m.SystemPrompt = value.String
 			}
 		case group.FieldSystemPromptMode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -1126,8 +1124,8 @@ func (_m *Group) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	builder.WriteString("system_prompts=")
-	builder.WriteString(fmt.Sprintf("%v", _m.SystemPrompts))
+	builder.WriteString("system_prompt=")
+	builder.WriteString(_m.SystemPrompt)
 	builder.WriteString(", ")
 	builder.WriteString("system_prompt_mode=")
 	builder.WriteString(_m.SystemPromptMode)

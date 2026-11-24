@@ -1241,10 +1241,12 @@ func init() {
 	groupDescReasoningEffortMappings := groupFields[64].Descriptor()
 	// group.DefaultReasoningEffortMappings holds the default value on creation for the reasoning_effort_mappings field.
 	group.DefaultReasoningEffortMappings = groupDescReasoningEffortMappings.Default.([]domain.ReasoningEffortMapping)
-	// groupDescSystemPrompts is the schema descriptor for system_prompts field.
-	groupDescSystemPrompts := groupFields[66].Descriptor()
-	// group.DefaultSystemPrompts holds the default value on creation for the system_prompts field.
-	group.DefaultSystemPrompts = groupDescSystemPrompts.Default.(map[string]string)
+	// groupDescSystemPrompt is the schema descriptor for system_prompt field.
+	groupDescSystemPrompt := groupFields[66].Descriptor()
+	// group.DefaultSystemPrompt holds the default value on creation for the system_prompt field.
+	group.DefaultSystemPrompt = groupDescSystemPrompt.Default.(string)
+	// group.SystemPromptValidator is a validator for the "system_prompt" field. It is called by the builders before save.
+	group.SystemPromptValidator = groupDescSystemPrompt.Validators[0].(func(string) error)
 	// groupDescSystemPromptMode is the schema descriptor for system_prompt_mode field.
 	groupDescSystemPromptMode := groupFields[67].Descriptor()
 	// group.DefaultSystemPromptMode holds the default value on creation for the system_prompt_mode field.

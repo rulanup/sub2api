@@ -1257,9 +1257,17 @@ func (_u *GroupUpdate) ClearSystemPromptEnabled() *GroupUpdate {
 	return _u
 }
 
-// SetSystemPrompts sets the "system_prompts" field.
-func (_u *GroupUpdate) SetSystemPrompts(v map[string]string) *GroupUpdate {
-	_u.mutation.SetSystemPrompts(v)
+// SetSystemPrompt sets the "system_prompt" field.
+func (_u *GroupUpdate) SetSystemPrompt(v string) *GroupUpdate {
+	_u.mutation.SetSystemPrompt(v)
+	return _u
+}
+
+// SetNillableSystemPrompt sets the "system_prompt" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableSystemPrompt(v *string) *GroupUpdate {
+	if v != nil {
+		_u.SetSystemPrompt(*v)
+	}
 	return _u
 }
 
@@ -1683,6 +1691,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "max_reasoning_effort_over_limit", err: fmt.Errorf(`ent: validator failed for field "Group.max_reasoning_effort_over_limit": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SystemPrompt(); ok {
+		if err := group.SystemPromptValidator(v); err != nil {
+			return &ValidationError{Name: "system_prompt", err: fmt.Errorf(`ent: validator failed for field "Group.system_prompt": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SystemPromptMode(); ok {
 		if err := group.SystemPromptModeValidator(v); err != nil {
 			return &ValidationError{Name: "system_prompt_mode", err: fmt.Errorf(`ent: validator failed for field "Group.system_prompt_mode": %w`, err)}
@@ -2069,8 +2082,8 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.SystemPromptEnabledCleared() {
 		_spec.ClearField(group.FieldSystemPromptEnabled, field.TypeBool)
 	}
-	if value, ok := _u.mutation.SystemPrompts(); ok {
-		_spec.SetField(group.FieldSystemPrompts, field.TypeJSON, value)
+	if value, ok := _u.mutation.SystemPrompt(); ok {
+		_spec.SetField(group.FieldSystemPrompt, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SystemPromptMode(); ok {
 		_spec.SetField(group.FieldSystemPromptMode, field.TypeString, value)
@@ -3630,9 +3643,17 @@ func (_u *GroupUpdateOne) ClearSystemPromptEnabled() *GroupUpdateOne {
 	return _u
 }
 
-// SetSystemPrompts sets the "system_prompts" field.
-func (_u *GroupUpdateOne) SetSystemPrompts(v map[string]string) *GroupUpdateOne {
-	_u.mutation.SetSystemPrompts(v)
+// SetSystemPrompt sets the "system_prompt" field.
+func (_u *GroupUpdateOne) SetSystemPrompt(v string) *GroupUpdateOne {
+	_u.mutation.SetSystemPrompt(v)
+	return _u
+}
+
+// SetNillableSystemPrompt sets the "system_prompt" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableSystemPrompt(v *string) *GroupUpdateOne {
+	if v != nil {
+		_u.SetSystemPrompt(*v)
+	}
 	return _u
 }
 
@@ -4069,6 +4090,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "max_reasoning_effort_over_limit", err: fmt.Errorf(`ent: validator failed for field "Group.max_reasoning_effort_over_limit": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SystemPrompt(); ok {
+		if err := group.SystemPromptValidator(v); err != nil {
+			return &ValidationError{Name: "system_prompt", err: fmt.Errorf(`ent: validator failed for field "Group.system_prompt": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.SystemPromptMode(); ok {
 		if err := group.SystemPromptModeValidator(v); err != nil {
 			return &ValidationError{Name: "system_prompt_mode", err: fmt.Errorf(`ent: validator failed for field "Group.system_prompt_mode": %w`, err)}
@@ -4472,8 +4498,8 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	if _u.mutation.SystemPromptEnabledCleared() {
 		_spec.ClearField(group.FieldSystemPromptEnabled, field.TypeBool)
 	}
-	if value, ok := _u.mutation.SystemPrompts(); ok {
-		_spec.SetField(group.FieldSystemPrompts, field.TypeJSON, value)
+	if value, ok := _u.mutation.SystemPrompt(); ok {
+		_spec.SetField(group.FieldSystemPrompt, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SystemPromptMode(); ok {
 		_spec.SetField(group.FieldSystemPromptMode, field.TypeString, value)

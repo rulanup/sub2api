@@ -154,8 +154,8 @@ const (
 	FieldReasoningEffortMappings = "reasoning_effort_mappings"
 	// FieldSystemPromptEnabled holds the string denoting the system_prompt_enabled field in the database.
 	FieldSystemPromptEnabled = "system_prompt_enabled"
-	// FieldSystemPrompts holds the string denoting the system_prompts field in the database.
-	FieldSystemPrompts = "system_prompts"
+	// FieldSystemPrompt holds the string denoting the system_prompt field in the database.
+	FieldSystemPrompt = "system_prompt"
 	// FieldSystemPromptMode holds the string denoting the system_prompt_mode field in the database.
 	FieldSystemPromptMode = "system_prompt_mode"
 	// FieldSecurityAuditEnabled holds the string denoting the security_audit_enabled field in the database.
@@ -310,7 +310,7 @@ var Columns = []string{
 	FieldMaxReasoningEffortOverLimit,
 	FieldReasoningEffortMappings,
 	FieldSystemPromptEnabled,
-	FieldSystemPrompts,
+	FieldSystemPrompt,
 	FieldSystemPromptMode,
 	FieldSecurityAuditEnabled,
 	FieldProfitControlEnabled,
@@ -463,8 +463,10 @@ var (
 	MaxReasoningEffortOverLimitValidator func(string) error
 	// DefaultReasoningEffortMappings holds the default value on creation for the "reasoning_effort_mappings" field.
 	DefaultReasoningEffortMappings []domain.ReasoningEffortMapping
-	// DefaultSystemPrompts holds the default value on creation for the "system_prompts" field.
-	DefaultSystemPrompts map[string]string
+	// DefaultSystemPrompt holds the default value on creation for the "system_prompt" field.
+	DefaultSystemPrompt string
+	// SystemPromptValidator is a validator for the "system_prompt" field. It is called by the builders before save.
+	SystemPromptValidator func(string) error
 	// DefaultSystemPromptMode holds the default value on creation for the "system_prompt_mode" field.
 	DefaultSystemPromptMode string
 	// SystemPromptModeValidator is a validator for the "system_prompt_mode" field. It is called by the builders before save.
@@ -783,6 +785,11 @@ func ByMaxReasoningEffortOverLimit(opts ...sql.OrderTermOption) OrderOption {
 // BySystemPromptEnabled orders the results by the system_prompt_enabled field.
 func BySystemPromptEnabled(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSystemPromptEnabled, opts...).ToFunc()
+}
+
+// BySystemPrompt orders the results by the system_prompt field.
+func BySystemPrompt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSystemPrompt, opts...).ToFunc()
 }
 
 // BySystemPromptMode orders the results by the system_prompt_mode field.
