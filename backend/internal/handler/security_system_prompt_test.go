@@ -143,7 +143,5 @@ func TestApplySecuritySystemPrompt_TruncatesOversizedPrompt(t *testing.T) {
 	apiKey := &service.APIKey{GroupID: &group.ID, Group: group}
 	body, err := applySecuritySystemPrompt([]byte(`{"system":"client"}`), "anthropic_messages", apiKey, "m", nil)
 	require.NoError(t, err)
-	require.Equal(t, domain.GroupSystemPromptMaxLength+len("
-
-client"), len(gjson.GetBytes(body, "system").String()))
+	require.Equal(t, domain.GroupSystemPromptMaxLength+len("\n\nclient"), len(gjson.GetBytes(body, "system").String()))
 }
