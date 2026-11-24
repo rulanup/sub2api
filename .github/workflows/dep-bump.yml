@@ -1,0 +1,41 @@
+name: Dep Bump (temporary)
+on:
+  push:
+    branches:
+      - chore/bump-gorilla-websocket
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Bump gorilla/websocket and build
+        working-directory: backend
+        run: |
+          go get github.com/gorilla/websocket@v1.5.4-0.20240701034025-d67f41855da4
+          go mod tidy
+          go build ./...
+      - name: govulncheck
+        working-directory: backend
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+      - name: Commit dependency bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend/go.mod backend/go.sum
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "chore(deps): bump gorilla/websocket to GO-2026-6278 fix"
+            git push
+          fi
