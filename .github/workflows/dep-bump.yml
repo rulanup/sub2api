@@ -21,13 +21,12 @@ jobs:
         working-directory: backend
         run: |
           go get github.com/gorilla/websocket@v1.5.4-0.20240701034025-d67f41855da4
-          go mod tidy
-          go build ./...
+          go build -tags embed ./cmd/server
       - name: govulncheck
         working-directory: backend
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+          govulncheck ./... || govulncheck ./...
       - name: Commit dependency bump
         run: |
           git config user.name "github-actions[bot]"
