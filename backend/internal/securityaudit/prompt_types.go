@@ -79,7 +79,13 @@ type Request struct {
 	Endpoint   string
 	Protocol   string
 	Model      string
+
 	Body       []byte
+	Stage      string
+	// ForceAudit 由分组级「强制开启审查」置位：跳过全局分组范围判定，
+	// 仅当分组显式要求开启时使用。
+	ForceAudit bool
+}	Body       []byte
 	Stage      string
 }
 

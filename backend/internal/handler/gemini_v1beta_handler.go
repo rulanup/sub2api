@@ -402,7 +402,7 @@ func (h *GatewayHandler) GeminiV1BetaModels(c *gin.Context) {
 		googleSecurityAuditError(c, decision)
 		return
 	}
-	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolGemini, apiKey.GroupID, h.securityAuditCoordinator)
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolGemini, apiKey, reqModel, h.securityAuditCoordinator)
 	if err != nil {
 		googleError(c, http.StatusBadRequest, "Failed to apply system prompt policy")
 		return

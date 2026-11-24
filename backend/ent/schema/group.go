@@ -306,6 +306,24 @@ func (Group) Fields() []ent.Field {
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
 			Comment("OpenAI reasoning effort 自定义映射；可按模型精确名、前缀或后缀限定，先映射再应用上限"),
 
+		// 分组级系统提示词注入（migration 253）。NULL 表示继承全局 prompt-audit 配置。
+		field.Bool("system_prompt_enabled").
+			Optional().
+			Nillable().
+			Comment("分组级系统提示词注入开关；NULL 继承全局配置"),
+		field.JSON("system_prompts", map[string]string{}).
+			Default(map[string]string{}).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
+			Comment("按协议的系统提示词文本：anthropic_messages/openai/gemini"),
+		field.String("system_prompt_mode").
+			MaxLen(16).
+			Default("").
+			Comment("注入位置：prepend（默认）或 if_absent"),
+		field.Bool("security_audit_enabled").
+			Optional().
+			Nillable().
+			Comment("分组级安全审查开关；NULL 按全局分组范围"),
+
 		// 分组利润控制（migration 192/193）：openai/anthropic/gemini/grok/antigravity
 		// 的 token 分组可启用，composite 分组不能直接启用。
 		field.Bool("profit_control_enabled").

@@ -162,7 +162,7 @@ func (s *PromptService) Enqueue(_ context.Context, req Request) error {
 	if !ok || cfg.EffectiveMode() != ModeAsync {
 		return nil
 	}
-	if !cfg.IncludesGroup(req.GroupID) {
+	if !req.ForceAudit && !cfg.IncludesGroup(req.GroupID) {
 		LogInfo(EventEnqueueSkipped, mergeLogFields(requestLogFields(req), map[string]any{"config_version": cfg.ConfigVersion, "status": "skipped", "error_code": "group_out_of_scope"}))
 		return nil
 	}
@@ -213,7 +213,7 @@ func (s *PromptService) Evaluate(ctx context.Context, req Request) (*PromptDecis
 		}
 		return &PromptDecision{Kind: DecisionAllow, AllowNextStage: true}, nil
 	}
-	if cfg.EffectiveMode() != ModeBlocking || !cfg.IncludesGroup(req.GroupID) {
+	if cfg.EffectiveMode() != ModeBlocking || (!req.ForceAudit && !cfg.IncludesGroup(req.GroupID)) {
 		return &PromptDecision{Kind: DecisionAllow, AllowNextStage: true}, nil
 	}
 	snapshot, err := ExtractBlockingPromptSnapshot(req, cfg.BlockingLatestTurnOnly)

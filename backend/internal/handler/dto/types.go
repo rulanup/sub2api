@@ -206,6 +206,11 @@ type AdminGroup struct {
 	ModelAllowlist              service.GroupModelAllowlist              `json:"model_allowlist"`
 	// 固定账号获取 Codex Model Manifest 配置（仅 openai 平台使用）。
 	CodexModelsManifestConfig domain.GroupCodexModelsManifestConfig `json:"codex_models_manifest_config"`
+	// 分组级系统提示词注入与审查开关（inherit/on/off）。
+	SystemPromptEnabled   string            `json:"system_prompt_enabled"`
+	SystemPrompts         map[string]string `json:"system_prompts,omitempty"`
+	SystemPromptMode      string            `json:"system_prompt_mode,omitempty"`
+	SecurityAuditEnabled  string            `json:"security_audit_enabled"`
 
 	// 支持的模型系列（仅 antigravity 平台使用）
 	SupportedModelScopes    []string       `json:"supported_model_scopes"`

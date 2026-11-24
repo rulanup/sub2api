@@ -960,6 +960,32 @@ export default {
         priorityHint: '数值越小优先级越高，用于账号调度',
         statusLabel: '状态'
       },
+      systemPrompt: {
+        title: '系统提示词与安全审查',
+        description:
+          '配置本分组各协议的系统提示词注入与安全审查开关。未覆盖时沿用全局 prompt-audit 配置。',
+        injectEnabled: '系统提示词注入',
+        injectEnabledHint:
+          '继承全局表示沿用全局 prompt-audit 行为；开启表示强制注入，关闭表示强制不注入。',
+        securityAuditEnabled: '安全审查',
+        securityAuditHint:
+          '继承全局表示沿用全局 prompt-audit 行为；开启表示强制审查，关闭表示强制不审查。与注入开关相互独立。',
+        inherit: '继承全局',
+        on: '开启',
+        off: '关闭',
+        injectMode: '注入位置',
+        injectModeHint:
+          'prepend 表示追加到 system 提示词开头；if_absent 表示仅当请求本身没有 system 提示词时才注入。',
+        prepend: '追加到 system 开头',
+        ifAbsent: '仅在缺少 system 时注入',
+        protocolAnthropicMessages: 'Anthropic Messages',
+        protocolOpenai: 'OpenAI',
+        protocolGemini: 'Gemini',
+        protocolPlaceholder: '留空表示该协议不注入',
+        placeholders: '可用占位符：',
+        tooLong:
+          '超长：{count}/8000 字符，请缩短后保存；超过 8000 字符后端会拒绝。',
+      },
       exclusiveObj: {
         yes: '是',
         no: '否'

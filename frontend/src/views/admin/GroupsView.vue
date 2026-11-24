@@ -768,6 +768,104 @@
           v-model:over-limit="createForm.max_reasoning_effort_over_limit"
           v-model:mappings="createForm.reasoning_effort_mappings"
         />
+        <!-- 分组级系统提示词注入与安全审查 -->
+        <div class="border-t border-gray-200 pt-4 dark:border-dark-400">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t("admin.groups.systemPrompt.title") }}
+          </h4>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t("admin.groups.systemPrompt.description") }}
+          </p>
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="input-label">
+                {{ t("admin.groups.systemPrompt.injectEnabled") }}
+              </label>
+              <Select
+                v-model="createForm.system_prompt_enabled"
+                :options="groupTriStateOptions"
+              />
+              <p class="input-hint">
+                {{ t("admin.groups.systemPrompt.injectEnabledHint") }}
+              </p>
+            </div>
+            <div>
+              <label class="input-label">
+                {{ t("admin.groups.systemPrompt.securityAuditEnabled") }}
+              </label>
+              <Select
+                v-model="createForm.security_audit_enabled"
+                :options="groupTriStateOptions"
+              />
+              <p class="input-hint">
+                {{ t("admin.groups.systemPrompt.securityAuditHint") }}
+              </p>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="input-label">
+              {{ t("admin.groups.systemPrompt.injectMode") }}
+            </label>
+            <Select
+              v-model="createForm.system_prompt_mode"
+              :options="groupSystemPromptModeOptions"
+            />
+            <p class="input-hint">
+              {{ t("admin.groups.systemPrompt.injectModeHint") }}
+            </p>
+          </div>
+          <div class="mt-3 space-y-3">
+            <div
+              v-for="protocol in groupSystemPromptProtocols"
+              :key="protocol.key"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <label
+                  class="input-label"
+                  :for="'create-group-system-prompt-' + protocol.key"
+                >
+                  {{ t(protocol.labelKey) }}
+                </label>
+                <span
+                  class="text-xs"
+                  :class="
+                    groupSystemPromptLength(createForm.system_prompts, protocol.key) >
+                    GROUP_SYSTEM_PROMPT_MAX_LENGTH
+                      ? 'text-red-500'
+                      : 'text-gray-500 dark:text-gray-400'
+                  "
+                >
+                  {{ groupSystemPromptLength(createForm.system_prompts, protocol.key) }}/{{ GROUP_SYSTEM_PROMPT_MAX_LENGTH }}
+                </span>
+              </div>
+              <textarea
+                :id="'create-group-system-prompt-' + protocol.key"
+                v-model="createForm.system_prompts[protocol.key]"
+                rows="3"
+                class="input"
+                :placeholder="t('admin.groups.systemPrompt.protocolPlaceholder')"
+              ></textarea>
+              <p
+                v-if="groupSystemPromptLength(createForm.system_prompts, protocol.key) > GROUP_SYSTEM_PROMPT_MAX_LENGTH"
+                class="mt-1 text-xs text-red-500"
+              >
+                {{
+                  t("admin.groups.systemPrompt.tooLong", {
+                    count: groupSystemPromptLength(createForm.system_prompts, protocol.key),
+                  })
+                }}
+              </p>
+            </div>
+          </div>
+          <p class="mt-2 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+            <span>{{ t("admin.groups.systemPrompt.placeholders") }}</span>
+            <code
+              v-for="placeholder in groupSystemPromptPlaceholders"
+              :key="placeholder"
+              class="rounded bg-gray-100 px-1 py-0.5 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200"
+            >{{ placeholder }}</code>
+          </p>
+        </div>
         <div
           v-if="createForm.subscription_type !== 'subscription'"
           data-tour="group-form-exclusive"
@@ -2481,6 +2579,104 @@
           v-model:over-limit="editForm.max_reasoning_effort_over_limit"
           v-model:mappings="editForm.reasoning_effort_mappings"
         />
+        <!-- 分组级系统提示词注入与安全审查 -->
+        <div class="border-t border-gray-200 pt-4 dark:border-dark-400">
+          <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t("admin.groups.systemPrompt.title") }}
+          </h4>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {{ t("admin.groups.systemPrompt.description") }}
+          </p>
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="input-label">
+                {{ t("admin.groups.systemPrompt.injectEnabled") }}
+              </label>
+              <Select
+                v-model="editForm.system_prompt_enabled"
+                :options="groupTriStateOptions"
+              />
+              <p class="input-hint">
+                {{ t("admin.groups.systemPrompt.injectEnabledHint") }}
+              </p>
+            </div>
+            <div>
+              <label class="input-label">
+                {{ t("admin.groups.systemPrompt.securityAuditEnabled") }}
+              </label>
+              <Select
+                v-model="editForm.security_audit_enabled"
+                :options="groupTriStateOptions"
+              />
+              <p class="input-hint">
+                {{ t("admin.groups.systemPrompt.securityAuditHint") }}
+              </p>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="input-label">
+              {{ t("admin.groups.systemPrompt.injectMode") }}
+            </label>
+            <Select
+              v-model="editForm.system_prompt_mode"
+              :options="groupSystemPromptModeOptions"
+            />
+            <p class="input-hint">
+              {{ t("admin.groups.systemPrompt.injectModeHint") }}
+            </p>
+          </div>
+          <div class="mt-3 space-y-3">
+            <div
+              v-for="protocol in groupSystemPromptProtocols"
+              :key="protocol.key"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <label
+                  class="input-label"
+                  :for="'edit-group-system-prompt-' + protocol.key"
+                >
+                  {{ t(protocol.labelKey) }}
+                </label>
+                <span
+                  class="text-xs"
+                  :class="
+                    groupSystemPromptLength(editForm.system_prompts, protocol.key) >
+                    GROUP_SYSTEM_PROMPT_MAX_LENGTH
+                      ? 'text-red-500'
+                      : 'text-gray-500 dark:text-gray-400'
+                  "
+                >
+                  {{ groupSystemPromptLength(editForm.system_prompts, protocol.key) }}/{{ GROUP_SYSTEM_PROMPT_MAX_LENGTH }}
+                </span>
+              </div>
+              <textarea
+                :id="'edit-group-system-prompt-' + protocol.key"
+                v-model="editForm.system_prompts[protocol.key]"
+                rows="3"
+                class="input"
+                :placeholder="t('admin.groups.systemPrompt.protocolPlaceholder')"
+              ></textarea>
+              <p
+                v-if="groupSystemPromptLength(editForm.system_prompts, protocol.key) > GROUP_SYSTEM_PROMPT_MAX_LENGTH"
+                class="mt-1 text-xs text-red-500"
+              >
+                {{
+                  t("admin.groups.systemPrompt.tooLong", {
+                    count: groupSystemPromptLength(editForm.system_prompts, protocol.key),
+                  })
+                }}
+              </p>
+            </div>
+          </div>
+          <p class="mt-2 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+            <span>{{ t("admin.groups.systemPrompt.placeholders") }}</span>
+            <code
+              v-for="placeholder in groupSystemPromptPlaceholders"
+              :key="placeholder"
+              class="rounded bg-gray-100 px-1 py-0.5 font-mono text-xs text-gray-700 dark:bg-dark-700 dark:text-gray-200"
+            >{{ placeholder }}</code>
+          </p>
+        </div>
         <div v-if="editForm.subscription_type !== 'subscription'">
           <div class="mb-1.5 flex items-center gap-1">
             <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -4993,6 +5189,18 @@ const subscriptionTypeOptions = computed(() => [
   { value: "subscription", label: t("admin.groups.subscription.subscription") },
 ]);
 
+// 三态开关选项（注入开关与审查开关共用）
+const groupTriStateOptions = computed(() => [
+  { value: "inherit", label: t("admin.groups.systemPrompt.inherit") },
+  { value: "on", label: t("admin.groups.systemPrompt.on") },
+  { value: "off", label: t("admin.groups.systemPrompt.off") },
+]);
+
+const groupSystemPromptModeOptions = computed(() => [
+  { value: "prepend", label: t("admin.groups.systemPrompt.prepend") },
+  { value: "if_absent", label: t("admin.groups.systemPrompt.ifAbsent") },
+]);
+
 // 降级分组选项（创建时）- 仅包含 anthropic 平台且未启用 claude_code_only 的分组
 const fallbackGroupOptions = computed(() => {
   const options: { value: number | null; label: string }[] = [
@@ -5242,6 +5450,65 @@ const createCodexManifestDefaults = (): CodexModelsManifestConfig => ({
 });
 const editCodexManifestConfig = ref<CodexModelsManifestConfig>(createCodexManifestDefaults());
 const editCodexManifestAccountNames = ref<Record<number, string>>({});
+
+// 分组级系统提示词注入与安全审查（三态：inherit 沿用全局 / on 强制开启 / off 强制关闭）
+type GroupTriState = "inherit" | "on" | "off";
+type GroupSystemPromptMode = "prepend" | "if_absent";
+type GroupSystemPromptProtocol = "anthropic_messages" | "openai" | "gemini";
+
+// 后端只认这三个协议键：anthropic_messages / openai / gemini
+const groupSystemPromptProtocols: {
+  key: GroupSystemPromptProtocol;
+  labelKey: string;
+}[] = [
+  {
+    key: "anthropic_messages",
+    labelKey: "admin.groups.systemPrompt.protocolAnthropicMessages",
+  },
+  { key: "openai", labelKey: "admin.groups.systemPrompt.protocolOpenai" },
+  { key: "gemini", labelKey: "admin.groups.systemPrompt.protocolGemini" },
+];
+
+// 单个协议提示词上限（后端校验；前端只提示，不截断）
+const GROUP_SYSTEM_PROMPT_MAX_LENGTH = 8000;
+
+// 占位符提示用数据渲染，避免模板里的双大括号被当成插值
+const groupSystemPromptPlaceholders = [
+  "{{model}}",
+  "{{group_name}}",
+  "{{user_id}}",
+];
+
+const createGroupSystemPromptsDefaults = (): Record<string, string> => ({
+  anthropic_messages: "",
+  openai: "",
+  gemini: "",
+});
+
+// 回显时丢弃未知键，提交时补齐缺失键为空串，保证请求体形状稳定
+const normalizeGroupSystemPrompts = (
+  prompts?: Record<string, string> | null,
+): Record<string, string> => {
+  const normalized = createGroupSystemPromptsDefaults();
+  if (!prompts) return normalized;
+  for (const protocol of groupSystemPromptProtocols) {
+    const value = prompts[protocol.key];
+    normalized[protocol.key] = typeof value === "string" ? value : "";
+  }
+  return normalized;
+};
+
+const normalizeGroupTriState = (value?: string | null): GroupTriState =>
+  value === "on" || value === "off" ? value : "inherit";
+
+const normalizeGroupSystemPromptMode = (
+  value?: string | null,
+): GroupSystemPromptMode => (value === "if_absent" ? "if_absent" : "prepend");
+
+const groupSystemPromptLength = (
+  prompts: Record<string, string>,
+  key: string,
+): number => (prompts[key] ?? "").length;
 const modelAllowlistCandidatesTracker = createModelAllowlistCandidatesTracker();
 const createModelAllowlistSelectedCount = computed(
   () => createModelAllowlistState.items.filter((item) => item.selected).length,
@@ -5354,6 +5621,11 @@ const createForm = reactive({
   max_reasoning_effort: "",
   max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
+  // 分组级系统提示词注入与安全审查（三态字符串，默认继承全局）
+  system_prompt_enabled: "inherit" as GroupTriState,
+  system_prompts: createGroupSystemPromptsDefaults(),
+  system_prompt_mode: "prepend" as GroupSystemPromptMode,
+  security_audit_enabled: "inherit" as GroupTriState,
 });
 
 // 简单账号类型（用于模型路由选择）
@@ -5723,6 +5995,11 @@ const editForm = reactive({
   max_reasoning_effort: "",
   max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
   reasoning_effort_mappings: [] as ReasoningEffortMappingRow[],
+  // 分组级系统提示词注入与安全审查（三态字符串，默认继承全局）
+  system_prompt_enabled: "inherit" as GroupTriState,
+  system_prompts: createGroupSystemPromptsDefaults(),
+  system_prompt_mode: "prepend" as GroupSystemPromptMode,
+  security_audit_enabled: "inherit" as GroupTriState,
 });
 
 type ImagePricingFormState = {
@@ -6206,6 +6483,10 @@ const closeCreateModal = () => {
   createForm.max_reasoning_effort = "";
   createForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
   createForm.reasoning_effort_mappings = [];
+  createForm.system_prompt_enabled = "inherit";
+  createForm.system_prompts = createGroupSystemPromptsDefaults();
+  createForm.system_prompt_mode = "prepend";
+  createForm.security_audit_enabled = "inherit";
   createReasoningEffortPolicyRef.value?.resetValidation();
   resetModelAllowlistState(createModelAllowlistState);
   createModelRoutingRules.value = [];
@@ -6351,6 +6632,17 @@ const handleCreateGroup = async () => {
           : undefined,
       reasoning_effort_mappings: reasoningEffortMappingsToAPI(
         createForm.reasoning_effort_mappings,
+      ),
+      // 系统提示词注入与安全审查：三态字符串原样提交，提示词补齐三个协议键
+      system_prompt_enabled: normalizeGroupTriState(
+        createForm.system_prompt_enabled,
+      ),
+      system_prompts: normalizeGroupSystemPrompts(createForm.system_prompts),
+      system_prompt_mode: normalizeGroupSystemPromptMode(
+        createForm.system_prompt_mode,
+      ),
+      security_audit_enabled: normalizeGroupTriState(
+        createForm.security_audit_enabled,
       ),
       // 利润控制：界面百分比转小数提交；仅五个 token 平台可启用
       profit_control_enabled:
@@ -6544,6 +6836,17 @@ const handleEdit = async (group: AdminGroup) => {
     group.reasoning_effort_mappings,
     group.platform,
   );
+  // 系统提示词注入与安全审查：三态字符串回显，缺失或非法值按继承全局处理
+  editForm.system_prompt_enabled = normalizeGroupTriState(
+    group.system_prompt_enabled,
+  );
+  editForm.system_prompts = normalizeGroupSystemPrompts(group.system_prompts);
+  editForm.system_prompt_mode = normalizeGroupSystemPromptMode(
+    group.system_prompt_mode,
+  );
+  editForm.security_audit_enabled = normalizeGroupTriState(
+    group.security_audit_enabled,
+  );
   resetModelAllowlistState(editModelAllowlistState, group.model_allowlist);
   // 固定账号 manifest 配置：回显配置并异步解析已存账号名称（失败显示 #<id>）
   const savedCodexManifestConfig =
@@ -6588,6 +6891,10 @@ const closeEditModal = () => {
   editForm.max_reasoning_effort = "";
   editForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
   editForm.reasoning_effort_mappings = [];
+  editForm.system_prompt_enabled = "inherit";
+  editForm.system_prompts = createGroupSystemPromptsDefaults();
+  editForm.system_prompt_mode = "prepend";
+  editForm.security_audit_enabled = "inherit";
   editReasoningEffortPolicyRef.value?.resetValidation();
   editModelRoutingRules.value = [];
   editForm.copy_accounts_from_group_ids = [];
@@ -6727,6 +7034,17 @@ const handleUpdateGroup = async () => {
           : undefined,
       reasoning_effort_mappings: reasoningEffortMappingsToAPI(
         editForm.reasoning_effort_mappings,
+      ),
+      // 系统提示词注入与安全审查：三态字符串原样提交，提示词补齐三个协议键
+      system_prompt_enabled: normalizeGroupTriState(
+        editForm.system_prompt_enabled,
+      ),
+      system_prompts: normalizeGroupSystemPrompts(editForm.system_prompts),
+      system_prompt_mode: normalizeGroupSystemPromptMode(
+        editForm.system_prompt_mode,
+      ),
+      security_audit_enabled: normalizeGroupTriState(
+        editForm.security_audit_enabled,
       ),
       // 利润控制：界面百分比转小数提交；仅五个 token 平台可启用
       profit_control_enabled:

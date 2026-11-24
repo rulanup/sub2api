@@ -978,6 +978,32 @@ export default {
         priorityHint: 'Lower value means higher priority, used for account scheduling',
         statusLabel: 'Status'
       },
+      systemPrompt: {
+        title: 'System prompt and security audit',
+        description:
+          'Configure per-protocol system prompt injection and the security audit switch for this group. Both follow the global prompt-audit configuration unless overridden here.',
+        injectEnabled: 'System prompt injection',
+        injectEnabledHint:
+          'Inherit keeps the global prompt-audit behavior. Force on always injects, force off never injects.',
+        securityAuditEnabled: 'Security audit',
+        securityAuditHint:
+          'Inherit keeps the global prompt-audit behavior. Force on always audits, force off never audits. Independent from injection.',
+        inherit: 'Inherit global',
+        on: 'Force on',
+        off: 'Force off',
+        injectMode: 'Injection position',
+        injectModeHint:
+          'Prepend adds the group prompt to the start of the system prompt. Only when absent injects it only if the request has no system prompt.',
+        prepend: 'Prepend to system prompt',
+        ifAbsent: 'Only when system prompt is absent',
+        protocolAnthropicMessages: 'Anthropic Messages',
+        protocolOpenai: 'OpenAI',
+        protocolGemini: 'Gemini',
+        protocolPlaceholder: 'Leave empty to skip injection for this protocol',
+        placeholders: 'Available placeholders:',
+        tooLong:
+          'Too long: {count}/8000 characters. Shorten it before saving; the backend rejects prompts above 8000 characters.',
+      },
       exclusiveObj: {
         yes: 'Yes',
         no: 'No'

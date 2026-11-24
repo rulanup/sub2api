@@ -121,6 +121,11 @@ type APIKeyAuthGroupSnapshot struct {
 	// CodexModelsManifestConfig 与 ModelAllowlist 一样在认证快照分组里透传，
 	// Codex /models handler 直接读认证分组对象。
 	CodexModelsManifestConfig GroupCodexModelsManifestConfig `json:"codex_models_manifest_config,omitempty"`
+	// 分组级系统提示词注入与审查开关随认证快照透传，网关侧直接读 apiKey.Group。
+	SystemPromptEnabled   *bool             `json:"system_prompt_enabled,omitempty"`
+	SystemPrompts         map[string]string `json:"system_prompts,omitempty"`
+	SystemPromptMode      string            `json:"system_prompt_mode,omitempty"`
+	SecurityAuditEnabled  *bool             `json:"security_audit_enabled,omitempty"`
 
 	// RPMLimit 分组级每分钟请求数上限（0 = 不限制）；用于 billing_cache_service.checkRPM 级联判断。
 	RPMLimit int `json:"rpm_limit"`

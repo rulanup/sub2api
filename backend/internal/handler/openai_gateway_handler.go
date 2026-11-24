@@ -563,7 +563,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 		h.openAISecurityAuditError(c, decision)
 		return
 	}
-	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolOpenAIResponses, apiKey.GroupID, h.securityAuditCoordinator)
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolOpenAIResponses, apiKey, reqModel, h.securityAuditCoordinator)
 	if err != nil {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply system prompt policy")
 		return
@@ -1273,7 +1273,7 @@ func (h *OpenAIGatewayHandler) Messages(c *gin.Context) {
 		h.anthropicSecurityAuditError(c, decision)
 		return
 	}
-	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolAnthropicMessages, apiKey.GroupID, h.securityAuditCoordinator)
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolAnthropicMessages, apiKey, reqModel, h.securityAuditCoordinator)
 	if err != nil {
 		h.anthropicErrorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply system prompt policy")
 		return
@@ -2735,7 +2735,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 		closeOpenAIClientWS(wsConn, securityAuditWSCloseStatus(decision), securityAuditWSCloseReason(decision))
 		return
 	}
-	firstMessage, err = applySecuritySystemPrompt(firstMessage, "responses_websocket", apiKey.GroupID, h.securityAuditCoordinator)
+	firstMessage, err = applySecuritySystemPrompt(firstMessage, "responses_websocket", apiKey, reqModel, h.securityAuditCoordinator)
 	if err != nil {
 		closeOpenAIClientWS(wsConn, coderws.StatusPolicyViolation, "failed to apply system prompt policy")
 		return
@@ -3187,7 +3187,7 @@ func (h *OpenAIGatewayHandler) ResponsesWebSocket(c *gin.Context) {
 				if turn == 1 {
 					return payload, nil
 				}
-				updatedPayload, applyErr := applySecuritySystemPrompt(payload, "responses_websocket", apiKey.GroupID, h.securityAuditCoordinator)
+				updatedPayload, applyErr := applySecuritySystemPrompt(payload, "responses_websocket", apiKey, reqModel, h.securityAuditCoordinator)
 				if applyErr != nil {
 					return payload, service.NewOpenAIWSClientCloseError(coderws.StatusPolicyViolation, "failed to apply system prompt policy", applyErr)
 				}

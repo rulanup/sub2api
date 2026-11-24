@@ -127,6 +127,18 @@ func runSecurityAudit(c *gin.Context, reqLog *zap.Logger, coordinator *securitya
 	if c == nil || c.Request == nil {
 		return nil
 	}
+
+	// 分组级审查开关：false 表示连本地策略初筛一起跳过；true 表示即使不在
+	// 全局分组范围内也强制审查。
+	forceAudit := false
+	if apiKey != nil && apiKey.Group != nil {
+		if enabled, decided := apiKey.Group.AuditEnabledOverride(); decided {
+			if !enabled {
+				return nil
+			}
+			forceAudit = true
+		}
+	}
 	storePromptErrorContext(c, body, apiKey, subject, protocol, model)
 	cacheCompletion := cachesSecurityAuditCompletion(stage)
 	if cacheCompletion {
@@ -154,6 +166,7 @@ func runSecurityAudit(c *gin.Context, reqLog *zap.Logger, coordinator *securitya
 		return &decision
 	}
 	request := buildSecurityAuditRequest(c, apiKey, subject, protocol, model, body, stage)
+	request.ForceAudit = forceAudit
 	if isSecurityAuditWebSocketStage(request.Stage) {
 		if turnNo, ok := securityAuditWSTurn(c); ok {
 			bodyHash := sha256.Sum256(body)

@@ -238,7 +238,7 @@ func (h *GatewayHandler) Messages(c *gin.Context) {
 		h.anthropicSecurityAuditError(c, decision)
 		return
 	}
-	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolAnthropicMessages, apiKey.GroupID, h.securityAuditCoordinator)
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolAnthropicMessages, apiKey, reqModel, h.securityAuditCoordinator)
 	if err != nil {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply system prompt policy")
 		return

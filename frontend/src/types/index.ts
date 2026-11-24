@@ -678,6 +678,12 @@ export interface AdminGroup extends Group {
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   model_allowlist?: ModelAllowlist
   codex_models_manifest_config?: CodexModelsManifestConfig
+  // 分组级系统提示词注入与安全审查：inherit 沿用全局 prompt-audit 配置 / on 强制开启 / off 强制关闭
+  system_prompt_enabled?: 'inherit' | 'on' | 'off'
+  // 各协议系统提示词（anthropic_messages / openai / gemini），空串表示该协议不注入
+  system_prompts?: Record<string, string>
+  system_prompt_mode?: 'prepend' | 'if_absent'
+  security_audit_enabled?: 'inherit' | 'on' | 'off'
 
   // 分组排序
   sort_order: number
@@ -871,6 +877,12 @@ export interface CreateGroupRequest {
   supported_model_scopes?: string[]
   model_allowlist?: ModelAllowlist
   codex_models_manifest_config?: CodexModelsManifestConfig
+  // 分组级系统提示词注入与安全审查：inherit 沿用全局 prompt-audit 配置 / on 强制开启 / off 强制关闭
+  system_prompt_enabled?: 'inherit' | 'on' | 'off'
+  // 各协议系统提示词（anthropic_messages / openai / gemini），空串表示该协议不注入
+  system_prompts?: Record<string, string>
+  system_prompt_mode?: 'prepend' | 'if_absent'
+  security_audit_enabled?: 'inherit' | 'on' | 'off'
   allow_messages_dispatch?: boolean
   allow_live?: boolean
   default_mapped_model?: string
@@ -940,6 +952,12 @@ export interface UpdateGroupRequest {
   supported_model_scopes?: string[]
   model_allowlist?: ModelAllowlist
   codex_models_manifest_config?: CodexModelsManifestConfig
+  // 分组级系统提示词注入与安全审查：inherit 沿用全局 prompt-audit 配置 / on 强制开启 / off 强制关闭
+  system_prompt_enabled?: 'inherit' | 'on' | 'off'
+  // 各协议系统提示词（anthropic_messages / openai / gemini），空串表示该协议不注入
+  system_prompts?: Record<string, string>
+  system_prompt_mode?: 'prepend' | 'if_absent'
+  security_audit_enabled?: 'inherit' | 'on' | 'off'
   allow_messages_dispatch?: boolean
   allow_live?: boolean
   default_mapped_model?: string

@@ -173,6 +173,16 @@ func createGroupRecord(ctx context.Context, client *dbent.Client, groupIn *servi
 
 	if groupIn.I18n != nil {
 		builder = builder.SetI18n(groupIn.I18n)
+	if groupIn.SystemPromptEnabled != nil {
+		builder = builder.SetSystemPromptEnabled(*groupIn.SystemPromptEnabled)
+	}
+	if groupIn.SecurityAuditEnabled != nil {
+		builder = builder.SetSecurityAuditEnabled(*groupIn.SecurityAuditEnabled)
+	}
+	if groupIn.SystemPrompts != nil {
+		builder = builder.SetSystemPrompts(map[string]string(groupIn.SystemPrompts))
+	}
+	builder = builder.SetSystemPromptMode(groupIn.SystemPromptMode)
 	}
 
 	created, err := builder.Save(ctx)
@@ -346,6 +356,20 @@ func (r *groupRepository) Update(ctx context.Context, groupIn *service.Group) er
 		SetProfitMinMargin(groupIn.ProfitMinMargin).
 		SetProfitSafetyBuffer(groupIn.ProfitSafetyBuffer)
 
+	if groupIn.SystemPromptEnabled != nil {
+		builder = builder.SetSystemPromptEnabled(*groupIn.SystemPromptEnabled)
+	} else {
+		builder = builder.ClearSystemPromptEnabled()
+	}
+	if groupIn.SecurityAuditEnabled != nil {
+		builder = builder.SetSecurityAuditEnabled(*groupIn.SecurityAuditEnabled)
+	} else {
+		builder = builder.ClearSecurityAuditEnabled()
+	}
+	if groupIn.SystemPrompts != nil {
+		builder = builder.SetSystemPrompts(map[string]string(groupIn.SystemPrompts))
+	}
+	builder = builder.SetSystemPromptMode(groupIn.SystemPromptMode)
 	// 显式处理可空字段：nil 需要 clear，非 nil 需要 set。
 	if groupIn.DailyLimitUSD != nil {
 		builder = builder.SetDailyLimitUsd(*groupIn.DailyLimitUSD)

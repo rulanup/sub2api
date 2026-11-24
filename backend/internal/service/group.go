@@ -131,6 +131,13 @@ type Group struct {
 	// ReasoningEffortMappings rewrites explicit request values before applying the ceiling.
 	ReasoningEffortMappings []ReasoningEffortMapping
 
+	// 分组级系统提示词注入（nil 表示继承全局 prompt-audit 配置）。
+	SystemPromptEnabled *bool
+	SystemPrompts       GroupSystemPrompts
+	SystemPromptMode    string
+	// 分组级安全审查开关（nil 表示按全局分组范围）。
+	SecurityAuditEnabled *bool
+
 	// 分组利润控制（五个 token 计费平台可启用）。
 	// 调度准入条件：账号倍率 U 满足 U <= D*(1-margin-buffer)，
 	// D 为请求用户当刻有效下游倍率（用户覆盖 ?? 分组默认，再乘高峰因子）。

@@ -135,7 +135,7 @@ func (h *GatewayHandler) Responses(c *gin.Context) {
 		h.responsesSecurityAuditError(c, decision)
 		return
 	}
-	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolOpenAIResponses, apiKey.GroupID, h.securityAuditCoordinator)
+	body, err = applySecuritySystemPrompt(body, service.ContentModerationProtocolOpenAIResponses, apiKey, reqModel, h.securityAuditCoordinator)
 	if err != nil {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "Failed to apply system prompt policy")
 		return

@@ -248,6 +248,12 @@ type CreateGroupRequest struct {
 	ModelAllowlist              service.GroupModelAllowlist               `json:"model_allowlist"`
 	// 固定账号 manifest 配置；创建路径禁止开启，仅编辑可配置。
 	CodexModelsManifestConfig service.GroupCodexModelsManifestConfig `json:"codex_models_manifest_config"`
+	// 分组级系统提示词注入（inherit/on/off；空字符串等于 inherit）。
+	SystemPromptEnabled *string            `json:"system_prompt_enabled"`
+	SystemPrompts       *map[string]string `json:"system_prompts"`
+	SystemPromptMode    *string            `json:"system_prompt_mode"`
+	// 分组级安全审查开关（inherit/on/off）。
+	SecurityAuditEnabled *string `json:"security_audit_enabled"`
 	// 分组 RPM 上限（0 = 不限制）
 	RPMLimit int `json:"rpm_limit"`
 	// Anthropic/OpenAI 请求推理强度上限，空字符串表示不限制。
@@ -326,6 +332,12 @@ type UpdateGroupRequest struct {
 	ModelAllowlist              *service.GroupModelAllowlist               `json:"model_allowlist"`
 	// 固定账号 manifest 配置；nil 表示不修改。
 	CodexModelsManifestConfig *service.GroupCodexModelsManifestConfig `json:"codex_models_manifest_config"`
+	// 分组级系统提示词注入（nil 不修改；inherit/on/off）。
+	SystemPromptEnabled *string            `json:"system_prompt_enabled"`
+	SystemPrompts       *map[string]string `json:"system_prompts"`
+	SystemPromptMode    *string            `json:"system_prompt_mode"`
+	// 分组级安全审查开关（nil 不修改；inherit/on/off）。
+	SecurityAuditEnabled *string `json:"security_audit_enabled"`
 	// 分组 RPM 上限（0 = 不限制）；nil 表示未提供不改动
 	RPMLimit *int `json:"rpm_limit"`
 	// Anthropic/OpenAI 请求推理强度上限；空字符串清除，nil 不修改。
@@ -729,6 +741,10 @@ func (h *GroupHandler) Create(c *gin.Context) {
 		MessagesDispatchModelConfig:     req.MessagesDispatchModelConfig,
 		ModelAllowlist:                  req.ModelAllowlist,
 		CodexModelsManifestConfig:       req.CodexModelsManifestConfig,
+		SystemPromptEnabled:             req.SystemPromptEnabled,
+		SystemPrompts:                   req.SystemPrompts,
+		SystemPromptMode:                req.SystemPromptMode,
+		SecurityAuditEnabled:            req.SecurityAuditEnabled,
 		RPMLimit:                        req.RPMLimit,
 		MaxReasoningEffort:              req.MaxReasoningEffort,
 		MaxReasoningEffortOverLimit:     req.MaxReasoningEffortOverLimit,
@@ -878,6 +894,10 @@ func (h *GroupHandler) Update(c *gin.Context) {
 		MessagesDispatchModelConfig:     req.MessagesDispatchModelConfig,
 		ModelAllowlist:                  req.ModelAllowlist,
 		CodexModelsManifestConfig:       req.CodexModelsManifestConfig,
+		SystemPromptEnabled:             req.SystemPromptEnabled,
+		SystemPrompts:                   req.SystemPrompts,
+		SystemPromptMode:                req.SystemPromptMode,
+		SecurityAuditEnabled:            req.SecurityAuditEnabled,
 		RPMLimit:                        req.RPMLimit,
 		MaxReasoningEffort:              req.MaxReasoningEffort,
 		MaxReasoningEffortOverLimit:     req.MaxReasoningEffortOverLimit,
