@@ -848,7 +848,6 @@
               {{ t("admin.groups.systemPrompt.tooLong", { count: groupSystemPromptLength(createForm.system_prompt) }) }}
             </p>
           </div>
-          </div>
           <p class="mt-2 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
             <span>{{ t("admin.groups.systemPrompt.placeholders") }}</span>
             <code
@@ -2650,7 +2649,6 @@
             >
               {{ t("admin.groups.systemPrompt.tooLong", { count: groupSystemPromptLength(editForm.system_prompt) }) }}
             </p>
-          </div>
           </div>
           <p class="mt-2 flex flex-wrap items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
             <span>{{ t("admin.groups.systemPrompt.placeholders") }}</span>
