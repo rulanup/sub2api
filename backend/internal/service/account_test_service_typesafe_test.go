@@ -68,7 +68,7 @@ func TestTypeSafeAccountTestAppliesAccountModelMapping(t *testing.T) {
 	require.Len(t, *requests, 1)
 	body, err := io.ReadAll((*requests)[0].Body)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"model":"decision-model-preview","state":"custom state","questions":{"connection_test":{"type":"noul","instructions":"Is this text a connection test?"}}}`, string(body))
+	require.JSONEq(t, `{"model":"decision-model-preview","state":"custom state","questions":{"connection_test":{"type":"noul","instructions":"Is this text a connection test?","criteria":{"true":"The text states it is a connection test","false":"The text is unrelated to a connection test"}}}}`, string(body))
 	require.Contains(t, rec.Body.String(), `"type":"test_start","model":"decision-model-preview"`)
 }
 
@@ -88,6 +88,35 @@ func TestTypeSafeAccountTestMarksRejectedKey(t *testing.T) {
 func TestTypeSafeAccountTestTransientFailureKeepsAccountState(t *testing.T) {
 	svc, repo, _, c, _ := newTypeSafeAccountTestFixture(t, http.StatusServiceUnavailable, `{"detail":"busy"}`)
 	require.Error(t, svc.TestAccountConnection(c, 31, "", "", AccountTestModeDefault))
+	require.Zero(t, repo.errorCalls)
+}
+
+// TestTypeSafeAccountTestSendsNoulCriteria guards the probe payload against
+// providers that require both noul outcomes. Omitting criteria made the probe
+// fail with 400 on TokenPlan / Intern while real traffic worked, so a healthy
+// account was reported as failing its own connection test.
+func TestTypeSafeAccountTestSendsNoulCriteria(t *testing.T) {
+	svc, repo, requests, c, rec := newTypeSafeAccountTestFixture(t, http.StatusOK, `{"answers":{"connection_test":{"type":"noul","noul":0.5}},"usage":{"input_tokens":9}}`)
+
+	require.NoError(t, svc.TestAccountConnection(c, 31, "", "", AccountTestModeDefault))
+	require.Len(t, *requests, 1)
+	body, err := io.ReadAll((*requests)[0].Body)
+	require.NoError(t, err)
+
+	var payload struct {
+		Questions map[string]struct {
+			Type     string            `json:"type"`
+			Criteria map[string]string `json:"criteria"`
+		} `json:"questions"`
+	}
+	require.NoError(t, json.Unmarshal(body, &payload))
+	question, ok := payload.Questions[typeSafeTestQuestionID]
+	require.True(t, ok, "probe question %q missing", typeSafeTestQuestionID)
+	require.Equal(t, "noul", question.Type)
+	require.NotEmpty(t, question.Criteria["true"], "noul criteria.true is required by strict providers")
+	require.NotEmpty(t, question.Criteria["false"], "noul criteria.false is required by strict providers")
+
+	require.Contains(t, rec.Body.String(), `"type":"test_complete"`)
 	require.Zero(t, repo.errorCalls)
 }
 

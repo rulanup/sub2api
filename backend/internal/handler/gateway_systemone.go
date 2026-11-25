@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
@@ -231,7 +232,7 @@ func (h *GatewayHandler) SystemOne(c *gin.Context) {
 				if !service.IsSystemOneRequestErrorStatus(status) {
 					status = http.StatusBadGateway
 				}
-				h.errorResponse(c, status, "upstream_error", "TypeSafe rejected the request")
+				h.errorResponse(c, status, "upstream_error", systemOneRejectionMessage(upstreamErr))
 				return
 			}
 			reqLog.Warn("systemone.forward_failed", zap.Int64("account_id", account.ID), zap.Error(forwardErr))
@@ -247,6 +248,22 @@ func (h *GatewayHandler) SystemOne(c *gin.Context) {
 		h.recordSystemOneUsage(c, apiKey, account, subscription, channelMapping, model, body, result, subject.UserID, pricingAt)
 		return
 	}
+}
+
+// systemOneRejectionMessage prefers the provider's own explanation when the
+// rejection is about the caller's payload (400/413/422). The gateway validator
+// mirrors TypeSafe SaaS, where a noul question's instructions and criteria are
+// optional; stricter providers (TokenPlan / Intern) require both and answer
+// with a 400 naming the offending field. Relaying that text is the only way
+// the caller learns what to fix. Other statuses keep the generic message so
+// account-level failures never expose upstream detail.
+func systemOneRejectionMessage(err *service.SystemOneUpstreamError) string {
+	if service.IsSystemOneRequestErrorStatus(err.StatusCode) {
+		if message := strings.TrimSpace(err.Message); message != "" {
+			return message
+		}
+	}
+	return "TypeSafe rejected the request"
 }
 
 func (h *GatewayHandler) recordSystemOneUsage(c *gin.Context, apiKey *service.APIKey, account *service.Account, subscription *service.UserSubscription, mapping service.ChannelMappingResult, model string, body []byte, result *service.SystemOneForwardResult, userID int64, pricingAt time.Time) {

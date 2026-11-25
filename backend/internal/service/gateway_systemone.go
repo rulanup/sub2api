@@ -23,6 +23,10 @@ type SystemOneForwardResult struct {
 
 type SystemOneUpstreamError struct {
 	StatusCode int
+	// Message carries the provider's own explanation for a request-error
+	// status (400/413/422). It describes the caller's payload, so the gateway
+	// can relay it; Error() deliberately omits it to keep it out of logs.
+	Message string
 }
 
 const TypeSafeCredentialRejectedReason GatewayFailureReason = "typesafe_api_key_rejected"
@@ -150,7 +154,7 @@ func (s *GatewayService) handleSystemOneErrorResponse(ctx context.Context, c *gi
 
 	if IsSystemOneRequestErrorStatus(resp.StatusCode) {
 		appendOpsUpstreamError(c, event)
-		return &SystemOneUpstreamError{StatusCode: resp.StatusCode}
+		return &SystemOneUpstreamError{StatusCode: resp.StatusCode, Message: upstreamMsg}
 	}
 
 	shouldDisable := false

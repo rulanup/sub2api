@@ -24,6 +24,21 @@ func newSystemOneHandlerContext(body string) (*gin.Context, *httptest.ResponseRe
 	return c, recorder
 }
 
+func TestSystemOneRejectionMessage(t *testing.T) {
+	// A request-error status carries the provider's explanation of the
+	// caller's own payload, so it is relayed verbatim.
+	require.Equal(t, "question q1 field criteria must be an object",
+		systemOneRejectionMessage(&service.SystemOneUpstreamError{StatusCode: http.StatusBadRequest, Message: "question q1 field criteria must be an object"}))
+
+	// Without a provider message the generic text is kept.
+	require.Equal(t, "TypeSafe rejected the request",
+		systemOneRejectionMessage(&service.SystemOneUpstreamError{StatusCode: http.StatusUnprocessableEntity}))
+
+	// Account-level failures never expose upstream detail.
+	require.Equal(t, "TypeSafe rejected the request",
+		systemOneRejectionMessage(&service.SystemOneUpstreamError{StatusCode: http.StatusUnauthorized, Message: "invalid key ts-secret"}))
+}
+
 func TestSystemOneRequiresAuthentication(t *testing.T) {
 	c, recorder := newSystemOneHandlerContext(validSystemOneHandlerBody)
 	(&GatewayHandler{}).SystemOne(c)

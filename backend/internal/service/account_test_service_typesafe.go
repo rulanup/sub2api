@@ -17,6 +17,17 @@ const (
 	typeSafeTestMaxPreviewBytes = 2000
 )
 
+// typeSafeTestNoulCriteria describes both outcomes of the probe question.
+// TypeSafe SaaS accepts a noul question without criteria, but stricter
+// System One providers (TokenPlan / Intern) answer 400
+// ("criteria must be an object with true/false keys"). Sending both outcomes
+// keeps the probe acceptable everywhere, so a healthy account is never
+// reported as failing its own connection test.
+var typeSafeTestNoulCriteria = map[string]any{
+	"true":  "The text states it is a connection test",
+	"false": "The text is unrelated to a connection test",
+}
+
 // testTypeSafeAccountConnection probes a TypeSafe account with a minimal native
 // System One request. TypeSafe accounts never speak the Claude protocol, so
 // they must not fall through to testClaudeAccountConnection (which would send
@@ -47,6 +58,7 @@ func (s *AccountTestService) testTypeSafeAccountConnection(c *gin.Context, accou
 			typeSafeTestQuestionID: map[string]any{
 				"type":         "noul",
 				"instructions": "Is this text a connection test?",
+				"criteria":     typeSafeTestNoulCriteria,
 			},
 		},
 	})
