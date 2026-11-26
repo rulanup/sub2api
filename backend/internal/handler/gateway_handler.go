@@ -1215,6 +1215,14 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 
 	// Get available models from account configurations for the selected group platform.
 	availableModels := h.gatewayService.GetAvailableModels(c.Request.Context(), groupID, platform)
+	var imageInfo *modelImageInfo
+	if platform == service.PlatformOpenAI {
+		var tiers, sizes []string
+		availableModels, tiers, sizes = h.gatewayService.GetAvailableModelsDetail(c.Request.Context(), groupID, platform)
+		if len(tiers) > 0 {
+			imageInfo = &modelImageInfo{SizeTiers: tiers, Sizes: sizes}
+		}
+	}
 	if platform == service.PlatformAnthropic {
 		var group *service.Group
 		if apiKey != nil {
@@ -1233,11 +1241,20 @@ func (h *GatewayHandler) Models(c *gin.Context) {
 	}
 	if apiKey != nil && apiKey.Group != nil && apiKey.Group.ModelAllowlistEnabled() {
 		source := modelListingSource(platform, availableModels, defaultModelIDsForPlatform(platform))
-		writeAllowlistedModelsList(c, platform, apiKey.Group.ModelAllowlist.FilterForListing(source))
+		filtered := apiKey.Group.ModelAllowlist.FilterForListing(source)
+		if platform == service.PlatformOpenAI {
+			writeOpenAIModelsListWithInfo(c, filtered, imageInfo)
+			return
+		}
+		writeAllowlistedModelsList(c, platform, filtered)
 		return
 	}
 
 	if len(availableModels) > 0 || (platform == service.PlatformOpenAI && availableModels != nil) {
+		if platform == service.PlatformOpenAI {
+			writeOpenAIModelsListWithInfo(c, availableModels, imageInfo)
+			return
+		}
 		writeModelsList(c, platform, availableModels)
 		return
 	}
@@ -1506,28 +1523,58 @@ func grokModelSupportsConfigurableReasoning(modelID string) bool {
 	}
 }
 
-func writeOpenAIModelsList(c *gin.Context, modelIDs []string) {
+// modelImageInfo 描述分组级的生图参数约束，缺省表示不限。
+type modelImageInfo struct {
+	SizeTiers []string `json:"size_tiers,omitempty"`
+	Sizes     []string `json:"sizes,omitempty"`
+}
+
+// openaiModelListItem 在标准 openai.Model 之上追加能力元数据。
+// 内嵌而非修改 openai.Model：后者同时用于解析上游响应，不能加字段。
+type openaiModelListItem struct {
+	openai.Model
+	Capability string          `json:"capability,omitempty"`
+	Protocols  []string        `json:"protocols,omitempty"`
+	Image      *modelImageInfo `json:"image,omitempty"`
+}
+
+// writeOpenAIModelsListWithInfo 输出 OpenAI 形态模型列表，并为已识别的模型
+// 追加 capability/protocols（图片模型附带分组级 image 约束）。未识别的模型
+// 不输出这些字段，由客户端回退到自身的名称判断。
+func writeOpenAIModelsListWithInfo(c *gin.Context, modelIDs []string, image *modelImageInfo) {
 	defaultsByID := make(map[string]openai.Model, len(openai.DefaultModels))
 	for _, model := range openai.DefaultModels {
 		defaultsByID[model.ID] = model
 	}
 
-	models := make([]openai.Model, 0, len(modelIDs))
+	models := make([]openaiModelListItem, 0, len(modelIDs))
 	for _, modelID := range modelIDs {
-		if model, ok := defaultsByID[modelID]; ok {
-			models = append(models, model)
-			continue
+		base, ok := defaultsByID[modelID]
+		if !ok {
+			base = openai.Model{
+				ID:          modelID,
+				Object:      "model",
+				Created:     1704067200,
+				OwnedBy:     "openai",
+				Type:        "model",
+				DisplayName: modelID,
+			}
 		}
-		models = append(models, openai.Model{
-			ID:          modelID,
-			Object:      "model",
-			Created:     1704067200,
-			OwnedBy:     "openai",
-			Type:        "model",
-			DisplayName: modelID,
-		})
+		item := openaiModelListItem{Model: base}
+		if descriptor, known := service.DescribeModel(modelID); known {
+			item.Capability = descriptor.Capability
+			item.Protocols = descriptor.Protocols
+			if descriptor.Capability == service.ModelCapabilityImage && image != nil {
+				item.Image = image
+			}
+		}
+		models = append(models, item)
 	}
 	writeModelsListResponse(c, models)
+}
+
+func writeOpenAIModelsList(c *gin.Context, modelIDs []string) {
+	writeOpenAIModelsListWithInfo(c, modelIDs, nil)
 }
 
 // modelListingSource 汇总模型列表过滤的候选来源：账号映射键（availableModels）
