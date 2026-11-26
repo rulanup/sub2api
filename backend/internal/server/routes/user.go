@@ -84,6 +84,7 @@ func RegisterUserRoutes(
 		canvas := authenticated.Group("/canvas")
 		{
 			canvas.POST("/key", h.Canvas.Key)
+			canvas.POST("/session", h.Canvas.Session)
 		}
 
 		keys := authenticated.Group("/keys")

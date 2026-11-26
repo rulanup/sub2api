@@ -206,6 +206,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/canvas',
+    name: 'Canvas',
+    component: () => import('@/views/user/CanvasView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: '无限画布'
+    }
+  },
+  {
     path: '/keys',
     name: 'Keys',
     component: () => import('@/views/user/KeysView.vue'),

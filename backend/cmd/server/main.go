@@ -16,6 +16,7 @@ import (
 	"time"
 
 	_ "github.com/Wei-Shaw/sub2api/ent/runtime"
+	"github.com/Wei-Shaw/sub2api/internal/canvasgw"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -177,6 +178,18 @@ func runMainServer() {
 
 	log.Printf("Server started on %s", app.Server.Addr)
 
+	// 画布网关：独立端口整站反代无限画布，按会话 cookie 注入 X-Canvas-User。
+	var canvasServer *http.Server
+	if gw := canvasgw.Default(); gw != nil {
+		canvasServer = &http.Server{Addr: gw.Addr(), Handler: gw, ReadHeaderTimeout: 10 * time.Second}
+		go func() {
+			if err := canvasServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Printf("Canvas gateway stopped: %v", err)
+			}
+		}()
+		log.Printf("Canvas gateway started on %s -> %s", gw.Addr(), gw.Upstream())
+	}
+
 	// 等待中断信号
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -187,6 +200,11 @@ func runMainServer() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	if canvasServer != nil {
+		if err := canvasServer.Shutdown(ctx); err != nil {
+			log.Printf("Canvas gateway forced to shutdown: %v", err)
+		}
+	}
 	if err := app.Server.Shutdown(ctx); err != nil {
 		log.Printf("Server forced to shutdown: %v", err)
 	}

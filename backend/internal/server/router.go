@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"log"
+	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -63,10 +65,15 @@ func SetupRouter(
 	r.Use(middleware2.Logger())
 	r.Use(middleware2.CORS(cfg.CORS))
 	r.Use(middleware2.SecurityHeaders(cfg.Security.CSP, func() []string {
+		origins := make([]string, 0, 8)
 		if p := cachedFrameOrigins.Load(); p != nil {
-			return *p
+			origins = append(origins, *p...)
 		}
-		return nil
+		// 内嵌的无限画布与主站不同源，需要显式加入 frame-src 才能被 iframe 加载。
+		if extra := strings.TrimSpace(os.Getenv("CANVAS_EMBED_ORIGIN")); extra != "" {
+			origins = append(origins, extra)
+		}
+		return origins
 	}))
 	r.Use(middleware2.ServerTiming(cfg.Server.EnableServerTiming))
 

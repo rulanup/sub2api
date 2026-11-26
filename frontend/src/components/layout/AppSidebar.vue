@@ -800,6 +800,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   items.push(
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/workbench', label: t('nav.workbench'), icon: WorkbenchIcon, hideInSimpleMode: true },
+    { path: '/canvas', label: '无限画布', icon: WorkbenchIcon, hideInSimpleMode: true },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/user-accounts', label: t('nav.privateAccounts'), icon: PrivatePoolIcon, hideInSimpleMode: true },
