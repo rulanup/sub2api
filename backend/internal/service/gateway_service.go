@@ -1489,30 +1489,9 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 	}
 	modelsListCacheMissTotal.Add(1)
 
-	var accounts []Account
-	var err error
-
-	if groupID != nil {
-		accounts, err = s.accountRepo.ListSchedulableByGroupID(ctx, *groupID)
-	} else {
-		accounts, err = s.accountRepo.ListSchedulable(ctx)
-	}
-
+	accounts, err := s.loadSchedulableAccounts(ctx, groupID, platform)
 	if err != nil || len(accounts) == 0 {
 		return nil
-	}
-
-	// Filter by platform if specified. Mixed scheduling (a gemini group routing
-	// to antigravity accounts) is honoured here as well, so the advertised list
-	// stays in sync with what the request path can actually serve.
-	if platform != "" {
-		filtered := make([]Account, 0)
-		for _, acc := range accounts {
-			if acc.Platform == platform || mixedListingAccountAllowed(platform, &acc) {
-				filtered = append(filtered, acc)
-			}
-		}
-		accounts = filtered
 	}
 
 	// Collect unique models from all accounts
@@ -1579,6 +1558,34 @@ func (s *GatewayService) GetAvailableModels(ctx context.Context, groupID *int64,
 		modelsListCacheStoreTotal.Add(1)
 	}
 	return cloneStringSlice(models)
+}
+
+// loadSchedulableAccounts 按分组取出可调度账号，并按列表平台过滤。
+// 混合调度（如 gemini 分组路由到 antigravity 账号）同样计入，
+// 使对外模型列表与请求路径实际能服务的范围保持一致。
+func (s *GatewayService) loadSchedulableAccounts(ctx context.Context, groupID *int64, platform string) ([]Account, error) {
+	var accounts []Account
+	var err error
+
+	if groupID != nil {
+		accounts, err = s.accountRepo.ListSchedulableByGroupID(ctx, *groupID)
+	} else {
+		accounts, err = s.accountRepo.ListSchedulable(ctx)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if platform != "" {
+		filtered := make([]Account, 0, len(accounts))
+		for _, acc := range accounts {
+			if acc.Platform == platform || mixedListingAccountAllowed(platform, &acc) {
+				filtered = append(filtered, acc)
+			}
+		}
+		accounts = filtered
+	}
+	return accounts, nil
 }
 
 func (s *GatewayService) resolveCompositeModelOwnership(ctx context.Context, groupID int64, model string) (CompositeModelOwnership, error) {
