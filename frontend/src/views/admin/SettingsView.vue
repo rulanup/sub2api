@@ -6372,6 +6372,8 @@
 
         <!-- Tab: General -->
         <div v-show="activeTab === 'general'" class="space-y-6">
+          <!-- 无限画布 -->
+          <CanvasSettingsCard />
           <!-- Site Settings -->
           <div class="card">
             <div
@@ -9404,6 +9406,7 @@ import {
   type SiteBillingMode,
 } from "@/utils/siteBillingMode";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import CanvasSettingsCard from "@/components/admin/CanvasSettingsCard.vue";
 import PaymentProviderList from "@/components/payment/PaymentProviderList.vue";
 import PaymentProviderDialog from "@/components/payment/PaymentProviderDialog.vue";
 import GroupBadge from "@/components/common/GroupBadge.vue";

@@ -28,6 +28,6 @@ func TestMatchCanvasAPIKeyEmpty(t *testing.T) {
 
 func TestEnsureCanvasKeyRejectsInvalidUser(t *testing.T) {
 	svc := &APIKeyService{}
-	_, err := svc.EnsureCanvasKey(nil, 0)
+	_, err := svc.EnsureCanvasKey(nil, 0, 0)
 	require.ErrorIs(t, err, ErrCanvasKeyUnavailable)
 }

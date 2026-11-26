@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/Wei-Shaw/sub2api/internal/canvasgw"
@@ -13,11 +14,12 @@ import (
 
 // CanvasHandler 为内嵌的无限画布提供凭据。
 type CanvasHandler struct {
-	apiKeyService *service.APIKeyService
+	apiKeyService  *service.APIKeyService
+	settingService *service.SettingService
 }
 
-func NewCanvasHandler(apiKeyService *service.APIKeyService) *CanvasHandler {
-	return &CanvasHandler{apiKeyService: apiKeyService}
+func NewCanvasHandler(apiKeyService *service.APIKeyService, settingService *service.SettingService) *CanvasHandler {
+	return &CanvasHandler{apiKeyService: apiKeyService, settingService: settingService}
 }
 
 // Key 返回当前用户的无限画布专用 API key（不存在则创建）。
@@ -30,8 +32,15 @@ func (h *CanvasHandler) Key(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	key, err := h.apiKeyService.EnsureCanvasKey(c.Request.Context(), subject.UserID)
+	ctx := c.Request.Context()
+	// 管理员在后台指定的画布分组；0 表示未指定，沿用用户可用的第一个分组。
+	groupID := h.settingService.GetCanvasGroupID(ctx)
+	key, err := h.apiKeyService.EnsureCanvasKey(ctx, subject.UserID, groupID)
 	if err != nil {
+		if errors.Is(err, service.ErrGroupNotAllowed) {
+			response.Forbidden(c, "当前账号无权使用画布分组，请联系管理员")
+			return
+		}
 		response.InternalError(c, "Failed to prepare canvas API key")
 		return
 	}
@@ -61,4 +70,30 @@ func (h *CanvasHandler) Session(c *gin.Context) {
 		"url":    gw.LoginURL(c.Request, ticket),
 		"origin": gw.PublicOrigin(c.Request),
 	})
+}
+
+// AdminSettings 返回无限画布的管理员设置：group_id 为画布 key 绑定的分组，0 表示未指定。
+func (h *CanvasHandler) AdminSettings(c *gin.Context) {
+	response.Success(c, gin.H{"group_id": h.settingService.GetCanvasGroupID(c.Request.Context())})
+}
+
+// UpdateAdminSettings 设置画布 key 绑定的分组；group_id 为 0 表示取消指定。
+func (h *CanvasHandler) UpdateAdminSettings(c *gin.Context) {
+	var req struct {
+		GroupID int64 `json:"group_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.GroupID < 0 {
+		response.BadRequest(c, "invalid group_id")
+		return
+	}
+	ctx := c.Request.Context()
+	if err := h.settingService.SetCanvasGroupID(ctx, req.GroupID); err != nil {
+		if errors.Is(err, service.ErrCanvasGroupInvalid) {
+			response.BadRequest(c, "分组不存在或未启用")
+			return
+		}
+		response.InternalError(c, "Failed to save canvas settings")
+		return
+	}
+	response.Success(c, gin.H{"group_id": h.settingService.GetCanvasGroupID(ctx)})
 }

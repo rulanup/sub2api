@@ -36,6 +36,9 @@ func RegisterAdminRoutes(
 		// 部署与运营合规确认
 		registerAdminComplianceRoutes(admin, h)
 
+		// 无限画布
+		registerCanvasAdminRoutes(admin, h)
+
 		// 仪表盘
 		registerDashboardRoutes(admin, h)
 

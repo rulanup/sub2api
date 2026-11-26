@@ -20,7 +20,7 @@ var ErrCanvasKeyUnavailable = errors.New("canvas api key unavailable")
 //
 // 已存在则直接复用，不重复创建。新建时自动绑定该用户可用的第一个分组，
 // 否则 key 无法路由到账号，画布调用会直接失败。
-func (s *APIKeyService) EnsureCanvasKey(ctx context.Context, userID int64) (string, error) {
+func (s *APIKeyService) EnsureCanvasKey(ctx context.Context, userID int64, groupID int64) (string, error) {
 	if s == nil || userID <= 0 {
 		return "", ErrCanvasKeyUnavailable
 	}
@@ -29,11 +29,24 @@ func (s *APIKeyService) EnsureCanvasKey(ctx context.Context, userID int64) (stri
 		return "", err
 	}
 	if existing != nil {
+		if groupID > 0 && !canvasKeyBoundTo(existing, groupID) {
+			// 管理员改了画布分组：已有 key 改绑过去，Update 会校验绑定权限并刷新鉴权缓存。
+			gid := groupID
+			if _, err := s.Update(ctx, existing.ID, userID, UpdateAPIKeyRequest{GroupID: &gid, GroupIDs: []int64{gid}}); err != nil {
+				return "", fmt.Errorf("rebind canvas api key: %w", err)
+			}
+		}
 		return existing.Key, nil
 	}
 
 	req := CreateAPIKeyRequest{Name: CanvasAPIKeyName}
-	req.GroupID = s.firstAvailableGroupID(ctx, userID)
+	if groupID > 0 {
+		// 管理员指定了画布分组：只绑这个分组，不再退回可用分组列表里的第一个。
+		gid := groupID
+		req.GroupID = &gid
+	} else {
+		req.GroupID = s.firstAvailableGroupID(ctx, userID)
+	}
 	created, err := s.Create(ctx, userID, req)
 	if err != nil {
 		return "", fmt.Errorf("create canvas api key: %w", err)
@@ -67,4 +80,10 @@ func matchCanvasAPIKey(keys []APIKey) *APIKey {
 		}
 	}
 	return nil
+}
+
+// canvasKeyBoundTo 判断 key 是否只绑定了指定分组。
+func canvasKeyBoundTo(key *APIKey, groupID int64) bool {
+	ids := normalizeAPIKeyGroupIDs(key.GroupID, key.GroupIDs)
+	return len(ids) == 1 && ids[0] == groupID
 }
