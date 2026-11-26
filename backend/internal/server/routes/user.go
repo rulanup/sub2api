@@ -80,6 +80,12 @@ func RegisterUserRoutes(
 		}
 
 		// API Key管理
+		// 无限画布凭据：返回当前用户的画布专用 API key（不存在则创建）
+		canvas := authenticated.Group("/canvas")
+		{
+			canvas.POST("/key", h.Canvas.Key)
+		}
+
 		keys := authenticated.Group("/keys")
 		{
 			keys.GET("", h.APIKey.List)
