@@ -46,9 +46,9 @@ func TestWriteOpenAIModelsListWithInfoAnnotatesImageModels(t *testing.T) {
 		"sizes":      []any{"1024x1024", "1536x1024"},
 	}, data[0]["image"])
 
-	// 文本模型不得带任何能力字段。
-	require.NotContains(t, data[1], "capability")
-	require.NotContains(t, data[1], "protocols")
+	// 文本模型声明 text 能力与可用协议，但不得带生图参数块。
+	require.Equal(t, "text", data[1]["capability"])
+	require.Equal(t, []any{"responses", "chat"}, data[1]["protocols"])
 	require.NotContains(t, data[1], "image")
 }
 
