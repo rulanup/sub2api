@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { apiClient } from '@/api/client'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
@@ -34,6 +34,10 @@ const frame = ref<HTMLIFrameElement | null>(null)
 const canvasSrc = ref('')
 let canvasOrigin = ''
 let handedOff = false
+let lastHandoffAt = 0
+let sending = false
+/** 页面重新可见时最多每 30 秒重新下发一次身份。 */
+const REFRESH_INTERVAL_MS = 30_000
 const message = ref('')
 
 function errorText(error: unknown, fallback: string) {
@@ -42,6 +46,7 @@ function errorText(error: unknown, fallback: string) {
 }
 
 onMounted(async () => {
+  document.addEventListener('visibilitychange', onVisible)
   try {
     const { data } = await apiClient.post('/canvas/session')
     canvasOrigin = data.origin
@@ -51,24 +56,47 @@ onMounted(async () => {
   }
 })
 
+onBeforeUnmount(() => document.removeEventListener('visibilitychange', onVisible))
+
+/** iframe 加载完成后首次下发身份。 */
+async function handoff() {
+  if (handedOff) return
+  if (await sendIdentity()) handedOff = true
+}
+
+/**
+ * 页面重新可见时（如从后台标签页切回来）再下发一次身份：
+ * 后台改了画布分组后，/canvas/key 会把 key 改绑到新分组，画布收到后重新拉模型列表。
+ */
+function onVisible() {
+  if (document.visibilityState !== 'visible' || !handedOff || sending) return
+  if (Date.now() - lastHandoffAt < REFRESH_INTERVAL_MS) return
+  void sendIdentity()
+}
+
 /**
  * 把当前登录身份下发给画布：后端按 userID 幂等返回该用户的
  * infinite-canvas 专用 key，画布收到后写入自己的本地存储。
  */
-async function handoff() {
-  if (handedOff || !canvasOrigin) return
+async function sendIdentity() {
+  if (!canvasOrigin) return false
   const target = frame.value?.contentWindow
-  if (!target) return
+  if (!target) return false
+  sending = true
   try {
     const { data } = await apiClient.post('/canvas/key')
     target.postMessage(
       { type: 'sub2api.identity', userId: data.user_id, apiKey: data.api_key, apiBase: window.location.origin },
       canvasOrigin,
     )
-    handedOff = true
+    lastHandoffAt = Date.now()
+    return true
   } catch (error) {
     // key 下发失败不阻塞画布，但要让用户知道原因（如无权使用画布分组、余额不足）。
     message.value = errorText(error, '画布 key 下发失败，模型可能无法使用')
+    return false
+  } finally {
+    sending = false
   }
 }
 </script>
