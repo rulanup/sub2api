@@ -18,9 +18,10 @@ var ErrCanvasKeyUnavailable = errors.New("canvas api key unavailable")
 
 // EnsureCanvasKey 幂等确保该用户名下存在无限画布专用 API key，并返回明文。
 //
-// 已存在则直接复用，不重复创建。新建时自动绑定该用户可用的第一个分组，
-// 否则 key 无法路由到账号，画布调用会直接失败。
-func (s *APIKeyService) EnsureCanvasKey(ctx context.Context, userID int64, groupID int64) (string, error) {
+// groupIDs 为管理员指定的画布分组（第一个为主分组）。指定了分组时 key 绑定整组，
+// 网关会合并这些分组的模型列表，并按请求的模型在各分组里选账号（如生图 + 视频）。
+// 未指定时新建的 key 绑定该用户可用的第一个分组，否则 key 无法路由到账号。
+func (s *APIKeyService) EnsureCanvasKey(ctx context.Context, userID int64, groupIDs []int64) (string, error) {
 	if s == nil || userID <= 0 {
 		return "", ErrCanvasKeyUnavailable
 	}
@@ -29,10 +30,10 @@ func (s *APIKeyService) EnsureCanvasKey(ctx context.Context, userID int64, group
 		return "", err
 	}
 	if existing != nil {
-		if groupID > 0 && !canvasKeyBoundTo(existing, groupID) {
+		if len(groupIDs) > 0 && !canvasKeyBoundTo(existing, groupIDs) {
 			// 管理员改了画布分组：已有 key 改绑过去，Update 会校验绑定权限并刷新鉴权缓存。
-			gid := groupID
-			if _, err := s.Update(ctx, existing.ID, userID, UpdateAPIKeyRequest{GroupID: &gid, GroupIDs: []int64{gid}}); err != nil {
+			primary := groupIDs[0]
+			if _, err := s.Update(ctx, existing.ID, userID, UpdateAPIKeyRequest{GroupID: &primary, GroupIDs: append([]int64(nil), groupIDs...)}); err != nil {
 				return "", fmt.Errorf("rebind canvas api key: %w", err)
 			}
 		}
@@ -40,10 +41,11 @@ func (s *APIKeyService) EnsureCanvasKey(ctx context.Context, userID int64, group
 	}
 
 	req := CreateAPIKeyRequest{Name: CanvasAPIKeyName}
-	if groupID > 0 {
-		// 管理员指定了画布分组：只绑这个分组，不再退回可用分组列表里的第一个。
-		gid := groupID
-		req.GroupID = &gid
+	if len(groupIDs) > 0 {
+		// 管理员指定了画布分组：只绑这些分组，不再退回可用分组列表里的第一个。
+		primary := groupIDs[0]
+		req.GroupID = &primary
+		req.GroupIDs = append([]int64(nil), groupIDs...)
 	} else {
 		req.GroupID = s.firstAvailableGroupID(ctx, userID)
 	}
@@ -82,8 +84,17 @@ func matchCanvasAPIKey(keys []APIKey) *APIKey {
 	return nil
 }
 
-// canvasKeyBoundTo 判断 key 是否只绑定了指定分组。
-func canvasKeyBoundTo(key *APIKey, groupID int64) bool {
-	ids := normalizeAPIKeyGroupIDs(key.GroupID, key.GroupIDs)
-	return len(ids) == 1 && ids[0] == groupID
+// canvasKeyBoundTo 判断 key 绑定的分组是否正好是指定的分组列表（顺序一致，第一个为主分组）。
+func canvasKeyBoundTo(key *APIKey, groupIDs []int64) bool {
+	got := normalizeAPIKeyGroupIDs(key.GroupID, key.GroupIDs)
+	want := normalizeAPIKeyGroupIDs(nil, groupIDs)
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }

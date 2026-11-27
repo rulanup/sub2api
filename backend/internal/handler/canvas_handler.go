@@ -33,9 +33,9 @@ func (h *CanvasHandler) Key(c *gin.Context) {
 		return
 	}
 	ctx := c.Request.Context()
-	// 管理员在后台指定的画布分组；0 表示未指定，沿用用户可用的第一个分组。
-	groupID := h.settingService.GetCanvasGroupID(ctx)
-	key, err := h.apiKeyService.EnsureCanvasKey(ctx, subject.UserID, groupID)
+	// 管理员在后台指定的画布分组（可多个，第一个为主分组）；未指定时沿用用户可用的第一个分组。
+	groupIDs := h.settingService.GetCanvasGroupIDs(ctx)
+	key, err := h.apiKeyService.EnsureCanvasKey(ctx, subject.UserID, groupIDs)
 	if err != nil {
 		if errors.Is(err, service.ErrGroupNotAllowed) {
 			response.Forbidden(c, "当前账号无权使用画布分组，请联系管理员")
@@ -72,28 +72,55 @@ func (h *CanvasHandler) Session(c *gin.Context) {
 	})
 }
 
-// AdminSettings 返回无限画布的管理员设置：group_id 为画布 key 绑定的分组，0 表示未指定。
+// AdminSettings 返回无限画布的管理员设置：group_ids 为画布 key 绑定的分组（第一个为主分组），
+// 空表示未指定；group_id 为第一个分组，兼容旧前端。
 func (h *CanvasHandler) AdminSettings(c *gin.Context) {
-	response.Success(c, gin.H{"group_id": h.settingService.GetCanvasGroupID(c.Request.Context())})
+	response.Success(c, canvasSettingsPayload(h.settingService.GetCanvasGroupIDs(c.Request.Context())))
 }
 
-// UpdateAdminSettings 设置画布 key 绑定的分组；group_id 为 0 表示取消指定。
+func canvasSettingsPayload(ids []int64) gin.H {
+	if ids == nil {
+		ids = []int64{}
+	}
+	first := int64(0)
+	if len(ids) > 0 {
+		first = ids[0]
+	}
+	return gin.H{"group_ids": ids, "group_id": first}
+}
+
+// UpdateAdminSettings 设置画布 key 绑定的分组：group_ids 为空表示取消指定；
+// 兼容旧前端只传 group_id（0 表示取消指定）。
 func (h *CanvasHandler) UpdateAdminSettings(c *gin.Context) {
 	var req struct {
-		GroupID int64 `json:"group_id"`
+		GroupIDs []int64 `json:"group_ids"`
+		GroupID  *int64  `json:"group_id"`
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || req.GroupID < 0 {
-		response.BadRequest(c, "invalid group_id")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid group_ids")
 		return
 	}
-	ctx := c.Request.Context()
-	if err := h.settingService.SetCanvasGroupID(ctx, req.GroupID); err != nil {
-		if errors.Is(err, service.ErrCanvasGroupInvalid) {
-			response.BadRequest(c, "分组不存在或未启用")
+	ids := req.GroupIDs
+	if ids == nil && req.GroupID != nil {
+		if *req.GroupID < 0 {
+			response.BadRequest(c, "invalid group_id")
 			return
 		}
-		response.InternalError(c, "Failed to save canvas settings")
+		if *req.GroupID > 0 {
+			ids = []int64{*req.GroupID}
+		}
+	}
+	ctx := c.Request.Context()
+	if err := h.settingService.SetCanvasGroupIDs(ctx, ids); err != nil {
+		switch {
+		case errors.Is(err, service.ErrCanvasGroupInvalid):
+			response.BadRequest(c, "分组不存在或未启用")
+		case errors.Is(err, service.ErrCanvasGroupPlatformMismatch):
+			response.BadRequest(c, "画布分组必须属于同一平台")
+		default:
+			response.InternalError(c, "Failed to save canvas settings")
+		}
 		return
 	}
-	response.Success(c, gin.H{"group_id": h.settingService.GetCanvasGroupID(ctx)})
+	response.Success(c, canvasSettingsPayload(h.settingService.GetCanvasGroupIDs(ctx)))
 }
