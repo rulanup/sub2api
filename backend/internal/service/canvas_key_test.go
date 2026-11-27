@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func TestMatchCanvasAPIKeyEmpty(t *testing.T) {
 
 func TestEnsureCanvasKeyRejectsInvalidUser(t *testing.T) {
 	svc := &APIKeyService{}
-	_, err := svc.EnsureCanvasKey(nil, 0, nil)
+	_, err := svc.EnsureCanvasKey(context.Background(), 0, nil)
 	require.ErrorIs(t, err, ErrCanvasKeyUnavailable)
 }
 
