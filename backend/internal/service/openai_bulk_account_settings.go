@@ -91,33 +91,49 @@ func normalizeBulkOpenAIEndpointCapabilities(raw any) (any, bool, error) {
 		return nil, false, invalidBulkOpenAIEndpointCapabilities()
 	}
 
-	selected := make(map[string]bool, 2)
+	// 前端批量编辑同样提供 seedance / videos：保留这两项，避免批量保存时被拒或被抹掉。
+	order := []OpenAIEndpointCapability{
+		OpenAIEndpointCapabilityChatCompletions,
+		OpenAIEndpointCapabilityEmbeddings,
+		OpenAIEndpointCapabilitySeedance,
+		OpenAIEndpointCapabilityVideos,
+	}
+	selected := make(map[string]bool, len(order))
 	for _, value := range values {
-		switch OpenAIEndpointCapability(value) {
-		case OpenAIEndpointCapabilityChatCompletions, OpenAIEndpointCapabilityEmbeddings:
-			selected[value] = true
-		default:
+		known := false
+		for _, capability := range order {
+			if OpenAIEndpointCapability(value) == capability {
+				known = true
+				break
+			}
+		}
+		if !known {
 			return nil, false, invalidBulkOpenAIEndpointCapabilities()
 		}
+		selected[value] = true
 	}
 	if len(selected) == 0 {
 		return nil, false, invalidBulkOpenAIEndpointCapabilities()
 	}
 
 	includeChat := selected[string(OpenAIEndpointCapabilityChatCompletions)]
-	if includeChat && selected[string(OpenAIEndpointCapabilityEmbeddings)] {
+	if len(selected) == 2 && includeChat && selected[string(OpenAIEndpointCapabilityEmbeddings)] {
+		// 只有文本 + 向量等同于默认：不写能力集。
 		return nil, true, nil
 	}
-	if includeChat {
-		return []string{string(OpenAIEndpointCapabilityChatCompletions)}, true, nil
+	out := make([]string, 0, len(selected))
+	for _, capability := range order {
+		if selected[string(capability)] {
+			out = append(out, string(capability))
+		}
 	}
-	return []string{string(OpenAIEndpointCapabilityEmbeddings)}, false, nil
+	return out, includeChat, nil
 }
 
 func invalidBulkOpenAIEndpointCapabilities() error {
 	return infraerrors.BadRequest(
 		"OPENAI_ENDPOINT_CAPABILITIES_INVALID",
-		"openai_capabilities must contain chat_completions, embeddings, or both",
+		"openai_capabilities must only contain chat_completions, embeddings, seedance or videos",
 	)
 }
 

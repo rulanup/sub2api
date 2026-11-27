@@ -1940,6 +1940,15 @@ func (a *Account) SupportsOpenAIEndpointCapability(capability OpenAIEndpointCapa
 		return configured["seedance"] && a.Platform == PlatformOpenAI && a.Type == AccountTypeAPIKey &&
 			strings.TrimSpace(a.GetCredential("base_url")) != ""
 	}
+	if capability == OpenAIEndpointCapabilityVideos {
+		// OpenAI 兼容 /v1/videos 只能透传给带自定义上游地址的 API key 账号；
+		// 账号显式配置了能力集时还必须包含 videos。
+		if a.Platform != PlatformOpenAI || a.Type != AccountTypeAPIKey || strings.TrimSpace(a.GetCredential("base_url")) == "" {
+			return false
+		}
+		configured, found := a.openAIEndpointCapabilitySet()
+		return !found || configured[string(OpenAIEndpointCapabilityVideos)]
+	}
 	if capability == "" {
 		return true
 	}
