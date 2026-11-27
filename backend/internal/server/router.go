@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/canvasgw"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -64,7 +65,7 @@ func SetupRouter(
 	r.Use(middleware2.SessionBindingContext(cfg))
 	r.Use(middleware2.Logger())
 	r.Use(middleware2.CORS(cfg.CORS))
-	r.Use(middleware2.SecurityHeaders(cfg.Security.CSP, func() []string {
+	r.Use(middleware2.SecurityHeaders(cfg.Security.CSP, func(c *gin.Context) []string {
 		origins := make([]string, 0, 8)
 		if p := cachedFrameOrigins.Load(); p != nil {
 			origins = append(origins, *p...)
@@ -72,6 +73,10 @@ func SetupRouter(
 		// 内嵌的无限画布与主站不同源，需要显式加入 frame-src 才能被 iframe 加载。
 		if extra := strings.TrimSpace(os.Getenv("CANVAS_EMBED_ORIGIN")); extra != "" {
 			origins = append(origins, extra)
+		}
+		// 画布网关的对外地址按当前请求推导（或取 CANVAS_GATEWAY_PUBLIC_URL），换 IP/域名无需再配 CANVAS_EMBED_ORIGIN。
+		if gw := canvasgw.Default(); gw != nil && c != nil && c.Request != nil {
+			origins = append(origins, gw.PublicOrigin(c.Request))
 		}
 		return origins
 	}))

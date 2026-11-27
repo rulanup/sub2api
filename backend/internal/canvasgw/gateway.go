@@ -35,14 +35,15 @@ const (
 
 // Gateway 签发/校验画布票据与会话，并把已认证请求反代到画布。
 type Gateway struct {
-	addr      string
-	publicURL string
-	upstream  *url.URL
-	signKey   []byte
-	ttl       time.Duration
-	proxy     *httputil.ReverseProxy
-	mu        sync.Mutex
-	used      map[string]time.Time
+	addr       string
+	publicURL  string
+	publicHost string
+	upstream   *url.URL
+	signKey    []byte
+	ttl        time.Duration
+	proxy      *httputil.ReverseProxy
+	mu         sync.Mutex
+	used       map[string]time.Time
 }
 
 var (
@@ -105,7 +106,15 @@ func newGateway(addr string) (*Gateway, error) {
 		ttl = d
 	}
 	gw := &Gateway{addr: addr, upstream: upstream, signKey: k, ttl: ttl, used: map[string]time.Time{}}
-	gw.publicURL = strings.TrimRight(strings.TrimSpace(os.Getenv("CANVAS_GATEWAY_PUBLIC_URL")), "/")
+	if raw := strings.TrimSpace(os.Getenv("CANVAS_GATEWAY_PUBLIC_URL")); raw != "" {
+		// 浏览器访问网关的固定地址（换域名只改这一项）；只接受 scheme://host[:port]，不带路径。
+		u, err := url.Parse(strings.TrimRight(raw, "/"))
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.Path != "" || u.RawQuery != "" {
+			return nil, fmt.Errorf("invalid CANVAS_GATEWAY_PUBLIC_URL %q: 需要形如 https://canvas.example.com", raw)
+		}
+		gw.publicURL = u.Scheme + "://" + u.Host
+		gw.publicHost = u.Host
+	}
 	proxy := httputil.NewSingleHostReverseProxy(upstream)
 	base := proxy.Director
 	proxy.Director = func(r *http.Request) {
@@ -133,7 +142,7 @@ func (g *Gateway) IssueTicket(uid int64) string {
 	return g.sign("t", uid, time.Now().Add(ticketTTL))
 }
 
-// PublicOrigin 是浏览器访问网关的源；未配置 CANVAS_GATEWAY_PUBLIC_URL 时按请求主机名 + 网关端口推导。
+// PublicOrigin 是浏览器访问网关的源；未配置 CANVAS_GATEWAY_PUBLIC_URL 时按请求主机名（优先 X-Forwarded-Host）+ 网关端口推导。
 func (g *Gateway) PublicOrigin(r *http.Request) string {
 	if g.publicURL != "" {
 		return g.publicURL
@@ -142,7 +151,7 @@ func (g *Gateway) PublicOrigin(r *http.Request) string {
 	if isHTTPS(r) {
 		scheme = "https"
 	}
-	host := r.Host
+	host := requestHost(r)
 	if h, _, err := net.SplitHostPort(host); err == nil {
 		host = h
 	}
@@ -176,7 +185,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 只接受网关自身同源页面发起的请求，并把 Origin 改写成上游地址，画布的同源校验才能通过。
 	if origin := r.Header.Get("Origin"); origin != "" {
 		u, err := url.Parse(origin)
-		if err != nil || u.Host != r.Host {
+		if err != nil || !g.allowedOrigin(u.Host, r) {
 			http.Error(w, "forbidden origin", http.StatusForbidden)
 			return
 		}
@@ -276,4 +285,23 @@ func (g *Gateway) verify(kind, value string) (uid int64, exp time.Time, nonce st
 
 func isHTTPS(r *http.Request) bool {
 	return r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+}
+
+// requestHost 是浏览器实际访问的主机：经反代时取 X-Forwarded-Host 的第一项，否则取 Host。
+func requestHost(r *http.Request) string {
+	if fh := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Host"), ",")[0]); fh != "" {
+		return fh
+	}
+	return r.Host
+}
+
+// allowedOrigin 判断 Origin 主机是否就是网关自身：匹配 Host、转发 Host 或配置的对外域名之一。
+// 伪造 X-Forwarded-Host 需要自定义请求头，跨站页面做不到不触发预检，预检不带 cookie 会被拒。
+func (g *Gateway) allowedOrigin(originHost string, r *http.Request) bool {
+	for _, h := range []string{r.Host, requestHost(r), g.publicHost} {
+		if h != "" && strings.EqualFold(originHost, h) {
+			return true
+		}
+	}
+	return false
 }

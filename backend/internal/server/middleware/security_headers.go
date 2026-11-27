@@ -108,7 +108,7 @@ func GetNonceFromContext(c *gin.Context) string {
 // SecurityHeaders sets baseline security headers for all responses.
 // getFrameSrcOrigins is an optional function that returns extra origins to inject into frame-src;
 // pass nil to disable dynamic frame-src injection.
-func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) gin.HandlerFunc {
+func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func(c *gin.Context) []string) gin.HandlerFunc {
 	policy := strings.TrimSpace(cfg.Policy)
 	if policy == "" {
 		policy = config.DefaultCSPPolicy
@@ -120,7 +120,7 @@ func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) g
 	return func(c *gin.Context) {
 		finalPolicy := policy
 		if getFrameSrcOrigins != nil {
-			for _, origin := range getFrameSrcOrigins() {
+			for _, origin := range getFrameSrcOrigins(c) {
 				if origin != "" {
 					finalPolicy = addToDirective(finalPolicy, "frame-src", origin)
 				}
