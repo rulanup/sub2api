@@ -1,6 +1,12 @@
 <template>
   <AppLayout>
     <div class="canvas-embed">
+      <p
+        v-if="message"
+        class="m-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200"
+      >
+        {{ message }}
+      </p>
       <iframe
         v-if="canvasSrc"
         ref="frame"
@@ -22,21 +28,26 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 /**
  * 画布经 sub2api 画布网关访问（独立端口/域名，整站反代到画布）：
  * 先用当前登录态换一张一次性票据，iframe 打开网关登录地址，网关验票后种下画布会话 cookie。
- * 网关未启用时（接口报错）退回直连 3000 的单用户模式，上线前应去掉该回退。
+ * 网关未启用或签票失败时直接提示原因，不再回退到直连画布端口。
  */
 const frame = ref<HTMLIFrameElement | null>(null)
 const canvasSrc = ref('')
 let canvasOrigin = ''
 let handedOff = false
+const message = ref('')
+
+function errorText(error: unknown, fallback: string) {
+  const e = error as { response?: { data?: { message?: string } }; message?: string } | null
+  return e?.response?.data?.message || e?.message || fallback
+}
 
 onMounted(async () => {
   try {
     const { data } = await apiClient.post('/canvas/session')
     canvasOrigin = data.origin
     canvasSrc.value = data.url
-  } catch {
-    canvasOrigin = `${window.location.protocol}//${window.location.hostname}:3000`
-    canvasSrc.value = `${canvasOrigin}/`
+  } catch (error) {
+    message.value = errorText(error, '画布暂不可用，请联系管理员确认画布网关已启用')
   }
 })
 
@@ -55,8 +66,9 @@ async function handoff() {
       canvasOrigin,
     )
     handedOff = true
-  } catch {
-    // key 下发失败时画布退回自身渠道配置，这里不阻塞页面。
+  } catch (error) {
+    // key 下发失败不阻塞画布，但要让用户知道原因（如无权使用画布分组、余额不足）。
+    message.value = errorText(error, '画布 key 下发失败，模型可能无法使用')
   }
 }
 </script>
