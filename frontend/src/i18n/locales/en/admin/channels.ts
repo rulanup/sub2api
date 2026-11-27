@@ -208,6 +208,7 @@ export default {
         defaultPerRequestPrice: 'Default per-request price (fallback when no tier matches)',
         defaultImagePrice: 'Default image price (fallback when no tier matches)',
         defaultVideoPrice: 'Default video price per second (fallback when no tier matches)',
+        referenceVideoPricePerSecond: 'Reference video surcharge per second (group pricing, per-request/video modes)',
         platformConfig: 'Platform Configuration',
         webSearchEmulation: 'Web Search Emulation',
         webSearchEmulationHint: '⚠️ When enabled, accounts of the matching platforms in this channel will intercept web_search requests. Use with caution.',

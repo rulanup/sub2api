@@ -211,6 +211,16 @@
               type="number" step="any" min="0" class="input text-sm" :placeholder="t('admin.channels.form.pricePlaceholder')" />
           </div>
 
+          <template v-if="showReferenceVideoPrice">
+            <label class="mt-3 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t('admin.channels.form.referenceVideoPricePerSecond') }}
+              <span class="ml-1 font-normal text-gray-400">$/s</span>
+            </label>
+            <div class="mt-1 w-48">
+              <input :value="entry.reference_video_price_per_second" @input="emitField('reference_video_price_per_second', ($event.target as HTMLInputElement).value)"
+                type="number" step="any" min="0" class="input text-sm" :placeholder="t('admin.channels.form.pricePlaceholder')" />
+            </div>
+          </template>
           <!-- Tiers -->
           <div class="mt-3 flex items-center justify-between">
             <label class="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -247,6 +257,16 @@
               type="number" step="any" min="0" class="input text-sm" :placeholder="t('admin.channels.form.pricePlaceholder')" />
           </div>
 
+          <template v-if="showReferenceVideoPrice && entry.billing_mode === 'video'">
+            <label class="mt-3 block text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t('admin.channels.form.referenceVideoPricePerSecond') }}
+              <span class="ml-1 font-normal text-gray-400">$/s</span>
+            </label>
+            <div class="mt-1 w-48">
+              <input :value="entry.reference_video_price_per_second" @input="emitField('reference_video_price_per_second', ($event.target as HTMLInputElement).value)"
+                type="number" step="any" min="0" class="input text-sm" :placeholder="t('admin.channels.form.pricePlaceholder')" />
+            </div>
+          </template>
           <!-- Image tiers -->
           <div class="mt-3 flex items-center justify-between">
             <label class="text-xs font-medium text-gray-500 dark:text-gray-400">
@@ -331,10 +351,12 @@ const props = withDefaults(defineProps<{
   hideTokenIntervals?: boolean
   enableTimePricing?: boolean
   enableTierMultipliers?: boolean
+  showReferenceVideoPrice?: boolean
 }>(), {
   hideTokenIntervals: false,
   enableTimePricing: false,
   enableTierMultipliers: false,
+  showReferenceVideoPrice: false,
 })
 
 const emit = defineEmits<{

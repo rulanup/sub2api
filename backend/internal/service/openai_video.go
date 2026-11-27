@@ -54,6 +54,7 @@ func openAIVideoUpstreamID(taskKey string) string {
 func ParseOpenAIVideoRequest(contentType string, body []byte) (GrokMediaRequestInfo, error) {
 	info := GrokMediaRequestInfo{N: 1}
 	fields := map[string]string{}
+	textRefs := map[string][]string{}
 	if gjson.ValidBytes(body) {
 		root := gjson.ParseBytes(body)
 		if !root.IsObject() {
@@ -96,6 +97,7 @@ func ParseOpenAIVideoRequest(contentType string, body []byte) (GrokMediaRequestI
 				})
 				continue
 			}
+			textRefs[name] = append(textRefs[name], strings.TrimSpace(string(data)))
 			if _, ok := fields[name]; !ok {
 				fields[name] = strings.TrimSpace(string(data))
 			}
@@ -109,6 +111,21 @@ func ParseOpenAIVideoRequest(contentType string, body []byte) (GrokMediaRequestI
 	info.Size = fields["size"]
 	info.Resolution = firstNonEmptyTrimmed(fields["resolution"], fields["resolution_name"])
 	info.DurationSeconds = parseOpenAIVideoSeconds(firstNonEmptyTrimmed(fields["seconds"], fields["duration"]))
+	// 参考视频：上传文件读 mvhd 时长计费；Uploads 保持原样（转发仍用原始 body）。
+	refs := collectJSONReferenceVideos(body)
+	for _, name := range []string{"input_reference", "video", "video_url", "input_video", "reference_video", "reference_videos"} {
+		for _, value := range textRefs[name] {
+			if value != "" && (name != "input_reference" || looksLikeVideoReference(value, "", "")) {
+				refs = append(refs, ReferenceVideoInput{URL: value})
+			}
+		}
+	}
+	for _, upload := range info.Uploads {
+		if isReferenceVideoFieldName(upload.FieldName) || isReferenceVideoUpload(upload) {
+			refs = append(refs, referenceVideoFromUpload(upload))
+		}
+	}
+	info.ReferenceVideoSeconds = ReferenceVideoSecondsTotal(refs)
 	return info, nil
 }
 
@@ -273,6 +290,16 @@ func (s *OpenAIGatewayService) ForwardOpenAIVideo(ctx context.Context, c *gin.Co
 		result.VideoResolution = info.Resolution
 	}
 
+	if endpoint == OpenAIVideoEndpointContent {
+		// 无 /content 接口的上游（straitapi 等）：先查状态取视频地址下载；取不到再回退透传 /content。
+		if handled, billable := s.forwardOpenAIVideoResultURL(ctx, c, account, base, token, taskKey); handled {
+			result.ResponseID = taskKey
+			if billable {
+				result.VideoCount = 1
+			}
+			return result, nil
+		}
+	}
 	req, err := http.NewRequestWithContext(ctx, method, target, reqBody)
 	if err != nil {
 		return nil, err

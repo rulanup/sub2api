@@ -38,6 +38,7 @@ export interface PricingFormEntry {
   image_output_price: number | string | null
   per_request_price: number | string | null
   intervals: IntervalFormEntry[]
+  reference_video_price_per_second?: number | string | null
   time_pricing: TimePricingFormEntry
 }
 

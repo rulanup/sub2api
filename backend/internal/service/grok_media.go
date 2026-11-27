@@ -75,10 +75,12 @@ type GrokMediaRequestInfo struct {
 	ImageResolution string
 	Resolution      string
 	DurationSeconds int
-	InputImageURLs  []string
-	MaskImageURL    string
-	Uploads         []OpenAIImagesUpload
-	MaskUpload      *OpenAIImagesUpload
+	// ReferenceVideoSeconds 输入/参考视频计费总秒数（服务端解析，见 video_reference_duration.go）。
+	ReferenceVideoSeconds int
+	InputImageURLs        []string
+	MaskImageURL          string
+	Uploads               []OpenAIImagesUpload
+	MaskUpload            *OpenAIImagesUpload
 }
 
 func (r GrokMediaRequestInfo) ModerationBody() []byte {
@@ -187,6 +189,7 @@ func parseGrokMediaJSONRequest(body []byte, info *GrokMediaRequestInfo) {
 	appendJSONImageURLs(gjson.GetBytes(body, "images"))
 	appendJSONImageURLs(gjson.GetBytes(body, "reference_images"))
 	info.MaskImageURL = extractGrokMediaImageURL(gjson.GetBytes(body, "mask"))
+	info.ReferenceVideoSeconds = ReferenceVideoSecondsTotal(collectJSONReferenceVideos(body))
 }
 
 func extractGrokMediaImageURL(value gjson.Result) string {
@@ -260,6 +263,10 @@ func parseGrokMediaMultipartRequest(contentType string, body []byte, info *GrokM
 				info.MaskUpload = &upload
 				continue
 			}
+			if name != "image" && !strings.HasPrefix(name, "image[") && (isReferenceVideoFieldName(name) || isReferenceVideoUpload(upload)) {
+				info.ReferenceVideoSeconds += referenceVideoBillableSeconds(referenceVideoFromUpload(upload))
+				continue
+			}
 			if name == "image" || strings.HasPrefix(name, "image[") {
 				info.Uploads = append(info.Uploads, upload)
 			}
@@ -289,6 +296,10 @@ func parseGrokMediaMultipartRequest(contentType string, body []byte, info *GrokM
 		case "image", "image_url":
 			if value != "" {
 				info.InputImageURLs = append(info.InputImageURLs, value)
+			}
+		case "video", "video_url", "input_video", "reference_video", "reference_videos":
+			if value != "" {
+				info.ReferenceVideoSeconds += referenceVideoBillableSeconds(ReferenceVideoInput{URL: value})
 			}
 		case "mask", "mask_image_url":
 			info.MaskImageURL = value
@@ -386,12 +397,13 @@ func (s *OpenAIGatewayService) SelectMediaVideoRequestAccount(
 // first observes a completed video URL. Status may omit model/duration; we fall
 // back to this snapshot, then defaults.
 type GrokVideoPendingBilling struct {
-	Model                string `json:"model"`
-	BillingModel         string `json:"billing_model,omitempty"`
-	UpstreamModel        string `json:"upstream_model,omitempty"`
-	VideoResolution      string `json:"video_resolution,omitempty"`
-	VideoDurationSeconds int    `json:"video_duration_seconds,omitempty"`
-	OriginalModel        string `json:"original_model,omitempty"`
+	Model                 string `json:"model"`
+	BillingModel          string `json:"billing_model,omitempty"`
+	UpstreamModel         string `json:"upstream_model,omitempty"`
+	VideoResolution       string `json:"video_resolution,omitempty"`
+	VideoDurationSeconds  int    `json:"video_duration_seconds,omitempty"`
+	ReferenceVideoSeconds int    `json:"reference_video_seconds,omitempty"`
+	OriginalModel         string `json:"original_model,omitempty"`
 	// CreatedAt is when the gateway accepted the async create (RFC3339Nano UTC).
 	// duration_ms for deferred billing is measured from this instant until the
 	// first official done+video.url observation (status poll or content download),
@@ -472,7 +484,7 @@ func (s *OpenAIGatewayService) StoreGrokVideoPendingBilling(
 		pending.VideoResolution = NormalizeVideoBillingResolutionOrDefault(pending.VideoResolution)
 	}
 	if pending.VideoDurationSeconds > 0 {
-		pending.VideoDurationSeconds = NormalizeVideoBillingDurationSecondsOrDefault(pending.VideoDurationSeconds)
+		pending.VideoDurationSeconds = VideoBillingDurationSecondsFor(requestID, pending.VideoDurationSeconds)
 	}
 	// Always stamp create-accept time when missing so deferred duration_ms is E2E.
 	if strings.TrimSpace(pending.CreatedAt) == "" {
@@ -637,7 +649,7 @@ func ExtractGrokVideoBillingFromStatusBody(statusBody []byte, pending *GrokVideo
 		resolution = NormalizeVideoBillingResolutionOrDefault(resolution)
 	}
 	if durationSeconds > 0 {
-		durationSeconds = NormalizeVideoBillingDurationSecondsOrDefault(durationSeconds)
+		durationSeconds = VideoBillingDurationSecondsFor(requestID, durationSeconds)
 	}
 	responseID := extractGrokMediaVideoRequestID(statusBody)
 	if responseID == "" {

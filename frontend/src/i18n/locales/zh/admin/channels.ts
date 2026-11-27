@@ -208,6 +208,7 @@ export default {
         defaultPerRequestPrice: '默认单次价格（未命中层级时使用）',
         defaultImagePrice: '默认图片价格（未命中层级时使用）',
         defaultVideoPrice: '默认视频每秒价格（未命中层级时使用）',
+        referenceVideoPricePerSecond: '参考视频每秒加收（仅分组定价的按次/视频模式，按参考视频时长计）',
         platformConfig: '平台配置',
         webSearchEmulation: 'Web Search 模拟',
         webSearchEmulationHint: '⚠️ 开启后该渠道下对应平台的账号将自动拦截 web_search 请求，请谨慎操作',

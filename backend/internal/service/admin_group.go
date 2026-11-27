@@ -1215,6 +1215,14 @@ func normalizeGroupModelPricing(platform string, pricing []ChannelModelPricing) 
 		if len(out[i].Models) == 0 {
 			return nil, infraerrors.New(http.StatusBadRequest, "GROUP_MODEL_PRICING_MODELS_REQUIRED", "group model pricing entry requires at least one model")
 		}
+		if p := out[i].ReferenceVideoPricePerSecond; p != nil {
+			if out[i].BillingMode != BillingModePerRequest && out[i].BillingMode != BillingModeVideo {
+				return nil, infraerrors.BadRequest("GROUP_MODEL_REFERENCE_VIDEO_PRICE_MODE", "reference_video_price_per_second requires per_request or video billing mode")
+			}
+			if !(*p >= 0) || *p > 1e6 {
+				return nil, infraerrors.BadRequest("GROUP_MODEL_REFERENCE_VIDEO_PRICE_INVALID", "reference_video_price_per_second must be a finite number >= 0")
+			}
+		}
 	}
 	if err := validatePricingEntries(out); err != nil {
 		return nil, err

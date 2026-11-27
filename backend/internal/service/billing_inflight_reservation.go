@@ -380,6 +380,10 @@ type InflightEstimateRequest struct {
 	// 视频：分辨率与时长（秒）。
 	VideoResolution      string
 	VideoDurationSeconds int
+	// ReferenceVideoSeconds 参考视频计费秒数（分组定价配置了参考视频单价时叠加）。
+	ReferenceVideoSeconds int
+	// OpenAIVideo /v1/videos 提交：时长按 3600 秒上限估算（Grok 仍封顶 15 秒）。
+	OpenAIVideo bool
 	// 音频：模式（tts/stt/realtime）与计量单位（百万字符/小时/分钟）。
 	AudioMode  string
 	AudioUnits float64
@@ -589,11 +593,19 @@ func (d inflightEstimateDeps) estimateOne(ctx context.Context, apiKey *APIKey, m
 			cost = tokenCost()
 		}
 	case InflightEstimateVideo:
+		videoSeconds := NormalizeVideoBillingDurationSecondsOrDefault(req.VideoDurationSeconds)
+		if req.OpenAIVideo {
+			videoSeconds = NormalizeOpenAIVideoBillingDurationSeconds(req.VideoDurationSeconds)
+		}
 		if perRequestMode {
-			cost = maxPerRequestPrice(resolved) * float64(units) * math.Max(textRate, imageRate)
+			billable := float64(units)
+			if resolved.Mode == BillingModeVideo {
+				billable *= float64(videoSeconds)
+			}
+			cost = (maxPerRequestPrice(resolved)*billable + referenceVideoSurchargeBase(resolved, req.ReferenceVideoSeconds)) * math.Max(textRate, imageRate)
 		}
 		if d.billing != nil {
-			if b := d.billing.CalculateVideoCost(model, req.VideoResolution, units, req.VideoDurationSeconds, videoPriceConfigFromAPIKey(apiKey), math.Max(textRate, imageRate)); b != nil && b.ActualCost > cost {
+			if b := d.billing.CalculateVideoCostExactSeconds(model, req.VideoResolution, units, videoSeconds, videoPriceConfigFromAPIKey(apiKey), math.Max(textRate, imageRate)); b != nil && b.ActualCost > cost {
 				cost = b.ActualCost
 			}
 		}

@@ -143,6 +143,27 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			h.errorResponse(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
 			return
 		}
+		if isGrokVideoCreateEndpoint(endpoint) && endpoint != service.SeedanceEndpointCreate {
+			// 未配价格的视频模型提交前拒绝，避免按内置兜底价扣费；Seedance 按 token 计费不在此列。
+			// 多分组 key 按调度候选分组判断，选中账号后再核一次选中的分组。
+			priced, perSecond := h.gatewayService.VideoSubmitPricingCheck(c.Request.Context(), apiKey, platform, []string{requestModel, routingModel}, requestInfo.Resolution)
+			if !priced {
+				reqLog.Info("grok_media.video_model_unpriced", zap.String("routing_model", routingModel))
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "model "+requestModel+" has no video price configured for this group")
+				return
+			}
+			if endpoint == service.OpenAIVideoEndpointCreate {
+				// /v1/videos：上游允许 1-3600 秒；按秒计费的模型必须显式带时长。
+				if requestInfo.DurationSeconds > service.VideoBillingOpenAIMaxDurationSeconds {
+					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "seconds must be between 1 and "+strconv.Itoa(service.VideoBillingOpenAIMaxDurationSeconds))
+					return
+				}
+				if requestInfo.DurationSeconds <= 0 && perSecond {
+					h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "seconds (or duration) is required for per-second billed video model "+requestModel)
+					return
+				}
+			}
+		}
 		if moderationBody := requestInfo.ModerationBody(); len(moderationBody) > 0 {
 			decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIImages, requestModel, moderationBody)
 			if decision != nil && !decision.AllowNextStage {
@@ -367,6 +388,20 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 		if failoverClientGone(c) {
 			return
 		}
+		if isGrokVideoCreateEndpoint(endpoint) && endpoint != service.SeedanceEndpointCreate && len(apiKey.GroupIDs) > 1 &&
+			!h.gatewayService.VideoModelPriceConfigured(requestCtx, apiKey, requestModel, requestInfo.Resolution) &&
+			!h.gatewayService.VideoModelPriceConfigured(requestCtx, apiKey, routingModel, requestInfo.Resolution) {
+			// 多分组 key：调度已把 apiKey 切到选中分组；该分组未配价格就换账号，避免按兜底价计费。
+			releaseAccount()
+			failedAccountIDs[account.ID] = struct{}{}
+			reqLog.Warn("grok_media.video_selected_group_unpriced", zap.Int64("account_id", account.ID), zap.Any("group_id", apiKey.GroupID))
+			if switchCount >= maxAccountSwitches {
+				h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "model "+requestModel+" has no video price configured for this group")
+				return
+			}
+			switchCount++
+			continue
+		}
 		sessionHash = ensureOpenAIPoolModeSessionHash(sessionHash, account)
 		setOpsSelectedAccount(c, account.ID, account.Platform)
 
@@ -508,12 +543,13 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			// model/duration/resolution so status can still price if upstream omits them.
 			// Retry once: missing pending causes silent underpricing (status omits resolution).
 			pending := service.GrokVideoPendingBilling{
-				Model:                requestModel,
-				BillingModel:         firstNonEmptyString(result.BillingModel, requestModel),
-				UpstreamModel:        result.UpstreamModel,
-				VideoResolution:      result.VideoResolution,
-				VideoDurationSeconds: result.VideoDurationSeconds,
-				OriginalModel:        clientRequestedModel(c, requestModel),
+				Model:                 requestModel,
+				BillingModel:          firstNonEmptyString(result.BillingModel, requestModel),
+				UpstreamModel:         result.UpstreamModel,
+				VideoResolution:       result.VideoResolution,
+				VideoDurationSeconds:  result.VideoDurationSeconds,
+				ReferenceVideoSeconds: requestInfo.ReferenceVideoSeconds,
+				OriginalModel:         clientRequestedModel(c, requestModel),
 				// Wall-clock start for usage duration_ms: create accepted → first done discovery.
 				CreatedAt: videoCreateStartedAt,
 			}
@@ -540,12 +576,7 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 			if billResult := prepareSeedanceCompletionBilling(requestCtx, h, apiKey, subject, requestID, result); billResult != nil {
 				recordGrokMediaUsage(c, h, reqLog, apiKey, subject, subscription, account, billResult, billResult.Model, body, requestID)
 			}
-		} else if endpoint == service.OpenAIVideoEndpointStatus || endpoint == service.OpenAIVideoEndpointContent {
-			if result != nil && result.VideoCount > 0 {
-				// 计费在下一步接入：这里只记录完成事件。
-				reqLog.Info("openai_video.completed_unbilled", zap.String("request_id", requestID), zap.Int64("account_id", account.ID))
-			}
-		} else if endpoint == service.GrokMediaEndpointVideoStatus || endpoint == service.GrokMediaEndpointVideoContent {
+		} else if isVideoCompletionBillingEndpoint(endpoint) {
 			taskID := strings.TrimSpace(requestID)
 			if billResult := prepareGrokVideoCompletionBilling(requestCtx, h, reqLog, apiKey, subject, taskID, result); billResult != nil {
 				recordGrokMediaUsage(c, h, reqLog, apiKey, subject, subscription, account, billResult, billResult.Model, body, taskID)
@@ -700,6 +731,7 @@ func prepareGrokVideoCompletionBilling(
 		if merged.VideoDurationSeconds <= 0 {
 			merged.VideoDurationSeconds = pending.VideoDurationSeconds
 		}
+		merged.ReferenceVideoSeconds = pending.ReferenceVideoSeconds
 		if strings.TrimSpace(merged.ResponseID) == "" {
 			merged.ResponseID = taskRequestID
 		}
@@ -720,7 +752,7 @@ func prepareGrokVideoCompletionBilling(
 	// Official default resolution is 480p when the create request omitted it.
 	merged.VideoResolution = service.NormalizeVideoBillingResolutionOrDefault(merged.VideoResolution)
 	// Official default duration is 8s when neither status nor create provided it.
-	merged.VideoDurationSeconds = service.NormalizeVideoBillingDurationSecondsOrDefault(merged.VideoDurationSeconds)
+	merged.VideoDurationSeconds = service.VideoBillingDurationSecondsFor(merged.ResponseID, merged.VideoDurationSeconds)
 	// E2E latency for async video: create accept → this discovery of done+url.
 	// Bill on discovery (status/content), not after further client polls; duration
 	// must not be only the single discovery hop (~hundreds of ms).
@@ -820,4 +852,15 @@ func recordGrokMediaUsage(
 			reqLog.Debug("grok_media.record_usage_failed", zap.Error(err))
 		}
 	})
+}
+
+// isVideoCompletionBillingEndpoint 状态查询 / 内容下载观察到完成时按提交快照计费。
+// Grok 与 /v1/videos 共用快照与一次性 claim（任务键分别为 request id 与 openai-video:{id}），只计一次。
+func isVideoCompletionBillingEndpoint(endpoint service.GrokMediaEndpoint) bool {
+	switch endpoint {
+	case service.GrokMediaEndpointVideoStatus, service.GrokMediaEndpointVideoContent,
+		service.OpenAIVideoEndpointStatus, service.OpenAIVideoEndpointContent:
+		return true
+	}
+	return false
 }
